@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Traveller Combat VTT - Stage 3</title>
+  <title>Traveller Combat VTT - Stage 4</title>
   <style>
     * {
       margin: 0;
@@ -309,13 +309,71 @@
     .test-mode button:hover {
       background: #ff8c00;
     }
+
+    /* Stage 4: Turn indicator styles */
+    .turn-indicator {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+
+    .turn-indicator.your-turn {
+      background: rgba(0, 255, 0, 0.2);
+      border-color: #00ff00;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+      animation: pulse-green 2s infinite;
+    }
+
+    .turn-indicator.opponent-turn {
+      background: rgba(255, 107, 107, 0.2);
+      border-color: #ff6b6b;
+    }
+
+    .turn-indicator.waiting {
+      background: rgba(255, 165, 0, 0.2);
+      border-color: #ffa500;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 0, 0.3); }
+      50% { box-shadow: 0 0 30px rgba(0, 255, 0, 0.6); }
+    }
+
+    .round-display {
+      font-size: 16px;
+      margin-top: 8px;
+      opacity: 0.9;
+    }
+
+    button.start-game {
+      background: #4CAF50;
+    }
+
+    button.start-game:hover {
+      background: #45a049;
+    }
+
+    button.end-turn {
+      background: #2196F3;
+      font-size: 16px;
+    }
+
+    button.end-turn:hover {
+      background: #1976D2;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>⚔️ Traveller Combat VTT</h1>
-      <div class="stage">STAGE 3: MULTIPLAYER SYNC</div>
+      <div class="stage">STAGE 4: COMBAT ROUNDS & TURNS</div>
     </div>
     
     <div class="card">
@@ -323,7 +381,13 @@
         <div class="status-dot" id="statusDot"></div>
         <div id="connectionInfo">Connecting...</div>
       </div>
-      
+
+      <!-- Stage 4: Turn indicator -->
+      <div class="turn-indicator waiting" id="turnIndicator">
+        <div id="turnStatus">⏳ Waiting for game to start...</div>
+        <div class="round-display" id="roundDisplay">Click "Start Game" when both players are connected</div>
+      </div>
+
       <div class="instructions">
         <strong>📋 Mongoose Traveller 2e Rules:</strong><br>
         Attack: 2d6 + Pilot Skill + Range DM - Dodge DM ≥ 8<br>
@@ -368,9 +432,15 @@
         </div>
       </div>
 
+      <!-- Stage 4: Updated button layout with Start Game and End Turn -->
+      <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <button id="startGameBtn" class="start-game" disabled style="flex: 1;">🎮 Start Game</button>
+        <button id="resetBtn" disabled style="flex: 0; min-width: 120px; background: #ff6b6b;">🔄 Reset Game</button>
+      </div>
+
       <div style="display: flex; gap: 10px;">
         <button id="attackBtn" disabled style="flex: 1;">⚔️ Attack!</button>
-        <button id="resetBtn" disabled style="flex: 0; min-width: 120px; background: #ff6b6b;">🔄 Reset Game</button>
+        <button id="endTurnBtn" class="end-turn" disabled style="flex: 1;">➡️ End Turn</button>
       </div>
     </div>
     
@@ -419,7 +489,12 @@
     let myPlayerId = null;
     let myShip = null;
     let myRole = null;
-    let gameState = { assignments: { scout: null, corsair: null } };
+    let gameState = {
+      assignments: { scout: null, corsair: null },
+      currentRound: 0,
+      currentTurn: null,
+      initiative: { scout: null, corsair: null }
+    };
 
     const statusDot = document.getElementById('statusDot');
     const connectionInfo = document.getElementById('connectionInfo');
@@ -427,6 +502,13 @@
     const resetBtn = document.getElementById('resetBtn');
     const testModeBtn = document.getElementById('testModeBtn');
     const combatLog = document.getElementById('combatLog');
+
+    // Stage 4: Turn system UI elements
+    const startGameBtn = document.getElementById('startGameBtn');
+    const endTurnBtn = document.getElementById('endTurnBtn');
+    const turnIndicator = document.getElementById('turnIndicator');
+    const turnStatus = document.getElementById('turnStatus');
+    const roundDisplay = document.getElementById('roundDisplay');
 
     const attackerSelect = document.getElementById('attackerSelect');
     const targetSelect = document.getElementById('targetSelect');
@@ -438,9 +520,11 @@
     socket.on('connect', () => {
       console.log('[SOCKET] Connected');
       statusDot.className = 'status-dot connected';
-      attackBtn.disabled = false;
       resetBtn.disabled = false;
       testModeBtn.disabled = false;
+      startGameBtn.disabled = false;
+      // Attack and End Turn buttons controlled by turn state
+      updateTurnUI();
     });
 
     // Stage 3: Receive ship assignment
@@ -473,13 +557,19 @@
       connectionInfo.textContent = connectionInfo.textContent.replace(/\d+ connected/, `${data.totalPlayers} connected`);
     });
 
-    // Stage 3: Receive current game state
+    // Stage 4: Receive current game state (UPDATED with turn info)
     socket.on('gameState', (data) => {
       console.log('[STATE] Game state received:', data);
-      gameState = data;
+      gameState.assignments = data.assignments;
+      gameState.currentRound = data.currentRound || 0;
+      gameState.currentTurn = data.currentTurn || null;
+      gameState.initiative = data.initiative || { scout: null, corsair: null };
+
       if (data.shipStates) {
         updateShipDisplay(data.shipStates);
       }
+
+      updateTurnUI();
     });
 
     // Stage 3: Receive ship state updates (hull changes)
@@ -515,10 +605,48 @@
       console.log(`[UI] Updated ship displays - Scout: ${ships.scout.hull}/${ships.scout.maxHull}, Corsair: ${ships.corsair.hull}/${ships.corsair.maxHull}`);
     }
 
-    // Stage 3: Handle game reset event
+    // Stage 4: Handle game reset event (UPDATED with turn state)
     socket.on('gameReset', (data) => {
       console.log('[RESET] Game reset by Player', data.initiatedBy);
+      gameState.currentRound = data.currentRound || 0;
+      gameState.currentTurn = data.currentTurn || null;
       addLog('🔄 Game Reset', 'info', data.message);
+      updateTurnUI();
+    });
+
+    // Stage 4: Handle round start event
+    socket.on('roundStart', (data) => {
+      console.log('[ROUND] Round started:', data);
+      gameState.currentRound = data.round;
+      gameState.currentTurn = data.currentTurn;
+      gameState.initiative = data.initiative;
+
+      const initScout = data.initiative.scout;
+      const initCorsair = data.initiative.corsair;
+
+      addLog(
+        `🎲 Round ${data.round} Begins!`,
+        'info',
+        `Initiative - Scout: ${initScout.total} (${initScout.roll.dice.join('+')}) | Corsair: ${initCorsair.total} (${initCorsair.roll.dice.join('+')}) | ${data.currentTurn.toUpperCase()} goes first!`
+      );
+
+      updateTurnUI();
+    });
+
+    // Stage 4: Handle turn change event
+    socket.on('turnChange', (data) => {
+      console.log('[TURN] Turn changed:', data);
+      gameState.currentRound = data.round;
+      gameState.currentTurn = data.currentTurn;
+
+      addLog(`➡️ Turn: ${data.currentTurn.toUpperCase()}`, 'info', data.message);
+      updateTurnUI();
+    });
+
+    // Stage 4: Handle game errors
+    socket.on('gameError', (data) => {
+      console.error('[ERROR]', data.message);
+      alert(data.message);
     });
 
     socket.on('disconnect', () => {
@@ -556,6 +684,41 @@
       console.error('[COMBAT] Error:', data.message);
       alert(`Combat Error: ${data.message}`);
     });
+
+    // Stage 4: Update turn UI based on game state
+    function updateTurnUI() {
+      const isMyTurn = gameState.currentTurn === myShip;
+      const gameStarted = gameState.currentRound > 0;
+
+      if (!gameStarted) {
+        // Game hasn't started yet
+        turnIndicator.className = 'turn-indicator waiting';
+        turnStatus.textContent = '⏳ Waiting for game to start...';
+        roundDisplay.textContent = 'Click "Start Game" when both players are connected';
+        attackBtn.disabled = true;
+        endTurnBtn.disabled = true;
+        startGameBtn.disabled = myShip === null; // Can't start if spectator
+      } else if (isMyTurn) {
+        // It's your turn
+        turnIndicator.className = 'turn-indicator your-turn';
+        turnStatus.textContent = '✅ YOUR TURN';
+        roundDisplay.textContent = `Round ${gameState.currentRound}`;
+        attackBtn.disabled = myShip === null; // Only disable if spectator
+        endTurnBtn.disabled = false;
+        startGameBtn.disabled = true;
+      } else {
+        // Opponent's turn
+        const opponentShip = myShip === 'scout' ? 'Corsair' : 'Scout';
+        turnIndicator.className = 'turn-indicator opponent-turn';
+        turnStatus.textContent = `⏸️ ${opponentShip.toUpperCase()}'S TURN`;
+        roundDisplay.textContent = `Round ${gameState.currentRound} - Waiting...`;
+        attackBtn.disabled = true;
+        endTurnBtn.disabled = true;
+        startGameBtn.disabled = true;
+      }
+
+      console.log(`[UI] Turn UI updated - Round: ${gameState.currentRound}, Turn: ${gameState.currentTurn}, My Ship: ${myShip}, My Turn: ${isMyTurn}`);
+    }
 
     // Stage 3: Update controls based on ship assignment
     function updateControlsForAssignment() {
@@ -614,10 +777,22 @@
 
     // Stage 3: Reset game button
     resetBtn.addEventListener('click', () => {
-      if (confirm('Reset game? This will restore both ships to full hull.')) {
+      if (confirm('Reset game? This will restore both ships to full hull and reset rounds.')) {
         console.log('[RESET] Requesting game reset');
         socket.emit('resetGame');
       }
+    });
+
+    // Stage 4: Start game button
+    startGameBtn.addEventListener('click', () => {
+      console.log('[START] Requesting game start');
+      socket.emit('startGame');
+    });
+
+    // Stage 4: End turn button
+    endTurnBtn.addEventListener('click', () => {
+      console.log('[TURN] Ending turn');
+      socket.emit('endTurn');
     });
 
     // TEST MODE - Run all functional tests
@@ -936,11 +1111,13 @@
     }
     
     console.log('========================================');
-    console.log('TRAVELLER COMBAT VTT - STAGE 2');
+    console.log('TRAVELLER COMBAT VTT - STAGE 4');
     console.log('========================================');
-    console.log('Mongoose Traveller 2e combat rules loaded');
-    console.log('Select attacker, target, range, and dodge');
-    console.log('Then click "Attack!" to resolve combat');
+    console.log('Turn-based combat system loaded');
+    console.log('1. Wait for both players to connect');
+    console.log('2. Click "Start Game" to begin Round 1');
+    console.log('3. Take turns attacking (initiative determines order)');
+    console.log('4. Click "End Turn" to pass to opponent');
     console.log('Click "Run Tests" button to verify functionality');
     console.log('========================================');
   </script>

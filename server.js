@@ -1,6 +1,6 @@
-// Traveller Combat VTT - Stage 3
-// Purpose: Add multiplayer ship assignment and control restrictions
-// Time: 2 hours
+// Traveller Combat VTT - Stage 4
+// Purpose: Add combat rounds and turn system
+// Time: 2-3 hours
 
 const express = require('express');
 const app = express();
@@ -13,6 +13,7 @@ const io = require('socket.io')(server, {
 });
 
 const { resolveAttack, formatAttackResult, getAttackBreakdown, SHIPS } = require('./lib/combat');
+const { DiceRoller } = require('./lib/dice');
 
 // Serve static files from public directory
 app.use(express.static('public'));
@@ -36,6 +37,17 @@ const shipState = {
     armor: SHIPS.corsair.armor,
     pilotSkill: SHIPS.corsair.pilotSkill
   }
+};
+
+// Stage 4: Track game state (rounds, turns, initiative)
+const gameState = {
+  currentRound: 0,
+  currentTurn: null, // 'scout' or 'corsair'
+  initiative: {
+    scout: null,
+    corsair: null
+  },
+  roundHistory: []
 };
 
 // Helper: Reset ship states to full hull
@@ -64,6 +76,103 @@ function getShipAssignments() {
     if (conn.ship === 'corsair') assignments.corsair = conn.id;
   });
   return assignments;
+}
+
+// Stage 4: Helper - Roll initiative for both ships
+function rollInitiative() {
+  const dice = new DiceRoller();
+
+  // Roll 2d6 + pilot skill for each ship
+  const scoutRoll = dice.roll2d6();
+  const scoutInitiative = scoutRoll.total + shipState.scout.pilotSkill;
+
+  const corsairRoll = dice.roll2d6();
+  const corsairInitiative = corsairRoll.total + shipState.corsair.pilotSkill;
+
+  gameState.initiative.scout = {
+    roll: scoutRoll,
+    total: scoutInitiative
+  };
+
+  gameState.initiative.corsair = {
+    roll: corsairRoll,
+    total: corsairInitiative
+  };
+
+  console.log(`[INITIATIVE] Scout: ${scoutRoll.total} + ${shipState.scout.pilotSkill} = ${scoutInitiative}`);
+  console.log(`[INITIATIVE] Corsair: ${corsairRoll.total} + ${shipState.corsair.pilotSkill} = ${corsairInitiative}`);
+
+  // Determine who goes first (handle ties by re-rolling)
+  if (scoutInitiative > corsairInitiative) {
+    gameState.currentTurn = 'scout';
+    console.log('[INITIATIVE] Scout goes first');
+  } else if (corsairInitiative > scoutInitiative) {
+    gameState.currentTurn = 'corsair';
+    console.log('[INITIATIVE] Corsair goes first');
+  } else {
+    // Tie - Scout wins ties (simple tiebreaker)
+    gameState.currentTurn = 'scout';
+    console.log('[INITIATIVE] Tie! Scout wins tiebreaker');
+  }
+
+  return {
+    scout: gameState.initiative.scout,
+    corsair: gameState.initiative.corsair,
+    firstTurn: gameState.currentTurn
+  };
+}
+
+// Stage 4: Helper - Start a new round
+function startNewRound() {
+  gameState.currentRound++;
+  console.log(`[ROUND] Starting Round ${gameState.currentRound}`);
+
+  // Roll initiative at the start of each round
+  const initiativeResult = rollInitiative();
+
+  // Add to round history
+  gameState.roundHistory.push({
+    round: gameState.currentRound,
+    initiative: initiativeResult,
+    actions: []
+  });
+
+  return {
+    round: gameState.currentRound,
+    initiative: initiativeResult,
+    currentTurn: gameState.currentTurn
+  };
+}
+
+// Stage 4: Helper - End current turn and advance to next player
+function endTurn() {
+  const previousTurn = gameState.currentTurn;
+
+  // Switch to other player
+  if (gameState.currentTurn === 'scout') {
+    gameState.currentTurn = 'corsair';
+  } else if (gameState.currentTurn === 'corsair') {
+    // Corsair's turn ends, round ends, new round starts
+    return startNewRound();
+  }
+
+  console.log(`[TURN] ${previousTurn} turn ended, ${gameState.currentTurn} turn begins`);
+
+  return {
+    round: gameState.currentRound,
+    currentTurn: gameState.currentTurn,
+    newRound: false
+  };
+}
+
+// Stage 4: Helper - Reset game state (rounds and turns)
+function resetGameState() {
+  gameState.currentRound = 0;
+  gameState.currentTurn = null;
+  gameState.initiative.scout = null;
+  gameState.initiative.corsair = null;
+  gameState.roundHistory = [];
+  console.log('[GAME] Game state reset');
 }
 
 // Socket.io connection handling
@@ -103,7 +212,10 @@ io.on('connection', (socket) => {
   socket.emit('gameState', {
     assignments: getShipAssignments(),
     totalPlayers: connections.size,
-    shipStates: shipState
+    shipStates: shipState,
+    currentRound: gameState.currentRound,
+    currentTurn: gameState.currentTurn,
+    initiative: gameState.initiative
   });
 
   // Broadcast updated ship states to all players
@@ -124,7 +236,7 @@ io.on('connection', (socket) => {
     });
   });
   
-  // Handle combat action (Stage 3 - UPDATED with authorization)
+  // Handle combat action (Stage 4 - UPDATED with turn validation)
   socket.on('combat', (data) => {
     const conn = connections.get(socket.id);
 
@@ -139,6 +251,16 @@ io.on('connection', (socket) => {
         message: `You can only attack with your assigned ship (${conn.ship || 'none'})`,
         yourShip: conn.ship,
         attemptedShip: data.attacker
+      });
+      return;
+    }
+
+    // Stage 4: Validate it's the player's turn
+    if (gameState.currentRound > 0 && conn.ship !== gameState.currentTurn) {
+      console.log(`[COMBAT] REJECTED: Not ${conn.ship}'s turn (current: ${gameState.currentTurn})`);
+      socket.emit('combatError', {
+        message: `It's not your turn! Current turn: ${gameState.currentTurn || 'game not started'}`,
+        currentTurn: gameState.currentTurn
       });
       return;
     }
@@ -209,15 +331,18 @@ io.on('connection', (socket) => {
     });
   });
   
-  // Stage 3: Handle game reset request
+  // Stage 4: Handle game reset request (UPDATED to reset game state)
   socket.on('resetGame', () => {
     console.log(`[RESET] Player ${connectionId} requested game reset`);
     resetShipStates();
+    resetGameState(); // Stage 4: Also reset rounds/turns
 
     // Broadcast reset to all players
     io.emit('gameReset', {
       message: 'Game has been reset',
-      initiatedBy: connectionId
+      initiatedBy: connectionId,
+      currentRound: gameState.currentRound,
+      currentTurn: gameState.currentTurn
     });
 
     // Send updated ship states
@@ -232,6 +357,69 @@ io.on('connection', (socket) => {
       clientTimestamp: data.timestamp,
       serverTimestamp: Date.now()
     });
+  });
+
+  // Stage 4: Handle start game request
+  socket.on('startGame', () => {
+    const conn = connections.get(socket.id);
+    console.log(`[START] Player ${connectionId} requested game start`);
+
+    // Check if both players are connected
+    const assignments = getShipAssignments();
+    if (!assignments.scout || !assignments.corsair) {
+      socket.emit('gameError', {
+        message: 'Need both Scout and Corsair players to start game'
+      });
+      return;
+    }
+
+    // Start first round
+    const roundData = startNewRound();
+
+    // Broadcast to all players
+    io.emit('roundStart', {
+      round: roundData.round,
+      initiative: roundData.initiative,
+      currentTurn: roundData.currentTurn,
+      message: `Round ${roundData.round} begins!`
+    });
+  });
+
+  // Stage 4: Handle end turn request
+  socket.on('endTurn', () => {
+    const conn = connections.get(socket.id);
+    console.log(`[TURN] Player ${connectionId} (${conn.ship}) requested end turn`);
+
+    // Validate it's their turn
+    if (conn.ship !== gameState.currentTurn) {
+      socket.emit('gameError', {
+        message: `It's not your turn! Current turn: ${gameState.currentTurn}`
+      });
+      return;
+    }
+
+    // End turn and advance
+    const turnData = endTurn();
+
+    if (turnData.round > gameState.currentRound - 1 || turnData.newRound === false) {
+      // Normal turn change or new round
+      if (turnData.initiative) {
+        // New round started
+        io.emit('roundStart', {
+          round: turnData.round,
+          initiative: turnData.initiative,
+          currentTurn: turnData.currentTurn,
+          message: `Round ${turnData.round} begins!`
+        });
+      } else {
+        // Just a turn change
+        io.emit('turnChange', {
+          round: turnData.round,
+          currentTurn: turnData.currentTurn,
+          message: `${turnData.currentTurn}'s turn`
+        });
+      }
+    }
   });
   
   socket.on('disconnect', () => {
@@ -278,9 +466,11 @@ app.post('/api/combat', (req, res) => {
 app.get('/status', (req, res) => {
   res.json({
     status: 'online',
-    stage: 3,
+    stage: 4,
     players: connections.size,
     assignments: getShipAssignments(),
+    currentRound: gameState.currentRound,
+    currentTurn: gameState.currentTurn,
     uptime: process.uptime()
   });
 });
@@ -289,21 +479,23 @@ app.get('/status', (req, res) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log('========================================');
-  console.log('TRAVELLER COMBAT VTT - STAGE 3');
+  console.log('TRAVELLER COMBAT VTT - STAGE 4');
   console.log('========================================');
   console.log(`Server running on http://localhost:${PORT}`);
   console.log('');
-  console.log('New in Stage 3:');
-  console.log('- Ship assignment (1st player = Scout, 2nd = Corsair)');
-  console.log('- Control restrictions (can only attack with YOUR ship)');
-  console.log('- Real-time player state synchronization');
-  console.log('- Connection management for disconnects');
+  console.log('New in Stage 4:');
+  console.log('- Round counter and tracking');
+  console.log('- Turn-based combat (Scout → Corsair → repeat)');
+  console.log('- Initiative system (2d6 + pilot skill)');
+  console.log('- Turn validation (can only act on your turn)');
+  console.log('- End Turn button to advance turns');
   console.log('');
   console.log('Instructions:');
   console.log('1. Open FIRST tab → You get Scout');
   console.log('2. Open SECOND tab → You get Corsair');
-  console.log('3. Each player can only control their ship');
-  console.log('4. Combat results sync to both players');
+  console.log('3. Click "Start Game" to begin Round 1');
+  console.log('4. Take turns attacking (Scout → Corsair)');
+  console.log('5. Click "End Turn" to pass to opponent');
   console.log('========================================');
 });
 
