@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Traveller Combat VTT - Stage 2</title>
+  <title>Traveller Combat VTT - Stage 3</title>
   <style>
     * {
       margin: 0;
@@ -98,7 +98,25 @@
     label {
       font-size: 14px;
       font-weight: 600;
-      opacity: 0.9;
+    }
+
+    /* Stage 3: Visual distinction for ship ownership */
+    label.your-ship {
+      color: #00ff00;
+      text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    }
+
+    label.your-ship::before {
+      content: "👤 ";
+    }
+
+    label.opponent-ship {
+      color: #ff6b6b;
+      text-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+    }
+
+    label.opponent-ship::before {
+      content: "🎯 ";
     }
     
     select {
@@ -297,7 +315,7 @@
   <div class="container">
     <div class="header">
       <h1>⚔️ Traveller Combat VTT</h1>
-      <div class="stage">STAGE 2: COMBAT MATH</div>
+      <div class="stage">STAGE 3: MULTIPLAYER SYNC</div>
     </div>
     
     <div class="card">
@@ -314,15 +332,15 @@
       
       <div class="combat-controls">
         <div class="control-group">
-          <label>Attacker</label>
+          <label id="attackerLabel">Attacker</label>
           <select id="attackerSelect">
             <option value="scout">Scout (Skill +2, Armor 2, Hull 10)</option>
             <option value="corsair">Corsair (Skill +1, Armor 4, Hull 15)</option>
           </select>
         </div>
-        
+
         <div class="control-group">
-          <label>Target</label>
+          <label id="targetLabel">Target</label>
           <select id="targetSelect">
             <option value="corsair">Corsair (Skill +1, Armor 4, Hull 15)</option>
             <option value="scout">Scout (Skill +2, Armor 2, Hull 10)</option>
@@ -393,40 +411,69 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    
-    let myTabId = null;
-    
+
+    // Stage 3: Track player ID and assigned ship
+    let myPlayerId = null;
+    let myShip = null;
+    let myRole = null;
+    let gameState = { assignments: { scout: null, corsair: null } };
+
     const statusDot = document.getElementById('statusDot');
     const connectionInfo = document.getElementById('connectionInfo');
     const attackBtn = document.getElementById('attackBtn');
     const testModeBtn = document.getElementById('testModeBtn');
     const combatLog = document.getElementById('combatLog');
-    
+
     const attackerSelect = document.getElementById('attackerSelect');
     const targetSelect = document.getElementById('targetSelect');
     const rangeSelect = document.getElementById('rangeSelect');
     const dodgeSelect = document.getElementById('dodgeSelect');
-    
+    const attackerLabel = document.getElementById('attackerLabel');
+    const targetLabel = document.getElementById('targetLabel');
+
     socket.on('connect', () => {
       console.log('[SOCKET] Connected');
       statusDot.className = 'status-dot connected';
       attackBtn.disabled = false;
       testModeBtn.disabled = false;
     });
-    
+
+    // Stage 3: Receive ship assignment
     socket.on('welcome', (data) => {
-      myTabId = data.tabId;
-      connectionInfo.textContent = `Tab ${myTabId} • ${data.totalTabs} connected`;
+      myPlayerId = data.playerId;
+      myShip = data.assignedShip;
+      myRole = data.role;
+
+      console.log(`[ASSIGN] You are Player ${myPlayerId}`);
+      console.log(`[ASSIGN] Your ship: ${myShip || 'none (spectator)'}`);
+
+      const roleText = myShip ? `${myShip.toUpperCase()} Player` : 'Spectator';
+      connectionInfo.textContent = `${roleText} (Player ${myPlayerId}) • ${data.totalPlayers} connected`;
+
+      // Update controls based on assignment (will implement in next step)
+      updateControlsForAssignment();
     });
-    
-    socket.on('tabConnected', (data) => {
-      connectionInfo.textContent = `Tab ${myTabId} • ${data.totalTabs} connected`;
+
+    // Stage 3: Handle new player joining
+    socket.on('playerJoined', (data) => {
+      console.log(`[PLAYER] Player ${data.playerId} joined as ${data.ship || 'spectator'}`);
+      gameState.assignments = data.assignments;
+      connectionInfo.textContent = connectionInfo.textContent.replace(/\d+ connected/, `${data.totalPlayers} connected`);
     });
-    
-    socket.on('tabDisconnected', (data) => {
-      connectionInfo.textContent = `Tab ${myTabId} • ${data.totalTabs} connected`;
+
+    // Stage 3: Handle player leaving
+    socket.on('playerLeft', (data) => {
+      console.log(`[PLAYER] Player ${data.playerId} (${data.ship || 'spectator'}) left`);
+      gameState.assignments = data.assignments;
+      connectionInfo.textContent = connectionInfo.textContent.replace(/\d+ connected/, `${data.totalPlayers} connected`);
     });
-    
+
+    // Stage 3: Receive current game state
+    socket.on('gameState', (data) => {
+      console.log('[STATE] Game state received:', data);
+      gameState = data;
+    });
+
     socket.on('disconnect', () => {
       console.log('[SOCKET] Disconnected');
       statusDot.className = 'status-dot disconnected';
@@ -439,7 +486,47 @@
       console.log('[COMBAT] Result received:', data);
       displayCombatResult(data);
     });
-    
+
+    // Stage 3: Handle combat errors (unauthorized attacks)
+    socket.on('combatError', (data) => {
+      console.error('[COMBAT] Error:', data.message);
+      alert(`Combat Error: ${data.message}`);
+    });
+
+    // Stage 3: Update controls based on ship assignment
+    function updateControlsForAssignment() {
+      if (!myShip) {
+        // Spectator mode - disable attack button
+        attackBtn.disabled = true;
+        attackBtn.textContent = '🔒 Spectator Mode';
+        attackerSelect.disabled = true;
+        attackerLabel.textContent = 'Attacker (Spectating)';
+        targetLabel.textContent = 'Target (Spectating)';
+        return;
+      }
+
+      // Set attacker to your ship and lock it
+      attackerSelect.value = myShip;
+      attackerSelect.disabled = true; // Can't change attacker
+
+      // Set target to the other ship
+      const otherShip = myShip === 'scout' ? 'corsair' : 'scout';
+      targetSelect.value = otherShip;
+
+      // Update labels with visual distinction
+      const myShipName = myShip.charAt(0).toUpperCase() + myShip.slice(1);
+      const opponentShipName = otherShip.charAt(0).toUpperCase() + otherShip.slice(1);
+
+      attackerLabel.textContent = `YOUR SHIP (${myShipName})`;
+      attackerLabel.className = 'your-ship';
+
+      targetLabel.textContent = `OPPONENT (${opponentShipName})`;
+      targetLabel.className = 'opponent-ship';
+
+      console.log(`[CONTROLS] Locked attacker to ${myShip}, target set to ${otherShip}`);
+      console.log(`[VISUALS] Applied ship ownership labels`);
+    }
+
     attackBtn.addEventListener('click', () => {
       const attacker = attackerSelect.value;
       const target = targetSelect.value;
@@ -511,16 +598,20 @@
     // Test 1: Socket connection
     async function testSocketConnection() {
       addTestLog('Test 1: Socket Connection', 'test');
-      
+
       if (!socket.connected) {
         throw new Error('Socket not connected');
       }
-      
-      if (myTabId === null) {
-        throw new Error('Tab ID not assigned');
+
+      if (myPlayerId === null) {
+        throw new Error('Player ID not assigned');
       }
-      
-      addTestLog('✅ Socket connected, Tab ID assigned', 'test-pass');
+
+      if (myShip === undefined) {
+        throw new Error('Ship assignment not received');
+      }
+
+      addTestLog('✅ Socket connected, Player ID assigned', 'test-pass');
       return true;
     }
     
