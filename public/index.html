@@ -367,8 +367,11 @@
           </select>
         </div>
       </div>
-      
-      <button id="attackBtn" disabled>⚔️ Attack!</button>
+
+      <div style="display: flex; gap: 10px;">
+        <button id="attackBtn" disabled style="flex: 1;">⚔️ Attack!</button>
+        <button id="resetBtn" disabled style="flex: 0; min-width: 120px; background: #ff6b6b;">🔄 Reset Game</button>
+      </div>
     </div>
     
     <div class="card">
@@ -421,6 +424,7 @@
     const statusDot = document.getElementById('statusDot');
     const connectionInfo = document.getElementById('connectionInfo');
     const attackBtn = document.getElementById('attackBtn');
+    const resetBtn = document.getElementById('resetBtn');
     const testModeBtn = document.getElementById('testModeBtn');
     const combatLog = document.getElementById('combatLog');
 
@@ -435,6 +439,7 @@
       console.log('[SOCKET] Connected');
       statusDot.className = 'status-dot connected';
       attackBtn.disabled = false;
+      resetBtn.disabled = false;
       testModeBtn.disabled = false;
     });
 
@@ -510,13 +515,36 @@
       console.log(`[UI] Updated ship displays - Scout: ${ships.scout.hull}/${ships.scout.maxHull}, Corsair: ${ships.corsair.hull}/${ships.corsair.maxHull}`);
     }
 
+    // Stage 3: Handle game reset event
+    socket.on('gameReset', (data) => {
+      console.log('[RESET] Game reset by Player', data.initiatedBy);
+      addLog('🔄 Game Reset', 'info', data.message);
+    });
+
     socket.on('disconnect', () => {
       console.log('[SOCKET] Disconnected');
       statusDot.className = 'status-dot disconnected';
       connectionInfo.textContent = 'Disconnected';
       attackBtn.disabled = true;
+      resetBtn.disabled = true;
       testModeBtn.disabled = true;
     });
+
+    // Helper: Add log entry
+    function addLog(header, type = 'info', details = '') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.style.borderLeftColor = type === 'info' ? '#ffa500' : '';
+
+      let html = `<div class="log-header">${header}</div>`;
+      if (details) {
+        html += `<div class="log-details">${details}</div>`;
+      }
+
+      entry.innerHTML = html;
+      combatLog.appendChild(entry);
+      combatLog.scrollTop = combatLog.scrollHeight;
+    }
     
     socket.on('combatResult', (data) => {
       console.log('[COMBAT] Result received:', data);
@@ -568,12 +596,12 @@
       const target = targetSelect.value;
       const range = rangeSelect.value;
       const dodge = dodgeSelect.value;
-      
+
       if (attacker === target) {
         alert('Attacker and target must be different!');
         return;
       }
-      
+
       console.log('[COMBAT] Initiating combat');
       socket.emit('combat', {
         attacker,
@@ -583,7 +611,15 @@
         seed: Date.now()
       });
     });
-    
+
+    // Stage 3: Reset game button
+    resetBtn.addEventListener('click', () => {
+      if (confirm('Reset game? This will restore both ships to full hull.')) {
+        console.log('[RESET] Requesting game reset');
+        socket.emit('resetGame');
+      }
+    });
+
     // TEST MODE - Run all functional tests
     testModeBtn.addEventListener('click', async () => {
       console.log('[TEST] Starting test suite...');

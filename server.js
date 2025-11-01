@@ -209,6 +209,23 @@ io.on('connection', (socket) => {
     });
   });
   
+  // Stage 3: Handle game reset request
+  socket.on('resetGame', () => {
+    console.log(`[RESET] Player ${connectionId} requested game reset`);
+    resetShipStates();
+
+    // Broadcast reset to all players
+    io.emit('gameReset', {
+      message: 'Game has been reset',
+      initiatedBy: connectionId
+    });
+
+    // Send updated ship states
+    io.emit('shipStateUpdate', {
+      ships: shipState
+    });
+  });
+
   // Handle "ping" for latency measurement
   socket.on('ping', (data) => {
     socket.emit('pong', {
