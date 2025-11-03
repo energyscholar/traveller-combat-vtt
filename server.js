@@ -12,7 +12,7 @@ const io = require('socket.io')(server, {
   }
 });
 
-const { resolveAttack, formatAttackResult, getAttackBreakdown, SHIPS, CREW, applyCrew, engineerRepair } = require('./lib/combat');
+const { resolveAttack, formatAttackResult, getAttackBreakdown, SHIPS, CREW, applyCrew, engineerRepair, hexDistance, rangeFromDistance, validateMove, GRID_SIZE } = require('./lib/combat');
 const { DiceRoller } = require('./lib/dice');
 
 // Serve static files from public directory
@@ -37,6 +37,7 @@ function initializeAmmo(ship) {
 // Stage 3: Track persistent ship state (hull, etc.)
 // Stage 5: Added ammo tracking
 // Stage 6: Added crew assignments
+// Stage 7: Added position tracking
 const shipState = {
   scout: {
     hull: SHIPS.scout.hull,
@@ -48,7 +49,9 @@ const shipState = {
       pilot: {...CREW.scout[0]},  // Default: assign all crew
       gunner: {...CREW.scout[1]},
       engineer: {...CREW.scout[2]}
-    }
+    },
+    position: { q: 2, r: 2 },  // Stage 7: Starting position on grid
+    movement: SHIPS.scout.movement
   },
   corsair: {
     hull: SHIPS.corsair.hull,
@@ -60,7 +63,9 @@ const shipState = {
       pilot: {...CREW.corsair[0]},  // Default: assign all crew
       gunner: {...CREW.corsair[1]},
       engineer: {...CREW.corsair[2]}
-    }
+    },
+    position: { q: 7, r: 7 },  // Stage 7: Starting position on grid
+    movement: SHIPS.corsair.movement
   }
 };
 
@@ -77,12 +82,15 @@ const gameState = {
 
 // Helper: Reset ship states to full hull
 // Stage 5: Also reset ammo
+// Stage 7: Also reset positions
 function resetShipStates() {
   shipState.scout.hull = SHIPS.scout.maxHull;
   shipState.corsair.hull = SHIPS.corsair.maxHull;
   shipState.scout.ammo = initializeAmmo(SHIPS.scout);
   shipState.corsair.ammo = initializeAmmo(SHIPS.corsair);
-  console.log('[GAME] Ship states reset (hull + ammo)');
+  shipState.scout.position = { q: 2, r: 2 };  // Reset to starting position
+  shipState.corsair.position = { q: 7, r: 7 };  // Reset to starting position
+  console.log('[GAME] Ship states reset (hull + ammo + positions)');
 }
 
 // Helper: Get available ship for new player
@@ -457,6 +465,82 @@ io.on('connection', (socket) => {
       hullRepaired: repairResult.hullRepaired,
       newHull: repairResult.newHull,
       fromPlayer: connectionId
+    });
+
+    // Broadcast updated ship states
+    io.emit('shipStateUpdate', {
+      ships: shipState
+    });
+  });
+
+  // Stage 7: Handle ship movement
+  socket.on('moveShip', (data) => {
+    const conn = connections.get(socket.id);
+    console.log(`[MOVE] Player ${connectionId} (${conn.ship}) requests move to (${data.to.q}, ${data.to.r})`);
+
+    // Validate player controls this ship
+    if (conn.ship !== data.ship) {
+      socket.emit('moveError', {
+        message: `You can only move your assigned ship (${conn.ship || 'none'})`
+      });
+      return;
+    }
+
+    // Validate it's the player's turn
+    if (gameState.currentRound > 0 && conn.ship !== gameState.currentTurn) {
+      socket.emit('moveError', {
+        message: `It's not your turn! Current turn: ${gameState.currentTurn || 'game not started'}`
+      });
+      return;
+    }
+
+    // Get current position and movement points
+    const from = shipState[data.ship].position;
+    const movementPoints = shipState[data.ship].movement;
+
+    // Validate move
+    const moveResult = validateMove(from, data.to, movementPoints);
+
+    if (!moveResult.valid) {
+      console.log(`[MOVE] REJECTED: ${moveResult.error}`);
+      socket.emit('moveError', {
+        message: moveResult.error
+      });
+      return;
+    }
+
+    // Check if destination is occupied by another ship
+    const otherShip = data.ship === 'scout' ? 'corsair' : 'scout';
+    const otherPos = shipState[otherShip].position;
+    if (otherPos.q === data.to.q && otherPos.r === data.to.r) {
+      socket.emit('moveError', {
+        message: 'Destination hex is occupied!'
+      });
+      return;
+    }
+
+    // Execute move
+    const oldPosition = { ...shipState[data.ship].position };
+    shipState[data.ship].position = moveResult.newPosition;
+
+    console.log(`[MOVE] ${data.ship} moved from (${oldPosition.q},${oldPosition.r}) to (${moveResult.newPosition.q},${moveResult.newPosition.r})`);
+
+    // Calculate new range between ships
+    const scoutPos = shipState.scout.position;
+    const corsairPos = shipState.corsair.position;
+    const distance = hexDistance(scoutPos, corsairPos);
+    const range = rangeFromDistance(distance);
+
+    console.log(`[RANGE] Ships now at distance ${distance} (${range})`);
+
+    // Broadcast move result to all players
+    io.emit('moveResult', {
+      ship: data.ship,
+      from: oldPosition,
+      to: moveResult.newPosition,
+      distance: hexDistance(from, data.to),
+      fromPlayer: connectionId,
+      newRange: range
     });
 
     // Broadcast updated ship states

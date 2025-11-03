@@ -427,6 +427,69 @@
     button.repair-button:hover {
       background: #F57C00;
     }
+
+    /* Stage 7: Hex grid styles */
+    .grid-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #hexGrid {
+      background: #1a1a1a;
+      border: 2px solid #333;
+      border-radius: 8px;
+      cursor: crosshair;
+    }
+
+    .hex {
+      fill: #2d2d2d;
+      stroke: #444;
+      stroke-width: 1;
+      transition: fill 0.2s;
+    }
+
+    .hex:hover {
+      fill: #3d3d3d;
+    }
+
+    .hex.valid-move {
+      fill: #2d4d2d;
+      cursor: pointer;
+    }
+
+    .hex.valid-move:hover {
+      fill: #3d6d3d;
+    }
+
+    .hex.selected {
+      fill: #4d4d2d;
+    }
+
+    .ship-marker {
+      cursor: pointer;
+    }
+
+    .ship-marker.scout {
+      fill: #4CAF50;
+    }
+
+    .ship-marker.corsair {
+      fill: #f44336;
+    }
+
+    .grid-info {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      color: #e0e0e0;
+    }
+
+    .grid-info span {
+      color: #4CAF50;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -532,6 +595,19 @@
           <div class="ship-stat"><span>Pilot Skill:</span><span>+1</span></div>
           <div class="ship-stat"><span>Beam Laser:</span><span>3d6, Close-Med</span></div>
           <div class="ship-stat"><span>Missiles:</span><span id="corsairMissiles">6 / 6</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🗺️ Tactical Grid</h2>
+      <div class="grid-container">
+        <svg id="hexGrid" width="600" height="600" viewBox="0 0 600 600">
+          <!-- Hex grid will be rendered here by JavaScript -->
+        </svg>
+        <div class="grid-info">
+          <div>Range: <span id="rangeDisplay">-</span></div>
+          <div>Your Movement: <span id="movementDisplay">-</span> hexes</div>
         </div>
       </div>
     </div>
@@ -645,6 +721,127 @@
     const scoutHull = document.getElementById('scoutHull');
     const corsairHull = document.getElementById('corsairHull');
 
+    // Stage 7: Hex grid elements
+    const hexGrid = document.getElementById('hexGrid');
+    const rangeDisplay = document.getElementById('rangeDisplay');
+    const movementDisplay = document.getElementById('movementDisplay');
+
+    // Stage 7: Grid state
+    const GRID_SIZE = 10;
+    const HEX_SIZE = 25;
+    const shipPositions = { scout: { q: 2, r: 2 }, corsair: { q: 7, r: 7 } };
+
+    // Stage 7: Hex grid functions
+    function hexToPixel(q, r) {
+      const x = HEX_SIZE * (3/2 * q) + 50;
+      const y = HEX_SIZE * (Math.sqrt(3)/2 * q + Math.sqrt(3) * r) + 50;
+      return { x, y };
+    }
+
+    function pixelToHex(x, y) {
+      const q = Math.round((2/3 * (x - 50)) / HEX_SIZE);
+      const r = Math.round((-(x - 50)/3 + Math.sqrt(3)/3 * (y - 50)) / HEX_SIZE);
+      return { q, r };
+    }
+
+    function hexDistance(pos1, pos2) {
+      const x1 = pos1.q, z1 = pos1.r, y1 = -x1 - z1;
+      const x2 = pos2.q, z2 = pos2.r, y2 = -x2 - z2;
+      return (Math.abs(x1 - x2) + Math.abs(y1 - y2) + Math.abs(z1 - z2)) / 2;
+    }
+
+    function rangeFromDistance(distance) {
+      if (distance <= 1) return 'Adjacent';
+      if (distance <= 3) return 'Close';
+      if (distance <= 5) return 'Medium';
+      if (distance <= 7) return 'Long';
+      return 'Very Long';
+    }
+
+    function drawHex(q, r, className = 'hex') {
+      const pos = hexToPixel(q, r);
+      const points = [];
+      for (let i = 0; i < 6; i++) {
+        const angle = Math.PI / 3 * i;
+        const hx = pos.x + HEX_SIZE * Math.cos(angle);
+        const hy = pos.y + HEX_SIZE * Math.sin(angle);
+        points.push(`${hx},${hy}`);
+      }
+
+      const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      polygon.setAttribute('points', points.join(' '));
+      polygon.setAttribute('class', className);
+      polygon.setAttribute('data-q', q);
+      polygon.setAttribute('data-r', r);
+      return polygon;
+    }
+
+    function drawShip(q, r, shipName) {
+      const pos = hexToPixel(q, r);
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', pos.x);
+      circle.setAttribute('cy', pos.y);
+      circle.setAttribute('r', HEX_SIZE * 0.6);
+      circle.setAttribute('class', `ship-marker ${shipName}`);
+      circle.setAttribute('data-ship', shipName);
+
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', pos.x);
+      text.setAttribute('y', pos.y);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('fill', 'white');
+      text.setAttribute('font-size', '12');
+      text.setAttribute('font-weight', 'bold');
+      text.setAttribute('pointer-events', 'none');
+      text.textContent = shipName === 'scout' ? '🚀' : '🏴‍☠️';
+
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.appendChild(circle);
+      g.appendChild(text);
+      return g;
+    }
+
+    function renderGrid() {
+      hexGrid.innerHTML = '';
+
+      // Draw hexes
+      for (let q = 0; q < GRID_SIZE; q++) {
+        for (let r = 0; r < GRID_SIZE; r++) {
+          const hex = drawHex(q, r);
+          hex.addEventListener('click', () => handleHexClick(q, r));
+          hexGrid.appendChild(hex);
+        }
+      }
+
+      // Draw ships
+      hexGrid.appendChild(drawShip(shipPositions.scout.q, shipPositions.scout.r, 'scout'));
+      hexGrid.appendChild(drawShip(shipPositions.corsair.q, shipPositions.corsair.r, 'corsair'));
+
+      updateRangeDisplay();
+    }
+
+    function updateRangeDisplay() {
+      const distance = hexDistance(shipPositions.scout, shipPositions.corsair);
+      const range = rangeFromDistance(distance);
+      rangeDisplay.textContent = `${range} (${Math.floor(distance)} hexes)`;
+
+      if (myShip) {
+        const movement = myShip === 'scout' ? 3 : 2;
+        movementDisplay.textContent = movement;
+      }
+    }
+
+    function handleHexClick(q, r) {
+      if (!myShip) return;
+      console.log(`[GRID] Clicked hex (${q}, ${r})`);
+
+      socket.emit('moveShip', {
+        ship: myShip,
+        to: { q, r }
+      });
+    }
+
     socket.on('connect', () => {
       console.log('[SOCKET] Connected');
       statusDot.className = 'status-dot connected';
@@ -653,6 +850,9 @@
       startGameBtn.disabled = false;
       // Attack and End Turn buttons controlled by turn state
       updateTurnUI();
+
+      // Stage 7: Render hex grid
+      renderGrid();
     });
 
     // Stage 3: Receive ship assignment
@@ -704,6 +904,15 @@
     socket.on('shipStateUpdate', (data) => {
       console.log('[STATE] Ship state update:', data.ships);
       updateShipDisplay(data.ships);
+
+      // Stage 7: Update ship positions on grid
+      if (data.ships.scout && data.ships.scout.position) {
+        shipPositions.scout = data.ships.scout.position;
+      }
+      if (data.ships.corsair && data.ships.corsair.position) {
+        shipPositions.corsair = data.ships.corsair.position;
+      }
+      renderGrid();
     });
 
     // Update UI to show current ship hull values
@@ -809,6 +1018,22 @@
     // Stage 6: Handle repair error
     socket.on('repairError', (data) => {
       console.error('[REPAIR ERROR]', data.message);
+      alert(data.message);
+    });
+
+    // Stage 7: Handle movement result
+    socket.on('moveResult', (data) => {
+      console.log('[MOVE] Movement completed:', data);
+      addLog(
+        `🚀 ${data.ship.toUpperCase()} Moved`,
+        'info',
+        `Moved ${Math.floor(data.distance)} hexes. New range: ${data.newRange}`
+      );
+    });
+
+    // Stage 7: Handle movement error
+    socket.on('moveError', (data) => {
+      console.error('[MOVE ERROR]', data.message);
       alert(data.message);
     });
 
