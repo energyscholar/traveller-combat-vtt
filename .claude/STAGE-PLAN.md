@@ -1,397 +1,299 @@
 # TRAVELLER COMBAT VTT - STAGE PLAN
-# Token-Optimized Development Roadmap
-# Target: 90,000 tokens per stage
-# Created: 2025-11-01
+# Token-Optimized TDD Roadmap
+**Target:** 70k tokens/stage | **Updated:** 2025-11-02
 
-## Planning Methodology
+## TOKEN OPTIMIZATION STRATEGY
 
-**Token Budget per Stage: 90,000 tokens**
-- Implementation: ~50,000 tokens (55%)
-- Testing: ~20,000 tokens (22%)
-- Documentation: ~12,000 tokens (13%)
-- Git/verification: ~8,000 tokens (9%)
+**Budget per Stage: 70,000 tokens** (new target, down from 90k)
+- Write tests FIRST: ~15k tokens (21%) - TDD approach
+- Implementation: ~35k tokens (50%)
+- Testing/fixes: ~10k tokens (14%)
+- Git/handoff: ~10k tokens (14%)
 
-**Why 90k?**
-- Uses ~45% of 200k budget
-- Leaves 55% buffer for iteration/debugging
-- Proven successful in Stage 3 (used 118k, could trim to 90k)
-- Avoids rushing or corner-cutting
+**Why 70k?**
+- Stages 4-5 averaged 75k tokens (can optimize to 70k)
+- Uses 35% of 200k budget, leaves 65% buffer
+- TDD reduces debugging cycles → saves tokens
+- Focused file reads → no exploration
 
----
-
-## Completed Stages
-
-### ✅ Stage 0.5: Socket.io Spike Test
-**Status:** Complete
-**Purpose:** Validate Socket.io works in dev environment
-**Time:** 1 hour
-**Deliverables:**
-- Socket.io connectivity test
-- Latency measurement
-- Multi-tab communication verified
-
-### ✅ Stage 1: Hello World
-**Status:** Complete
-**Purpose:** Basic real-time sync between tabs
-**Time:** 1 hour
-**Deliverables:**
-- Two tabs communicate
-- Message broadcast working
-- Foundation for multiplayer
-
-### ✅ Stage 2: Combat Math
-**Status:** Complete
-**Purpose:** Mongoose Traveller 2e combat rules
-**Time:** 1 hour
-**Deliverables:**
-- Attack resolution (2d6 + mods >= 8)
-- Damage calculation (2d6 - armor)
-- Scout vs Corsair test ships
-- 7 unit tests
-
-### ✅ Stage 3: Multiplayer Sync
-**Status:** Complete
-**Purpose:** True multiplayer with ship ownership
-**Time:** 3 hours
-**Tokens:** ~118,000 (would be ~90k if optimized)
-**Deliverables:**
-- Ship assignment (Scout/Corsair/Spectator)
-- Control restrictions (your ship only)
-- Visual ownership indicators
-- Persistent hull tracking
-- Real-time state sync
-- Game reset
-- 28 tests (7 combat + 17 multiplayer + 4 integration)
+**Test-Driven Development (TDD) Approach:**
+1. Write all 20 tests FIRST (before any implementation)
+2. Tests define requirements precisely
+3. Implement to make tests pass
+4. Reduces debugging/iteration cycles
+5. No "exploring" or "planning" - tests ARE the plan
 
 ---
 
-## Upcoming Stages (Token-Optimized)
+## COMPLETED STAGES ✅
 
-### Stage 4: Combat Rounds & Turn System
-**Target Tokens:** 90,000
-**Estimated Time:** 2-3 hours
-**Difficulty:** Medium
-**Dependencies:** Stage 3 complete
+| Stage | Purpose | Tokens | Tests | Status |
+|-------|---------|--------|-------|--------|
+| 0.5 | Socket.io spike | ~5k | 0 | ✅ |
+| 1 | Hello world sync | ~10k | 0 | ✅ |
+| 2 | Combat math | ~15k | 7 | ✅ |
+| 3 | Multiplayer | ~118k | 28 | ✅ |
+| 4 | Turn system | ~78k | 44 | ✅ |
+| 5 | Weapons/ammo | ~72k | 64 | ✅ |
 
-**Features:**
-- Round counter (Round 1, 2, 3...)
-- Turn order enforcement (Scout → Corsair → repeat)
-- "End Turn" button (disabled until your turn)
-- Initiative system (roll 2d6 + pilot skill, high goes first)
-- Turn indicator: "Your Turn" / "Opponent's Turn"
-- Round history log
-
-**Technical Changes:**
-- Server: Track current round, current player turn
-- Server: Validate combat only on your turn
-- Client: Enable/disable attack based on turn
-- Client: Visual turn indicator
-- Event: `turnChange` broadcast to all players
-
-**Tests:**
-- Turn order enforcement (10 tests)
-- Initiative calculation (5 tests)
-- Round progression (5 tests)
-- Total: 20 new tests
-
-**Success Criteria:**
-- Players alternate turns
-- Cannot attack out of turn
-- Initiative determines first player
-- Round counter increments correctly
-- All tests passing
+**Current Test Count:** 64/64 passing
+**Next Stage:** 6 (Crew System)
 
 ---
 
-### Stage 5: Weapon Selection & Ammo
-**Target Tokens:** 90,000
-**Estimated Time:** 2-3 hours
-**Difficulty:** Medium
-**Dependencies:** Stage 4 complete
+## STAGE 6: CREW SYSTEM 🎯 NEXT
+**Target:** 70k tokens | **Time:** 3-4 hours | **Difficulty:** Hard
 
-**Features:**
-- Multiple weapons per ship (Pulse Laser, Beam Laser, Missiles)
-- Weapon dropdown in combat UI
-- Different damage profiles (2d6, 3d6, 4d6)
-- Ammo tracking for missiles (limited shots)
-- Weapon range restrictions
-- Weapon stats display
+### QUICK START COMMAND
+```
+"Implement Stage 6: Crew System. See STAGE-PLAN.md lines 60-95.
+Read only: lib/combat.js, .claude/handoffs/HANDOFF-STAGE-5-COMPLETE.md
+Target: 70k tokens. TDD: Write 20 crew tests FIRST, then implement."
+```
 
-**Technical Changes:**
-- Data: Expand SHIPS with weapons array
-- Server: Combat resolution uses selected weapon
-- Client: Weapon selector dropdown
-- Client: Ammo display (e.g., "Missiles: 4/6")
-- Event: `ammoUpdate` after firing
-
-**New Weapons:**
-- Pulse Laser: 2d6, unlimited ammo, all ranges
-- Beam Laser: 3d6, unlimited ammo, close-medium only
-- Missiles: 4d6, 6 shots, long range bonus +2
-
-**Tests:**
-- Weapon selection (8 tests)
-- Ammo tracking (6 tests)
-- Damage calculation per weapon (6 tests)
-- Total: 20 new tests
-
-**Success Criteria:**
-- Can select weapon before attack
-- Different weapons deal different damage
-- Missiles deplete ammo
-- Cannot fire weapon without ammo
-- All tests passing
-
----
-
-### Stage 6: Character/Crew System
-**Target Tokens:** 90,000
-**Estimated Time:** 3-4 hours
-**Difficulty:** Hard
-**Dependencies:** Stage 5 complete
-
-**Features:**
-- Crew roster (Pilot, Gunner, Engineer)
-- Character sheets (Name, Skills, Stats)
-- Role assignment (assign crew to stations)
-- Skill bonuses (Pilot +2, Gunner +1, etc.)
+### Features
+- Crew roster (Pilot, Gunner, Engineer per ship)
+- Character sheets (Name, Skills: Pilot/Gunner/Engineering)
+- Role assignment to stations
+- Skill bonuses: Pilot +init, Gunner +attack, Engineer repairs
 - Crew damage/injuries (reduced effectiveness)
-- Crew healing between rounds
 
-**Technical Changes:**
-- Data: Crew objects with skills
-- Server: Combat uses crew skills instead of ship skills
-- Client: Crew roster UI
-- Client: Drag-drop crew assignment
-- Event: `crewUpdate` when crew changes
-
-**Crew Roles:**
-- **Pilot:** +skill to dodge/initiative
+### Crew Roles
+- **Pilot:** +skill to initiative rolls (dodge in future)
 - **Gunner:** +skill to attack rolls
-- **Engineer:** Can repair hull (1d6 per round)
+- **Engineer:** Can repair hull (1d6 HP per action)
 
-**Tests:**
-- Crew skill application (10 tests)
-- Role assignment (6 tests)
-- Crew damage (4 tests)
-- Total: 20 new tests
+### Technical Scope
+- **lib/combat.js:** Add CREW data structure, skill modifiers to resolveAttack()
+- **server.js:** Crew assignment, damage tracking, repair actions
+- **public/index.html:** Crew roster UI, role assignment
+- **tests/unit/crew-system.test.js:** NEW - 20 tests (write FIRST)
 
-**Success Criteria:**
-- Crew skills affect combat
-- Can assign crew to roles
-- Crew damage impacts performance
-- Engineer can repair
-- All tests passing
+### TDD Test Breakdown (20 tests)
+1. Crew skill application (8 tests): gunner +attack, pilot +init, engineer repair
+2. Role assignment (6 tests): assign/unassign crew, invalid roles
+3. Crew damage (6 tests): damage reduces skills, death, healing
+
+### Success Criteria
+- Gunner skill adds to attack rolls
+- Pilot skill adds to initiative
+- Engineer can repair hull (1d6 per turn)
+- Crew damage reduces skill effectiveness
+- 84/84 tests passing (64 + 20 new)
 
 ---
 
-### Stage 7: Movement & Positioning
-**Target Tokens:** 90,000
-**Estimated Time:** 3-4 hours
-**Difficulty:** Hard
-**Dependencies:** Stage 6 complete
+## STAGE 7: MOVEMENT & POSITIONING
+**Target:** 70k tokens | **Time:** 3-4 hours | **Difficulty:** Hard
 
-**Features:**
-- 2D hex grid (10x10)
-- Ship positioning on grid
-- Movement points per turn (Scout: 3, Corsair: 2)
-- Range calculated from hex distance
+### QUICK START COMMAND
+```
+"Implement Stage 7: Movement. See STAGE-PLAN.md lines 97-125.
+Read only: lib/combat.js, server.js (gameState), latest handoff.
+Target: 70k tokens. TDD: Write 20 grid tests FIRST, then implement."
+```
+
+### Features
+- 10x10 hex grid (SVG rendering)
+- Ship positioning, movement points (Scout: 3, Corsair: 2)
+- Range auto-calculated from hex distance
 - Line of sight checks
 - Movement phase before combat
 
-**Technical Changes:**
-- Data: Add grid positions to shipState
-- Server: Track positions, validate moves, calculate range
-- Client: Canvas/SVG hex grid rendering
-- Client: Click-to-move interface
-- Event: `positionUpdate` after moves
-
-**Grid Mechanics:**
+### Grid Mechanics
 - 1 hex = 1 range band
-- Adjacent: 0-1 hexes
-- Close: 2-3 hexes
-- Medium: 4-5 hexes
-- Long: 6-7 hexes
-- Very Long: 8+ hexes
+- Range bands: Adjacent (0-1), Close (2-3), Medium (4-5), Long (6-7), Very Long (8+)
 
-**Tests:**
-- Movement validation (8 tests)
-- Range calculation (6 tests)
-- Line of sight (6 tests)
-- Total: 20 new tests
+### Technical Scope
+- **lib/combat.js:** Add hex distance calculation, LOS checks
+- **server.js:** Position tracking, movement validation, range calculation
+- **public/index.html:** SVG hex grid, click-to-move
+- **tests/unit/grid-system.test.js:** NEW - 20 tests (movement, range, LOS)
 
-**Success Criteria:**
-- Ships visible on grid
-- Can move within movement points
-- Range auto-calculated from position
-- Cannot shoot through obstacles
-- All tests passing
+### TDD Test Breakdown (20 tests)
+1. Movement validation (8 tests): within movement points, invalid moves
+2. Range calculation (6 tests): hex distance → range bands
+3. Line of sight (6 tests): blocked/clear paths
+
+### Success Criteria
+- Ships visible on grid, can move
+- Range auto-calculated correctly
+- LOS blocks attacks
+- 104/104 tests passing
 
 ---
 
-### Stage 8: Additional Ships & Advanced Combat
-**Target Tokens:** 90,000
-**Estimated Time:** 2-3 hours
-**Difficulty:** Medium
-**Dependencies:** Stage 7 complete
+## STAGE 8: MORE SHIPS & ADVANCED COMBAT
+**Target:** 70k tokens | **Time:** 2-3 hours | **Difficulty:** Medium
 
-**Features:**
+### QUICK START COMMAND
+```
+"Implement Stage 8: More Ships. See STAGE-PLAN.md lines 127-150.
+Read only: lib/combat.js (SHIPS), latest handoff.
+Target: 70k tokens. TDD: Write 20 ship tests FIRST, then implement."
+```
+
+### Features
 - 4 new ship types (Freighter, Fighter, Destroyer, Carrier)
 - Ship selection screen (choose before game)
-- Asymmetric gameplay (different stats/abilities)
 - Critical hits (natural 12 = 2x damage)
-- Boarding actions (adjacent ships only)
-- Ship abilities (Fighter: Evasive +2 dodge, etc.)
+- Boarding actions (adjacent ships)
+- Ship abilities (Fighter: Evasive +2, Carrier: Launch fighters)
 
-**Technical Changes:**
-- Data: Expand SHIPS with 4 new types
-- Server: Ship selection phase
-- Client: Ship selection UI
-- Server: Critical hit detection
-- Event: `shipSelected` at game start
+### New Ships
+- **Freighter:** Hull 20, Armor 1, Skill +0, Move 1 (cargo hauler)
+- **Fighter:** Hull 5, Armor 0, Skill +3, Move 5 (Evasive ability)
+- **Destroyer:** Hull 25, Armor 6, Skill +1, Move 2 (heavy weapons)
+- **Carrier:** Hull 30, Armor 3, Skill +0, Move 1 (Launch fighters ability)
 
-**New Ships:**
-- **Freighter:** Hull 20, Armor 1, Skill +0, Move 1
-- **Fighter:** Hull 5, Armor 0, Skill +3, Move 5, Ability: Evasive
-- **Destroyer:** Hull 25, Armor 6, Skill +1, Move 2
-- **Carrier:** Hull 30, Armor 3, Skill +0, Move 1, Ability: Launch Fighters
+### Technical Scope
+- **lib/combat.js:** Add 4 ships to SHIPS, critical hit logic, boarding
+- **server.js:** Ship selection phase, ability handling
+- **public/index.html:** Ship selection UI
+- **tests/unit/advanced-combat.test.js:** NEW - 20 tests
 
-**Tests:**
-- Ship selection (6 tests)
-- Critical hits (5 tests)
-- Boarding actions (5 tests)
-- Ship abilities (4 tests)
-- Total: 20 new tests
+### TDD Test Breakdown (20 tests)
+1. Ship selection (6 tests)
+2. Critical hits (5 tests)
+3. Boarding actions (5 tests)
+4. Ship abilities (4 tests)
 
-**Success Criteria:**
-- Can choose from 6 ship types
-- Each ship feels different
-- Critical hits occur on natural 12
+### Success Criteria
+- 6 ships selectable, each unique
+- Crits work (natural 12 = 2x damage)
 - Boarding captures ships
-- All tests passing
+- 124/124 tests passing
 
 ---
 
-### Stage 9: Persistence & Polish
-**Target Tokens:** 90,000
-**Estimated Time:** 3 hours
-**Difficulty:** Medium
-**Dependencies:** Stage 8 complete
+## STAGE 9: PERSISTENCE & POLISH
+**Target:** 70k tokens | **Time:** 3 hours | **Difficulty:** Medium
 
-**Features:**
-- Save game state to JSON file
-- Load game state from file
+### QUICK START COMMAND
+```
+"Implement Stage 9: Persistence. See STAGE-PLAN.md lines 152-170.
+Read only: server.js (gameState), latest handoff.
+Target: 70k tokens. TDD: Write 20 persistence tests FIRST, then implement."
+```
+
+### Features
+- Save/load game state (JSON files)
 - Game history/replay
-- Combat log export
-- UI/UX polish (animations, sounds, better layout)
+- Combat log export (text file)
+- UI/UX polish (animations, better layout)
 - Performance optimization
-- Final bug fixes
 
-**Technical Changes:**
-- Server: Save/load endpoints
-- Server: File system operations
-- Client: Save/Load buttons
-- Client: CSS animations
-- Client: Sound effects (optional)
+### Technical Scope
+- **server.js:** /save, /load endpoints, fs operations
+- **public/index.html:** Save/Load buttons, animations (CSS)
+- **tests/unit/persistence.test.js:** NEW - 20 tests (save, load, integrity)
 
-**Persistence:**
-- Auto-save every round
-- Manual save/load via buttons
-- Export combat log as text
-- Game state includes: ships, crew, positions, ammo, hull, round #
+### TDD Test Breakdown (20 tests)
+1. Save/load (8 tests): save state, load state, file errors
+2. State integrity (6 tests): no data loss, version compatibility
+3. History/replay (6 tests): log export, replay functionality
 
-**Tests:**
-- Save/load (8 tests)
-- State integrity (6 tests)
-- History/replay (6 tests)
-- Total: 20 new tests
-
-**Success Criteria:**
-- Can save and resume games
-- No data loss on save/load
-- Combat history viewable
-- Smooth animations
-- All tests passing
+### Success Criteria
+- Save/resume games without data loss
+- Combat log exportable
+- Smooth UI animations
+- 144/144 tests passing
+- **PROJECT COMPLETE** 🎉
 
 ---
 
-## Summary
+## TOKEN EFFICIENCY RULES
 
-**Total Stages:** 9 (0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-**Completed:** 4 stages (0.5, 1, 2, 3)
-**Remaining:** 5 stages (4, 5, 6, 7, 8, 9)
+**DO:**
+✅ Upload latest handoff document to new session
+✅ Use TDD: write tests FIRST, implement SECOND
+✅ Read ONLY files explicitly needed
+✅ Trust unit tests (skip manual testing in chat)
+✅ Batch file reads in parallel
+✅ Use compact handoff format (<300 lines)
 
-**Estimated Total Token Usage:**
-- Stages 0.5-3: ~150k tokens (actual)
-- Stages 4-9: ~540k tokens (6 × 90k target)
-- **Total Project: ~690k tokens** (3-4 full sessions)
+**DON'T:**
+❌ Explore or search codebase unnecessarily
+❌ Ask Claude to "explain what will be done"
+❌ Read entire server.js when only need gameState
+❌ Manual testing before unit tests pass
+❌ Verbose handoff docs (no "How to Resume" sections)
+❌ Read files speculatively ("might be useful")
 
-**Estimated Total Time:**
-- Stages 0.5-3: ~6 hours
-- Stages 4-9: ~16 hours
-- **Total Project: ~22 hours**
-
-**Test Coverage Goal:**
-- Current: 28 tests
-- After Stage 9: ~148 tests (28 + 6×20)
-
----
-
-## Risk Assessment
-
-**Low Risk Stages:**
-- Stage 4: Combat rounds (straightforward)
-- Stage 5: Weapons (data-driven)
-- Stage 8: More ships (repetitive)
-
-**Medium Risk Stages:**
-- Stage 9: Persistence (file I/O can be tricky)
-
-**High Risk Stages:**
-- Stage 6: Crew system (complex interactions)
-- Stage 7: Movement grid (UI complexity)
-
-**Mitigation:**
-- Budget extra time for Stages 6-7
-- Can split Stage 6 into 6a (basic crew) + 6b (damage/healing) if needed
-- Can split Stage 7 into 7a (grid) + 7b (movement) if needed
+**Example Efficient Workflow:**
+1. User: "Implement Stage 6" + uploads handoff
+2. Claude reads: lib/combat.js, handoff (2 files, 10k tokens)
+3. Claude writes: 20 crew tests (15k tokens)
+4. Claude implements: crew system (35k tokens)
+5. Claude runs tests, fixes issues (8k tokens)
+6. Claude commits + creates handoff (2k tokens)
+7. **Total: ~70k tokens**
 
 ---
 
-## Flexibility
+## PROGRESS SUMMARY
 
-**If a stage goes over 90k tokens:**
-- Split into sub-stages (e.g., 6a, 6b)
-- Defer lower-priority features to next stage
-- Focus on core functionality first
+**Completed:** 6 stages (0.5, 1, 2, 3, 4, 5)
+**Remaining:** 4 stages (6, 7, 8, 9)
 
-**If a stage uses <90k tokens:**
-- Add polish/refinement
-- Add extra tests
-- Improve documentation
-- Start next stage planning
+**Token Usage to Date:**
+- Stages 0.5-3: ~150k tokens
+- Stages 4-5: ~150k tokens
+- **Total so far: ~300k tokens** (1.5 sessions)
 
----
+**Projected Remaining:**
+- Stages 6-9: ~280k tokens (4 × 70k)
+- **Project Total: ~580k tokens** (~3 sessions)
 
-## Success Metrics (per stage)
-
-**Technical:**
-- All tests passing ✅
-- No regressions in existing features ✅
-- Code committed and pushed ✅
-
-**Functional:**
-- Features work as designed ✅
-- Multiplayer sync maintained ✅
-- Performance acceptable ✅
-
-**Documentation:**
-- Handoff doc created ✅
-- Code comments added ✅
-- README updated ✅
+**Test Coverage:**
+- Current: 64 tests
+- After Stage 9: 144 tests
+- Coverage: Combat, multiplayer, turns, weapons, crew, grid, ships, persistence
 
 ---
 
-**Last Updated:** 2025-11-01 (after Stage 3 completion)
-**Next Stage:** Stage 4 (Combat Rounds & Turn System)
-**Current Token Budget:** 90,000 per stage
+## HANDOFF TEMPLATE (Token-Optimized)
+
+Use this format for all future handoffs (target: <300 lines):
+
+```markdown
+# STAGE X COMPLETE → Ready for Stage Y
+**Date:** YYYY-MM-DD | **Branch:** main | **Tests:** XX/XX ✅
+
+## QUICK START NEXT SESSION
+"[Exact command for next stage from STAGE-PLAN.md]"
+
+## CURRENT STATUS
+- Location, stage, tests, git status (5 lines)
+
+## STAGE X CHANGES
+- New features (bullets, ~10 items)
+- Files changed (list with line counts)
+- Key implementation details (code snippets if critical)
+
+## TEST RESULTS
+- Test breakdown (XX new, XX total)
+- All passing ✅
+
+## TOKEN USAGE
+- Used: ~XXk tokens
+- Time: X hours
+
+## WHAT WORKS NOW
+- Feature checklist (bullets)
+- Still TODO (bullets)
+
+## NEXT STAGE PREVIEW
+- Target, time, difficulty
+- Key features (bullets)
+- TDD approach (test count)
+- Files to read/modify
+
+**END OF HANDOFF**
+```
+
+---
+
+**Last Updated:** 2025-11-02 (after Stage 5 completion)
+**Current Stage:** Stage 6 (Crew System) - READY TO START
+**Token Budget:** 70k per stage (TDD optimized)
