@@ -410,7 +410,15 @@
             <option value="scout">Scout (Skill +2, Armor 2, Hull 10)</option>
           </select>
         </div>
-        
+
+        <!-- Stage 5: Weapon selector -->
+        <div class="control-group">
+          <label>Weapon</label>
+          <select id="weaponSelect">
+            <option value="pulseLaser">Pulse Laser (2d6)</option>
+          </select>
+        </div>
+
         <div class="control-group">
           <label>Range</label>
           <select id="rangeSelect">
@@ -421,7 +429,7 @@
             <option value="veryLong">Very Long (-4)</option>
           </select>
         </div>
-        
+
         <div class="control-group">
           <label>Target Dodge</label>
           <select id="dodgeSelect">
@@ -447,20 +455,22 @@
     <div class="card">
       <h2>📊 Ship Stats</h2>
       <div class="ship-stats">
-        <div class="ship-card">
+        <div class="ship-card" id="scoutStats">
           <div class="ship-name">🚀 Scout</div>
-          <div class="ship-stat"><span>Hull:</span><span>10 / 10</span></div>
+          <div class="ship-stat"><span>Hull:</span><span id="scoutHull">10 / 10</span></div>
           <div class="ship-stat"><span>Armor:</span><span>2</span></div>
           <div class="ship-stat"><span>Pilot Skill:</span><span>+2</span></div>
-          <div class="ship-stat"><span>Weapon:</span><span>Pulse Laser</span></div>
+          <div class="ship-stat"><span>Pulse Laser:</span><span>2d6, Unlimited</span></div>
+          <div class="ship-stat"><span>Missiles:</span><span id="scoutMissiles">6 / 6</span></div>
         </div>
-        
-        <div class="ship-card">
+
+        <div class="ship-card" id="corsairStats">
           <div class="ship-name">🏴‍☠️ Corsair</div>
-          <div class="ship-stat"><span>Hull:</span><span>15 / 15</span></div>
+          <div class="ship-stat"><span>Hull:</span><span id="corsairHull">15 / 15</span></div>
           <div class="ship-stat"><span>Armor:</span><span>4</span></div>
           <div class="ship-stat"><span>Pilot Skill:</span><span>+1</span></div>
-          <div class="ship-stat"><span>Weapon:</span><span>Beam Laser</span></div>
+          <div class="ship-stat"><span>Beam Laser:</span><span>3d6, Close-Med</span></div>
+          <div class="ship-stat"><span>Missiles:</span><span id="corsairMissiles">6 / 6</span></div>
         </div>
       </div>
     </div>
@@ -516,6 +526,13 @@
     const dodgeSelect = document.getElementById('dodgeSelect');
     const attackerLabel = document.getElementById('attackerLabel');
     const targetLabel = document.getElementById('targetLabel');
+
+    // Stage 5: Weapon selection and ammo display
+    const weaponSelect = document.getElementById('weaponSelect');
+    const scoutMissiles = document.getElementById('scoutMissiles');
+    const corsairMissiles = document.getElementById('corsairMissiles');
+    const scoutHull = document.getElementById('scoutHull');
+    const corsairHull = document.getElementById('corsairHull');
 
     socket.on('connect', () => {
       console.log('[SOCKET] Connected');
@@ -579,6 +596,7 @@
     });
 
     // Update UI to show current ship hull values
+    // Stage 5: Also update ammo displays
     function updateShipDisplay(ships) {
       // Update attacker select options
       const scoutOption = attackerSelect.querySelector('option[value="scout"]');
@@ -600,6 +618,24 @@
       }
       if (corsairOptionTarget) {
         corsairOptionTarget.textContent = `Corsair (Skill +1, Armor 4, Hull ${ships.corsair.hull}/${ships.corsair.maxHull})`;
+      }
+
+      // Stage 5: Update ship stats cards (hull + ammo)
+      if (scoutHull) {
+        scoutHull.textContent = `${ships.scout.hull} / ${ships.scout.maxHull}`;
+      }
+      if (corsairHull) {
+        corsairHull.textContent = `${ships.corsair.hull} / ${ships.corsair.maxHull}`;
+      }
+
+      // Stage 5: Update ammo displays
+      if (ships.scout.ammo && scoutMissiles) {
+        const missiles = ships.scout.ammo.missiles !== undefined ? ships.scout.ammo.missiles : 6;
+        scoutMissiles.textContent = `${missiles} / 6`;
+      }
+      if (ships.corsair.ammo && corsairMissiles) {
+        const missiles = ships.corsair.ammo.missiles !== undefined ? ships.corsair.ammo.missiles : 6;
+        corsairMissiles.textContent = `${missiles} / 6`;
       }
 
       console.log(`[UI] Updated ship displays - Scout: ${ships.scout.hull}/${ships.scout.maxHull}, Corsair: ${ships.corsair.hull}/${ships.corsair.maxHull}`);
@@ -720,13 +756,42 @@
       console.log(`[UI] Turn UI updated - Round: ${gameState.currentRound}, Turn: ${gameState.currentTurn}, My Ship: ${myShip}, My Turn: ${isMyTurn}`);
     }
 
+    // Stage 5: Populate weapon selector based on ship
+    function updateWeaponSelector(shipName) {
+      weaponSelect.innerHTML = '';
+
+      const weapons = {
+        scout: [
+          { id: 'pulseLaser', name: 'Pulse Laser', damage: '2d6', ammo: null },
+          { id: 'missiles', name: 'Missiles', damage: '4d6', ammo: 6 }
+        ],
+        corsair: [
+          { id: 'beamLaser', name: 'Beam Laser', damage: '3d6', ammo: null },
+          { id: 'missiles', name: 'Missiles', damage: '4d6', ammo: 6 }
+        ]
+      };
+
+      const shipWeapons = weapons[shipName] || [];
+      shipWeapons.forEach(weapon => {
+        const option = document.createElement('option');
+        option.value = weapon.id;
+        const ammoText = weapon.ammo ? ` (${weapon.ammo} shots)` : ' (Unlimited)';
+        option.textContent = `${weapon.name} ${weapon.damage}${ammoText}`;
+        weaponSelect.appendChild(option);
+      });
+
+      console.log(`[WEAPONS] Populated ${shipWeapons.length} weapons for ${shipName}`);
+    }
+
     // Stage 3: Update controls based on ship assignment
+    // Stage 5: Also populate weapon selector
     function updateControlsForAssignment() {
       if (!myShip) {
         // Spectator mode - disable attack button
         attackBtn.disabled = true;
         attackBtn.textContent = '🔒 Spectator Mode';
         attackerSelect.disabled = true;
+        weaponSelect.disabled = true;
         attackerLabel.textContent = 'Attacker (Spectating)';
         targetLabel.textContent = 'Target (Spectating)';
         return;
@@ -739,6 +804,9 @@
       // Set target to the other ship
       const otherShip = myShip === 'scout' ? 'corsair' : 'scout';
       targetSelect.value = otherShip;
+
+      // Stage 5: Populate weapon selector
+      updateWeaponSelector(myShip);
 
       // Update labels with visual distinction
       const myShipName = myShip.charAt(0).toUpperCase() + myShip.slice(1);
@@ -759,18 +827,20 @@
       const target = targetSelect.value;
       const range = rangeSelect.value;
       const dodge = dodgeSelect.value;
+      const weapon = weaponSelect.value;  // Stage 5: Get selected weapon
 
       if (attacker === target) {
         alert('Attacker and target must be different!');
         return;
       }
 
-      console.log('[COMBAT] Initiating combat');
+      console.log(`[COMBAT] Initiating combat with ${weapon}`);
       socket.emit('combat', {
         attacker,
         target,
         range,
         dodge,
+        weapon,  // Stage 5: Send weapon selection
         seed: Date.now()
       });
     });
@@ -1080,27 +1150,31 @@
     
     function displayCombatResult(data) {
       const { result, breakdown } = data;
-      
+
       const entry = document.createElement('div');
       entry.className = 'log-entry ' + (result.hit ? 'hit' : 'miss');
-      
+
       let html = `<div class="log-header">`;
       html += `<span class="badge ${result.hit ? 'hit' : 'miss'}">${result.hit ? 'HIT' : 'MISS'}</span>`;
       html += `${result.attacker} attacks ${result.target}`;
+      // Stage 5: Show weapon name
+      if (result.weapon) {
+        html += ` with ${result.weapon}`;
+      }
       html += `</div>`;
-      
+
       html += `<div class="log-details">`;
       html += `<div class="stat-line">Roll: [${result.attackRoll.dice.join(', ')}] = ${result.attackRoll.total}</div>`;
       html += `<div class="stat-line">Skill: +${result.skill} | Range: ${result.rangeDM >= 0 ? '+' : ''}${result.rangeDM} | Dodge: -${result.dodgeDM}</div>`;
       html += `<div class="stat-line">Total: ${result.attackTotal} vs target 8</div>`;
-      
+
       if (result.hit) {
         html += `<div class="stat-line" style="margin-top: 8px;">Damage: [${result.damageRoll.dice.join(', ')}] = ${result.damageRoll.total} - ${result.armor} (armor) = ${result.damage}</div>`;
         html += `<div class="stat-line">Hull: ${result.target} now at ${result.newHull} hull points</div>`;
       }
-      
+
       html += `</div>`;
-      
+
       entry.innerHTML = html;
       combatLog.appendChild(entry);
       combatLog.scrollTop = combatLog.scrollHeight;

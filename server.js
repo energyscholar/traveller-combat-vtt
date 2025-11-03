@@ -23,19 +23,33 @@ app.use(express.json());
 let connectionCount = 0;
 const connections = new Map();
 
+// Stage 5: Initialize ammo for each weapon
+function initializeAmmo(ship) {
+  const ammo = {};
+  ship.weapons.forEach(weapon => {
+    if (weapon.ammo !== null) {
+      ammo[weapon.id] = weapon.ammo;
+    }
+  });
+  return ammo;
+}
+
 // Stage 3: Track persistent ship state (hull, etc.)
+// Stage 5: Added ammo tracking
 const shipState = {
   scout: {
     hull: SHIPS.scout.hull,
     maxHull: SHIPS.scout.maxHull,
     armor: SHIPS.scout.armor,
-    pilotSkill: SHIPS.scout.pilotSkill
+    pilotSkill: SHIPS.scout.pilotSkill,
+    ammo: initializeAmmo(SHIPS.scout)  // Stage 5: Track ammo per weapon
   },
   corsair: {
     hull: SHIPS.corsair.hull,
     maxHull: SHIPS.corsair.maxHull,
     armor: SHIPS.corsair.armor,
-    pilotSkill: SHIPS.corsair.pilotSkill
+    pilotSkill: SHIPS.corsair.pilotSkill,
+    ammo: initializeAmmo(SHIPS.corsair)  // Stage 5: Track ammo per weapon
   }
 };
 
@@ -51,10 +65,13 @@ const gameState = {
 };
 
 // Helper: Reset ship states to full hull
+// Stage 5: Also reset ammo
 function resetShipStates() {
   shipState.scout.hull = SHIPS.scout.maxHull;
   shipState.corsair.hull = SHIPS.corsair.maxHull;
-  console.log('[GAME] Ship states reset');
+  shipState.scout.ammo = initializeAmmo(SHIPS.scout);
+  shipState.corsair.ammo = initializeAmmo(SHIPS.corsair);
+  console.log('[GAME] Ship states reset (hull + ammo)');
 }
 
 // Helper: Get available ship for new player
@@ -274,6 +291,39 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Stage 5: Get selected weapon
+    const weaponId = data.weapon || (attackerBase.weapons && attackerBase.weapons[0].id);
+    const weapon = attackerBase.weapons.find(w => w.id === weaponId);
+
+    if (!weapon) {
+      socket.emit('combatError', { message: 'Invalid weapon selected' });
+      return;
+    }
+
+    console.log(`[COMBAT] Weapon: ${weapon.name}`);
+
+    // Stage 5: Validate ammo if weapon uses ammo
+    if (weapon.ammo !== null) {
+      const currentAmmo = shipState[data.attacker].ammo[weapon.id];
+      if (currentAmmo <= 0) {
+        console.log(`[COMBAT] REJECTED: Out of ammo for ${weapon.name}`);
+        socket.emit('combatError', {
+          message: `Out of ammo for ${weapon.name}!`
+        });
+        return;
+      }
+      console.log(`[COMBAT] ${weapon.name} ammo: ${currentAmmo}`);
+    }
+
+    // Stage 5: Validate range restriction
+    if (weapon.rangeRestriction && !weapon.rangeRestriction.includes(data.range)) {
+      console.log(`[COMBAT] REJECTED: ${weapon.name} out of range (${data.range})`);
+      socket.emit('combatError', {
+        message: `${weapon.name} out of range! Valid ranges: ${weapon.rangeRestriction.join(', ')}`
+      });
+      return;
+    }
+
     // Use current ship state (with current hull values)
     const attackerShip = {
       ...attackerBase,
@@ -292,16 +342,25 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Resolve combat
+    // Stage 5: Resolve combat with weapon
     const result = resolveAttack(attackerShip, targetShip, {
       range: data.range,
       dodge: data.dodge,
-      seed: data.seed
+      seed: data.seed,
+      weapon: weapon
     });
 
     const breakdown = getAttackBreakdown(result);
 
-    console.log(`[COMBAT] Result: ${result.hit ? 'HIT' : 'MISS'}`);
+    console.log(`[COMBAT] Result: ${result.hit ? 'HIT' : 'MISS'} with ${weapon.name}`);
+
+    // Stage 5: Decrement ammo if weapon uses ammo (regardless of hit/miss)
+    if (weapon.ammo !== null) {
+      const oldAmmo = shipState[data.attacker].ammo[weapon.id];
+      shipState[data.attacker].ammo[weapon.id]--;
+      console.log(`[AMMO] ${weapon.name}: ${oldAmmo} → ${shipState[data.attacker].ammo[weapon.id]}`);
+    }
+
     if (result.hit) {
       console.log(`[COMBAT] Damage: ${result.damage} (${targetShip.hull} → ${result.newHull} hull)`);
 
@@ -325,7 +384,7 @@ io.on('connection', (socket) => {
       timestamp: Date.now()
     });
 
-    // Broadcast updated ship states
+    // Broadcast updated ship states (hull + ammo)
     io.emit('shipStateUpdate', {
       ships: shipState
     });
