@@ -12,7 +12,7 @@ const io = require('socket.io')(server, {
   }
 });
 
-const { resolveAttack, formatAttackResult, getAttackBreakdown, SHIPS } = require('./lib/combat');
+const { resolveAttack, formatAttackResult, getAttackBreakdown, SHIPS, CREW, applyCrew, engineerRepair } = require('./lib/combat');
 const { DiceRoller } = require('./lib/dice');
 
 // Serve static files from public directory
@@ -36,20 +36,31 @@ function initializeAmmo(ship) {
 
 // Stage 3: Track persistent ship state (hull, etc.)
 // Stage 5: Added ammo tracking
+// Stage 6: Added crew assignments
 const shipState = {
   scout: {
     hull: SHIPS.scout.hull,
     maxHull: SHIPS.scout.maxHull,
     armor: SHIPS.scout.armor,
     pilotSkill: SHIPS.scout.pilotSkill,
-    ammo: initializeAmmo(SHIPS.scout)  // Stage 5: Track ammo per weapon
+    ammo: initializeAmmo(SHIPS.scout),  // Stage 5: Track ammo per weapon
+    crew: {  // Stage 6: Track crew assignments
+      pilot: {...CREW.scout[0]},  // Default: assign all crew
+      gunner: {...CREW.scout[1]},
+      engineer: {...CREW.scout[2]}
+    }
   },
   corsair: {
     hull: SHIPS.corsair.hull,
     maxHull: SHIPS.corsair.maxHull,
     armor: SHIPS.corsair.armor,
     pilotSkill: SHIPS.corsair.pilotSkill,
-    ammo: initializeAmmo(SHIPS.corsair)  // Stage 5: Track ammo per weapon
+    ammo: initializeAmmo(SHIPS.corsair),  // Stage 5: Track ammo per weapon
+    crew: {  // Stage 6: Track crew assignments
+      pilot: {...CREW.corsair[0]},  // Default: assign all crew
+      gunner: {...CREW.corsair[1]},
+      engineer: {...CREW.corsair[2]}
+    }
   }
 };
 
@@ -325,7 +336,7 @@ io.on('connection', (socket) => {
     }
 
     // Use current ship state (with current hull values)
-    const attackerShip = {
+    let attackerShip = {
       ...attackerBase,
       hull: shipState[data.attacker].hull
     };
@@ -333,6 +344,11 @@ io.on('connection', (socket) => {
       ...targetBase,
       hull: shipState[data.target].hull
     };
+
+    // Stage 6: Apply crew to attacker ship
+    if (shipState[data.attacker].crew) {
+      attackerShip = applyCrew(attackerShip, shipState[data.attacker].crew);
+    }
 
     // Check if target is already destroyed
     if (targetShip.hull <= 0) {
@@ -389,7 +405,66 @@ io.on('connection', (socket) => {
       ships: shipState
     });
   });
-  
+
+  // Stage 6: Handle engineer repair action
+  socket.on('engineerRepair', (data) => {
+    const conn = connections.get(socket.id);
+    console.log(`[REPAIR] Player ${connectionId} (${conn.ship}) requests engineer repair`);
+
+    // Validate player controls this ship
+    if (conn.ship !== data.ship) {
+      socket.emit('repairError', {
+        message: `You can only repair your assigned ship (${conn.ship || 'none'})`
+      });
+      return;
+    }
+
+    // Validate it's the player's turn
+    if (gameState.currentRound > 0 && conn.ship !== gameState.currentTurn) {
+      socket.emit('repairError', {
+        message: `It's not your turn! Current turn: ${gameState.currentTurn || 'game not started'}`
+      });
+      return;
+    }
+
+    // Check if engineer is alive
+    const engineer = shipState[data.ship].crew.engineer;
+    if (!engineer || engineer.health <= 0) {
+      socket.emit('repairError', {
+        message: 'Engineer is dead or not assigned!'
+      });
+      return;
+    }
+
+    // Perform repair
+    const shipToRepair = {
+      ...SHIPS[data.ship],
+      hull: shipState[data.ship].hull,
+      maxHull: shipState[data.ship].maxHull
+    };
+
+    const repairResult = engineerRepair(shipToRepair, engineer, { seed: data.seed });
+
+    console.log(`[REPAIR] ${engineer.name} repairs ${repairResult.hullRepaired} HP (${shipToRepair.hull} → ${repairResult.newHull})`);
+
+    // Update ship state
+    shipState[data.ship].hull = repairResult.newHull;
+
+    // Broadcast repair result to all players
+    io.emit('repairResult', {
+      ship: data.ship,
+      engineer: engineer.name,
+      hullRepaired: repairResult.hullRepaired,
+      newHull: repairResult.newHull,
+      fromPlayer: connectionId
+    });
+
+    // Broadcast updated ship states
+    io.emit('shipStateUpdate', {
+      ships: shipState
+    });
+  });
+
   // Stage 4: Handle game reset request (UPDATED to reset game state)
   socket.on('resetGame', () => {
     console.log(`[RESET] Player ${connectionId} requested game reset`);

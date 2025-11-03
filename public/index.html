@@ -367,6 +367,66 @@
     button.end-turn:hover {
       background: #1976D2;
     }
+
+    /* Stage 6: Crew roster styles */
+    .crew-roster {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .crew-section {
+      background: #2d2d2d;
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .crew-ship-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #ffa500;
+    }
+
+    .crew-member {
+      background: #1a1a1a;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border-left: 3px solid #4CAF50;
+    }
+
+    .crew-role {
+      font-weight: bold;
+      color: #ffa500;
+      margin-bottom: 4px;
+    }
+
+    .crew-name {
+      font-size: 14px;
+      color: #e0e0e0;
+      margin-bottom: 4px;
+    }
+
+    .crew-skills {
+      font-size: 12px;
+      color: #4CAF50;
+      margin-bottom: 4px;
+    }
+
+    .crew-health {
+      font-size: 12px;
+      color: #2196F3;
+    }
+
+    button.repair-button {
+      background: #FF9800;
+      font-size: 16px;
+    }
+
+    button.repair-button:hover {
+      background: #F57C00;
+    }
   </style>
 </head>
 <body>
@@ -448,6 +508,7 @@
 
       <div style="display: flex; gap: 10px;">
         <button id="attackBtn" disabled style="flex: 1;">⚔️ Attack!</button>
+        <button id="repairBtn" class="repair-button" disabled style="flex: 1;">🔧 Repair</button>
         <button id="endTurnBtn" class="end-turn" disabled style="flex: 1;">➡️ End Turn</button>
       </div>
     </div>
@@ -474,7 +535,56 @@
         </div>
       </div>
     </div>
-    
+
+    <div class="card">
+      <h2>👥 Crew Roster</h2>
+      <div class="crew-roster">
+        <div class="crew-section">
+          <div class="crew-ship-name">🚀 Scout Crew</div>
+          <div class="crew-member" id="scoutPilot">
+            <div class="crew-role">👨‍✈️ Pilot:</div>
+            <div class="crew-name">Lt. Sarah Chen</div>
+            <div class="crew-skills">Pilot +2</div>
+            <div class="crew-health">HP: <span id="scoutPilotHP">10/10</span></div>
+          </div>
+          <div class="crew-member" id="scoutGunner">
+            <div class="crew-role">🎯 Gunner:</div>
+            <div class="crew-name">Cpl. James Martinez</div>
+            <div class="crew-skills">Gunner +2</div>
+            <div class="crew-health">HP: <span id="scoutGunnerHP">10/10</span></div>
+          </div>
+          <div class="crew-member" id="scoutEngineer">
+            <div class="crew-role">🔧 Engineer:</div>
+            <div class="crew-name">Tech. Emily Wong</div>
+            <div class="crew-skills">Engineering +1</div>
+            <div class="crew-health">HP: <span id="scoutEngineerHP">10/10</span></div>
+          </div>
+        </div>
+
+        <div class="crew-section">
+          <div class="crew-ship-name">🏴‍☠️ Corsair Crew</div>
+          <div class="crew-member" id="corsairPilot">
+            <div class="crew-role">👨‍✈️ Pilot:</div>
+            <div class="crew-name">Pirate Kane</div>
+            <div class="crew-skills">Pilot +1</div>
+            <div class="crew-health">HP: <span id="corsairPilotHP">10/10</span></div>
+          </div>
+          <div class="crew-member" id="corsairGunner">
+            <div class="crew-role">🎯 Gunner:</div>
+            <div class="crew-name">Pirate Vex</div>
+            <div class="crew-skills">Gunner +1</div>
+            <div class="crew-health">HP: <span id="corsairGunnerHP">10/10</span></div>
+          </div>
+          <div class="crew-member" id="corsairEngineer">
+            <div class="crew-role">🔧 Engineer:</div>
+            <div class="crew-name">Pirate Rusty</div>
+            <div class="crew-skills">Engineering +0</div>
+            <div class="crew-health">HP: <span id="corsairEngineerHP">10/10</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <h2>📜 Combat Log</h2>
       <div class="combat-log" id="combatLog">
@@ -516,6 +626,7 @@
     // Stage 4: Turn system UI elements
     const startGameBtn = document.getElementById('startGameBtn');
     const endTurnBtn = document.getElementById('endTurnBtn');
+    const repairBtn = document.getElementById('repairBtn');  // Stage 6: Repair button
     const turnIndicator = document.getElementById('turnIndicator');
     const turnStatus = document.getElementById('turnStatus');
     const roundDisplay = document.getElementById('roundDisplay');
@@ -685,6 +796,22 @@
       alert(data.message);
     });
 
+    // Stage 6: Handle repair result
+    socket.on('repairResult', (data) => {
+      console.log('[REPAIR] Repair completed:', data);
+      addLog(
+        `🔧 ${data.ship.toUpperCase()} Repaired`,
+        'success',
+        `${data.engineer} repaired ${data.hullRepaired} HP (New Hull: ${data.newHull})`
+      );
+    });
+
+    // Stage 6: Handle repair error
+    socket.on('repairError', (data) => {
+      console.error('[REPAIR ERROR]', data.message);
+      alert(data.message);
+    });
+
     socket.on('disconnect', () => {
       console.log('[SOCKET] Disconnected');
       statusDot.className = 'status-dot disconnected';
@@ -740,6 +867,7 @@
         turnStatus.textContent = '✅ YOUR TURN';
         roundDisplay.textContent = `Round ${gameState.currentRound}`;
         attackBtn.disabled = myShip === null; // Only disable if spectator
+        repairBtn.disabled = myShip === null; // Stage 6: Enable repair on your turn
         endTurnBtn.disabled = false;
         startGameBtn.disabled = true;
       } else {
@@ -749,6 +877,7 @@
         turnStatus.textContent = `⏸️ ${opponentShip.toUpperCase()}'S TURN`;
         roundDisplay.textContent = `Round ${gameState.currentRound} - Waiting...`;
         attackBtn.disabled = true;
+        repairBtn.disabled = true; // Stage 6: Disable repair on opponent's turn
         endTurnBtn.disabled = true;
         startGameBtn.disabled = true;
       }
@@ -863,6 +992,19 @@
     endTurnBtn.addEventListener('click', () => {
       console.log('[TURN] Ending turn');
       socket.emit('endTurn');
+    });
+
+    // Stage 6: Repair button
+    repairBtn.addEventListener('click', () => {
+      if (!myShip) {
+        alert('You must be assigned a ship to repair!');
+        return;
+      }
+      console.log('[REPAIR] Requesting engineer repair');
+      socket.emit('engineerRepair', {
+        ship: myShip,
+        seed: Date.now()
+      });
     });
 
     // TEST MODE - Run all functional tests
