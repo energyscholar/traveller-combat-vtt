@@ -57,7 +57,8 @@ Visit `http://localhost:3000` in your browser.
   - Spacecraft weapons (Beam/Pulse Lasers)
   - Hull damage & critical hits
   - ✅ Ship selection UI (Stage 8.6 complete)
-  - Space combat HUD (Stage 8.7 in progress)
+  - ✅ Space combat HUD (Stage 8.7 complete)
+  - Stage 8.8: Server-side combat logic (next)
 
 ### 📋 Planned (Stages 9-16)
 - **Stage 9:** Movement, Thrust, Advanced Initiative
