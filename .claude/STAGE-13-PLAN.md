@@ -1,6 +1,6 @@
 # Stage 13: Performance, Scale & Network Resilience
 
-**Est. 8,000 tokens | ~15 hours | ~800 LOC**
+**Est. 10,000 tokens | ~18 hours | ~950 LOC**
 
 ## Scope
 
@@ -54,7 +54,34 @@
 - Lazy loading (don't send hidden data)
 - State size monitoring (warn >100KB)
 
-### 13.5: Scalability Architecture (1k tokens, ~50 LOC)
+### 13.5: Security Hardening (OWASP Top 10) (2k tokens, ~150 LOC)
+- **A01: Broken Access Control**
+  - Battle room authentication
+  - GM vs Player roles
+  - Permission system
+- **A03: Injection**
+  - Input validation all socket events
+  - Sanitize user input (ship names, chat)
+  - Parameterized queries (when DB added)
+- **A05: Security Misconfiguration**
+  - helmet.js middleware (security headers)
+  - Rate limiting (express-rate-limit)
+  - CORS policy
+  - Remove server version headers
+- **A07: XSS**
+  - DOMPurify for user-generated content
+  - Content Security Policy headers
+  - Escape all output
+- **A09: Security Logging**
+  - winston logging framework
+  - Audit trail (who did what)
+  - Intrusion detection basics
+- **Security Testing**
+  - OWASP ZAP automated scan
+  - Penetration testing checklist
+  - Security regression tests
+
+### 13.6: Scalability Architecture (1k tokens, ~50 LOC)
 - Stateless server design (complete)
 - Session state externalization
 - Health check endpoints
@@ -69,3 +96,9 @@
 - [ ] State sync recovers all data
 - [ ] Performance metrics visible (dev mode)
 - [ ] No memory leaks under sustained load
+- [ ] OWASP Top 10 security tests pass
+- [ ] Input validation on all socket events
+- [ ] XSS protection (sanitized inputs)
+- [ ] Rate limiting prevents DOS
+- [ ] Security headers configured (helmet.js)
+- [ ] Audit logging functional

@@ -95,6 +95,11 @@
 - Add `createStandardCrew(shipType)` function
 - Add `calculateStatDM(stat)` function
 - Add `calculateCritThresholds(maxHull)` function
+- Add `validateShipName(name)` function (basic XSS protection - sanitize user input)
+  - Strip HTML tags
+  - Limit length (max 50 chars)
+  - Alphanumeric + spaces only
+  - Returns sanitized string or throws error
 
 ---
 

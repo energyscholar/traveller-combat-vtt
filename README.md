@@ -257,9 +257,15 @@ This is a personal learning project (CTO skills development) but feedback is wel
 
 ---
 
-## 📄 License
+## 📄 License & Legal
 
-MIT License - See LICENSE file
+**License:** MIT License - See [LICENSE](LICENSE) file
+
+**Traveller IP:** This is a fan project using Traveller rules under fair use. See [TRAVELLER-IP-NOTICE.md](TRAVELLER-IP-NOTICE.md) for full details.
+
+**Traveller** is a registered trademark of Far Future Enterprises, used under license by Mongoose Publishing Ltd.
+
+This software is **NOT** endorsed by or affiliated with Mongoose Publishing or Far Future Enterprises.
 
 ---
 
