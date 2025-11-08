@@ -82,6 +82,25 @@ Per stage:
 
 **Verdict:** Optimizations complete. Further effort not worth the cost.
 
+## Continuous Monitoring
+
+**Pre-Stage Checklist:**
+1. Run `.claude/token-monitor.sh` for metrics
+2. Review last stage's token usage
+3. Target: <15k tokens per stage
+4. Adjust if trending over budget
+
+**During Stage:**
+- Use test-helpers.js (not console.log)
+- Keep handoffs <60 lines
+- Use Grep/offset for targeted reads
+- Minimize test reruns
+
+**Post-Stage:**
+- Record actual vs estimate
+- Identify token hotspots
+- Update forecast
+
 ## Stage 8 Token Budget Forecast
 
 **Completed:**
