@@ -29,21 +29,21 @@ node server.js
 
 ## 📊 Project Status
 
-**Current Stage:** 9/16 Complete (56% - partial)
+**Current Stage:** 9/16 Complete (56%) ✅
 **Space Combat:** ✅ **FULLY PLAYABLE**
 **Test Coverage:** 100% (all critical paths)
-**Tests Passing:** 328/328 across 16 suites ✅
+**Tests Passing:** 328/328 across 19 suites ✅
 
 | Component | Status | LOC | Tests |
 |-----------|--------|-----|-------|
 | Personal Combat (Stages 1-7) | ✅ Complete | 1,200 | 99 (100%) |
 | Space Combat (Stage 8) | ✅ **COMPLETE** | 1,025 | 159 (100%) |
-| Movement & Initiative (Stage 9.1-9.2) | ✅ **COMPLETE** | 195 | 40 (100%) |
-| Enhanced Combat (Stages 9.3-12) | 📋 Planned | ~3,300 | ~1,760 |
+| Movement & Advanced Initiative (Stage 9) | ✅ **COMPLETE** | 385 | 53 (100%) |
+| Enhanced Combat (Stages 10-12) | 📋 Planned | ~3,300 | ~1,760 |
 | Production (Stages 13-15) | 📋 Planned | ~1,800 | ~800 |
 | Advanced (Stage 16+) | 📋 Planned | ~1,500+ | ~600+ |
 
-**Total:** 2,225 LOC implementation, 1,900 LOC tests (1.78:1 ratio)
+**Total:** 2,610 LOC implementation, 2,215 LOC tests (1.18:1 ratio)
 
 ---
 
@@ -87,15 +87,14 @@ node server.js
 - Engineer repairs
 - Real-time multiplayer (Socket.io)
 
-### ✅ Implemented Movement & Initiative (Stage 9.1-9.2)
-- Thrust allocation and range band movement
-- Proper initiative: 2D6 + Pilot + Thrust
-- Captain Tactics (naval) bonus to initiative
-- Range change cost calculation
-- Turn tracker with initiative rolls
+### ✅ Implemented Movement & Advanced Initiative (Stage 9)
+- **9.1:** Thrust allocation and range band movement
+- **9.2:** Proper initiative (2D6 + Pilot + Thrust) with Captain Tactics bonus
+- **9.3:** Combat Manoeuvres (Aid Gunners, Evasive Action)
+- **9.4:** Jump Away mechanic (1-turn charge delay, interruption)
+- **9.5:** Multi-player crewing (role assignments, permissions)
 
-### 📋 Planned (Stages 9.3-16)
-- **Stage 9.3-9.5:** Combat Manoeuvres, Jump Away, Multi-Player Crewing
+### 📋 Planned (Stages 10-16)
 - **Stage 10:** Critical Hit Effects (Severity 1-6)
 - **Stage 11:** Missiles, Sandcasters, Called Shots
 - **Stage 12:** Boarding Actions

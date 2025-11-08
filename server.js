@@ -1,6 +1,6 @@
-// Traveller Combat VTT - Stage 4
-// Purpose: Add combat rounds and turn system
-// Time: 2-3 hours
+// Traveller Combat VTT - Stage 9.2
+// Purpose: Hex-based movement system with initiative-based turns
+// Status: Stage 9.1-9.2 Complete, Full Stage 9 in progress
 
 const express = require('express');
 const app = express();
@@ -1246,23 +1246,28 @@ app.get('/status', (req, res) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log('========================================');
-  console.log('TRAVELLER COMBAT VTT - STAGE 4');
+  console.log('TRAVELLER COMBAT VTT - STAGE 9.2');
   console.log('========================================');
   console.log(`Server running on http://localhost:${PORT}`);
   console.log('');
-  console.log('New in Stage 4:');
-  console.log('- Round counter and tracking');
-  console.log('- Turn-based combat (Scout → Corsair → repeat)');
-  console.log('- Initiative system (2d6 + pilot skill)');
-  console.log('- Turn validation (can only act on your turn)');
-  console.log('- End Turn button to advance turns');
+  console.log('Current Features:');
+  console.log('- Hex-based movement system');
+  console.log('- Initiative-based turn order (2d6 + pilot skill)');
+  console.log('- Multiple weapon types (Pulse Laser, Beam Laser, Missile)');
+  console.log('- Crew management (Pilot, Gunner, Engineer)');
+  console.log('- Engineer repair actions');
+  console.log('- Server-side combat resolution (TDD)');
+  console.log('');
+  console.log('Status:');
+  console.log('- Stage 9.1-9.2 Complete: Movement & Initiative');
+  console.log('- NOTE: Full Stage 9 in progress');
   console.log('');
   console.log('Instructions:');
-  console.log('1. Open FIRST tab → You get Scout');
-  console.log('2. Open SECOND tab → You get Corsair');
-  console.log('3. Click "Start Game" to begin Round 1');
-  console.log('4. Take turns attacking (Scout → Corsair)');
-  console.log('5. Click "End Turn" to pass to opponent');
+  console.log('1. Open browser to http://localhost:3000');
+  console.log('2. Two players connect to select ships');
+  console.log('3. Players move ships on hex grid');
+  console.log('4. Initiative determines turn order each round');
+  console.log('5. Combat with weapons, movement, and repairs');
   console.log('========================================');
 });
 
