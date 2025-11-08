@@ -32,6 +32,8 @@ const unitTests = [
   'tests/unit/space-initiative.test.js',  // Stage 8.3
   'tests/unit/space-combat.test.js',  // Stage 8.4
   'tests/unit/space-criticals.test.js',  // Stage 8.5
+  'tests/unit/space-movement.test.js',  // Stage 9.1
+  'tests/unit/space-initiative-advanced.test.js',  // Stage 9.2
   'tests/unit/xss-validation.test.js'
 ];
 

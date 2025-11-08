@@ -2,7 +2,7 @@
 
 A web-based Virtual Tabletop (VTT) for **Mongoose Traveller 2nd Edition** space combat, built with TDD principles.
 
-**Status:** ✅ **Stage 8 Complete - Fully Playable Space Combat!**
+**Status:** ✅ **Stage 9 (Partial) - Movement & Initiative Added!**
 
 ---
 
@@ -12,7 +12,7 @@ A web-based Virtual Tabletop (VTT) for **Mongoose Traveller 2nd Edition** space 
 # Install dependencies
 npm install
 
-# Run all tests (272 tests, 100% passing)
+# Run all tests (328 tests, 100% passing)
 npm test
 
 # Start server
@@ -29,16 +29,17 @@ node server.js
 
 ## 📊 Project Status
 
-**Current Stage:** 8/16 Complete (50%)
+**Current Stage:** 9/16 Complete (56% - partial)
 **Space Combat:** ✅ **FULLY PLAYABLE**
 **Test Coverage:** 100% (all critical paths)
-**Tests Passing:** 272/272 across 14 suites ✅
+**Tests Passing:** 328/328 across 16 suites ✅
 
 | Component | Status | LOC | Tests |
 |-----------|--------|-----|-------|
 | Personal Combat (Stages 1-7) | ✅ Complete | 1,200 | 99 (100%) |
 | Space Combat (Stage 8) | ✅ **COMPLETE** | 1,025 | 159 (100%) |
-| Enhanced Combat (Stages 9-12) | 📋 Planned | ~3,500 | ~1,800 |
+| Movement & Initiative (Stage 9.1-9.2) | ✅ **COMPLETE** | 195 | 40 (100%) |
+| Enhanced Combat (Stages 9.3-12) | 📋 Planned | ~3,300 | ~1,760 |
 | Production (Stages 13-15) | 📋 Planned | ~1,800 | ~800 |
 | Advanced (Stage 16+) | 📋 Planned | ~1,500+ | ~600+ |
 
@@ -86,8 +87,15 @@ node server.js
 - Engineer repairs
 - Real-time multiplayer (Socket.io)
 
-### 📋 Planned (Stages 9-16)
-- **Stage 9:** Movement, Thrust, Advanced Initiative
+### ✅ Implemented Movement & Initiative (Stage 9.1-9.2)
+- Thrust allocation and range band movement
+- Proper initiative: 2D6 + Pilot + Thrust
+- Captain Tactics (naval) bonus to initiative
+- Range change cost calculation
+- Turn tracker with initiative rolls
+
+### 📋 Planned (Stages 9.3-16)
+- **Stage 9.3-9.5:** Combat Manoeuvres, Jump Away, Multi-Player Crewing
 - **Stage 10:** Critical Hit Effects (Severity 1-6)
 - **Stage 11:** Missiles, Sandcasters, Called Shots
 - **Stage 12:** Boarding Actions
