@@ -825,21 +825,49 @@ io.on('connection', (socket) => {
 
       console.log(`[SPACE:FIRE] HIT! ${attackResult.damage} damage. Hull: ${defenderPlayer.hull}/${defenderPlayer.maxHull}`);
 
-      // Broadcast hit to both players
-      attackerSocket.emit('space:attackResult', {
-        hit: true,
-        damage: attackResult.damage,
-        targetHull: defenderPlayer.hull,
-        attackRoll: attackResult.attackRoll,
-        total: attackResult.total
-      });
+      // HOTFIX: Safe emit to attacker with null check
+      if (attackerSocket && attackerSocket.connected) {
+        attackerSocket.emit('space:attackResult', {
+          hit: true,
+          damage: attackResult.damage,
+          targetHull: defenderPlayer.hull,
+          attackRoll: attackResult.attackRoll,
+          total: attackResult.total
+        });
+      } else {
+        console.error(`[SOCKET_ERROR] Attacker socket disconnected during combat! Combat: ${combat.id}, Attacker: ${attackerPlayer.id}`);
+      }
 
-      defenderSocket.emit('space:attacked', {
-        hit: true,
-        damage: attackResult.damage,
-        hull: defenderPlayer.hull,
-        maxHull: defenderPlayer.maxHull
-      });
+      // HOTFIX: Safe emit to defender with null check and disconnect handling
+      if (defenderSocket && defenderSocket.connected) {
+        defenderSocket.emit('space:attacked', {
+          hit: true,
+          damage: attackResult.damage,
+          hull: defenderPlayer.hull,
+          maxHull: defenderPlayer.maxHull
+        });
+      } else {
+        // Defender disconnected - forfeit combat
+        console.error(`[SOCKET_ERROR] Defender socket disconnected during combat! Combat: ${combat.id}, Defender: ${defenderPlayer.id}`);
+        console.log(`[SPACE:FORFEIT] ${defenderPlayer.id} disconnected, awarding victory to ${attackerPlayer.id}`);
+
+        // Award victory to attacker
+        activeCombats.delete(combat.id);
+
+        if (attackerSocket && attackerSocket.connected) {
+          attackerSocket.emit('space:combatEnd', {
+            winner: attackerPlayer.id === combat.player1.id ? 'player1' : 'player2',
+            loser: defenderPlayer.id === combat.player1.id ? 'player1' : 'player2',
+            reason: 'opponent_disconnected',
+            finalHull: {
+              player1: combat.player1.hull,
+              player2: combat.player2.hull
+            },
+            rounds: combat.round
+          });
+        }
+        return;
+      }
 
       // Check for critical hits
       const hullPercent = (defenderPlayer.hull / defenderPlayer.maxHull) * 100;
@@ -849,13 +877,33 @@ io.on('connection', (socket) => {
 
         defenderPlayer.criticals.push(criticalSystem);
 
-        io.to(combat.player1.id).to(combat.player2.id).emit('space:critical', {
+        // HOTFIX: Safe emit for critical hits with comprehensive logging
+        const criticalData = {
           target: defenderPlayer.id === combat.player1.id ? 'player1' : 'player2',
           system: criticalSystem,
           damage: attackResult.damage
-        });
+        };
 
-        console.log(`[SPACE:CRITICAL] ${criticalSystem} damaged!`);
+        let emitSuccess = 0;
+        let emitFailure = 0;
+
+        if (attackerSocket && attackerSocket.connected) {
+          attackerSocket.emit('space:critical', criticalData);
+          emitSuccess++;
+        } else {
+          console.error(`[SOCKET_ERROR] Cannot emit critical to attacker (disconnected): ${attackerPlayer.id}`);
+          emitFailure++;
+        }
+
+        if (defenderSocket && defenderSocket.connected) {
+          defenderSocket.emit('space:critical', criticalData);
+          emitSuccess++;
+        } else {
+          console.error(`[SOCKET_ERROR] Cannot emit critical to defender (disconnected): ${defenderPlayer.id}`);
+          emitFailure++;
+        }
+
+        console.log(`[SPACE:CRITICAL] ${criticalSystem} damaged! Notified ${emitSuccess}/2 players (${emitFailure} disconnected)`);
       }
 
       // Check for victory
@@ -865,7 +913,8 @@ io.on('connection', (socket) => {
 
         console.log(`[SPACE:VICTORY] ${winner} wins! ${loser} destroyed.`);
 
-        io.to(combat.player1.id).to(combat.player2.id).emit('space:combatEnd', {
+        // HOTFIX: Safe emit for victory with comprehensive logging
+        const victoryData = {
           winner,
           loser,
           finalHull: {
@@ -873,7 +922,25 @@ io.on('connection', (socket) => {
             player2: combat.player2.hull
           },
           rounds: combat.round
-        });
+        };
+
+        let victoryNotified = 0;
+
+        if (attackerSocket && attackerSocket.connected) {
+          attackerSocket.emit('space:combatEnd', victoryData);
+          victoryNotified++;
+        } else {
+          console.error(`[SOCKET_ERROR] Cannot notify attacker of victory (disconnected): ${attackerPlayer.id}`);
+        }
+
+        if (defenderSocket && defenderSocket.connected) {
+          defenderSocket.emit('space:combatEnd', victoryData);
+          victoryNotified++;
+        } else {
+          console.error(`[SOCKET_ERROR] Cannot notify defender of defeat (disconnected): ${defenderPlayer.id}`);
+        }
+
+        console.log(`[SPACE:VICTORY] Victory notifications sent to ${victoryNotified}/2 players`);
 
         // Clean up combat
         activeCombats.delete(combat.id);
@@ -882,22 +949,49 @@ io.on('connection', (socket) => {
     } else {
       console.log(`[SPACE:FIRE] MISS!`);
 
-      // Broadcast miss to both players
-      attackerSocket.emit('space:attackResult', {
-        hit: false,
-        attackRoll: attackResult.attackRoll,
-        total: attackResult.total,
-        targetNumber: attackResult.targetNumber
-      });
+      // HOTFIX: Safe emit for miss with null checks
+      if (attackerSocket && attackerSocket.connected) {
+        attackerSocket.emit('space:attackResult', {
+          hit: false,
+          attackRoll: attackResult.attackRoll,
+          total: attackResult.total,
+          targetNumber: attackResult.targetNumber
+        });
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot emit miss result to attacker (disconnected): ${attackerPlayer.id}`);
+      }
 
-      defenderSocket.emit('space:attacked', {
-        hit: false
-      });
+      if (defenderSocket && defenderSocket.connected) {
+        defenderSocket.emit('space:attacked', {
+          hit: false
+        });
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot emit miss to defender (disconnected): ${defenderPlayer.id}`);
+        console.log(`[SPACE:FORFEIT] ${defenderPlayer.id} disconnected during miss, awarding victory to ${attackerPlayer.id}`);
+
+        // Award victory to attacker
+        activeCombats.delete(combat.id);
+
+        if (attackerSocket && attackerSocket.connected) {
+          attackerSocket.emit('space:combatEnd', {
+            winner: attackerPlayer.id === combat.player1.id ? 'player1' : 'player2',
+            loser: defenderPlayer.id === combat.player1.id ? 'player1' : 'player2',
+            reason: 'opponent_disconnected',
+            finalHull: {
+              player1: combat.player1.hull,
+              player2: combat.player2.hull
+            },
+            rounds: combat.round
+          });
+        }
+        return;
+      }
     }
 
     // Mark turn as complete for this player
     combat.turnComplete[socket.id] = true;
 
+    // HOTFIX: Safe emit for round/turn transitions with null checks
     // Check if both players have completed their turns
     if (combat.turnComplete[combat.player1.id] && combat.turnComplete[combat.player2.id]) {
       // Start new round
@@ -906,19 +1000,61 @@ io.on('connection', (socket) => {
 
       console.log(`[SPACE:ROUND] Starting round ${combat.round}`);
 
-      io.to(combat.player1.id).to(combat.player2.id).emit('space:newRound', {
+      const newRoundData = {
         round: combat.round,
         player1Hull: combat.player1.hull,
         player2Hull: combat.player2.hull
-      });
+      };
+
+      // Emit to both players with safety checks
+      const p1Socket = io.sockets.sockets.get(combat.player1.id);
+      const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+      let roundNotified = 0;
+      if (p1Socket && p1Socket.connected) {
+        p1Socket.emit('space:newRound', newRoundData);
+        roundNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player1 of new round (disconnected): ${combat.player1.id}`);
+      }
+
+      if (p2Socket && p2Socket.connected) {
+        p2Socket.emit('space:newRound', newRoundData);
+        roundNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player2 of new round (disconnected): ${combat.player2.id}`);
+      }
+
+      console.log(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
     } else {
       // Switch active player
       combat.activePlayer = combat.activePlayer === combat.player1.id ? combat.player2.id : combat.player1.id;
 
-      io.to(combat.player1.id).to(combat.player2.id).emit('space:turnChange', {
+      const turnChangeData = {
         activePlayer: combat.activePlayer,
         round: combat.round
-      });
+      };
+
+      // Emit to both players with safety checks
+      const p1Socket = io.sockets.sockets.get(combat.player1.id);
+      const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+      let turnNotified = 0;
+      if (p1Socket && p1Socket.connected) {
+        p1Socket.emit('space:turnChange', turnChangeData);
+        turnNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player1 of turn change (disconnected): ${combat.player1.id}`);
+      }
+
+      if (p2Socket && p2Socket.connected) {
+        p2Socket.emit('space:turnChange', turnChangeData);
+        turnNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player2 of turn change (disconnected): ${combat.player2.id}`);
+      }
+
+      console.log(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
     }
   });
 
@@ -946,6 +1082,7 @@ io.on('connection', (socket) => {
 
     console.log(`[SPACE:END_TURN] Turn complete for ${connectionId}`);
 
+    // HOTFIX: Safe emit for round/turn transitions with null checks
     // Check if both players have completed their turns
     if (combat.turnComplete[combat.player1.id] && combat.turnComplete[combat.player2.id]) {
       // Start new round
@@ -954,19 +1091,61 @@ io.on('connection', (socket) => {
 
       console.log(`[SPACE:ROUND] Starting round ${combat.round}`);
 
-      io.to(combat.player1.id).to(combat.player2.id).emit('space:newRound', {
+      const newRoundData = {
         round: combat.round,
         player1Hull: combat.player1.hull,
         player2Hull: combat.player2.hull
-      });
+      };
+
+      // Emit to both players with safety checks
+      const p1Socket = io.sockets.sockets.get(combat.player1.id);
+      const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+      let roundNotified = 0;
+      if (p1Socket && p1Socket.connected) {
+        p1Socket.emit('space:newRound', newRoundData);
+        roundNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player1 of new round (disconnected): ${combat.player1.id}`);
+      }
+
+      if (p2Socket && p2Socket.connected) {
+        p2Socket.emit('space:newRound', newRoundData);
+        roundNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player2 of new round (disconnected): ${combat.player2.id}`);
+      }
+
+      console.log(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
     } else {
       // Switch active player
       combat.activePlayer = combat.activePlayer === combat.player1.id ? combat.player2.id : combat.player1.id;
 
-      io.to(combat.player1.id).to(combat.player2.id).emit('space:turnChange', {
+      const turnChangeData = {
         activePlayer: combat.activePlayer,
         round: combat.round
-      });
+      };
+
+      // Emit to both players with safety checks
+      const p1Socket = io.sockets.sockets.get(combat.player1.id);
+      const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+      let turnNotified = 0;
+      if (p1Socket && p1Socket.connected) {
+        p1Socket.emit('space:turnChange', turnChangeData);
+        turnNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player1 of turn change (disconnected): ${combat.player1.id}`);
+      }
+
+      if (p2Socket && p2Socket.connected) {
+        p2Socket.emit('space:turnChange', turnChangeData);
+        turnNotified++;
+      } else {
+        console.error(`[SOCKET_ERROR] Cannot notify player2 of turn change (disconnected): ${combat.player2.id}`);
+      }
+
+      console.log(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
     }
   });
 
@@ -976,6 +1155,46 @@ io.on('connection', (socket) => {
     const disconnectedShip = conn.ship;
 
     console.log(`[DISCONNECT] Player ${connectionId} (${disconnectedShip || 'spectator'}) disconnected after ${duration}ms`);
+
+    // HOTFIX: Check if disconnecting player is in active space combat
+    let combatFound = null;
+    for (const [combatId, combat] of activeCombats.entries()) {
+      if (combat.player1.id === socket.id || combat.player2.id === socket.id) {
+        combatFound = { id: combatId, combat };
+        break;
+      }
+    }
+
+    if (combatFound) {
+      console.log(`[SPACE:FORFEIT] Player ${connectionId} disconnected during active combat ${combatFound.id}`);
+
+      // Determine winner (the player who DIDN'T disconnect)
+      const isPlayer1 = combatFound.combat.player1.id === socket.id;
+      const winnerId = isPlayer1 ? combatFound.combat.player2.id : combatFound.combat.player1.id;
+      const winnerSocket = io.sockets.sockets.get(winnerId);
+
+      // Clean up combat state
+      activeCombats.delete(combatFound.id);
+      console.log(`[SPACE:COMBAT] Combat ${combatFound.id} ended due to disconnect. ${activeCombats.size} combats remaining.`);
+
+      // Notify winner with null check
+      if (winnerSocket && winnerSocket.connected) {
+        winnerSocket.emit('space:combatEnd', {
+          winner: isPlayer1 ? 'player2' : 'player1',
+          loser: isPlayer1 ? 'player1' : 'player2',
+          reason: 'opponent_disconnected',
+          finalHull: {
+            player1: combatFound.combat.player1.hull,
+            player2: combatFound.combat.player2.hull
+          },
+          rounds: combatFound.combat.round
+        });
+        console.log(`[SPACE:VICTORY] Opponent disconnected, victory awarded to ${winnerId}`);
+      } else {
+        console.error(`[SOCKET_ERROR] Winner also disconnected, combat ${combatFound.id} ends with no notification`);
+      }
+    }
+
     connections.delete(socket.id);
     console.log(`[STATUS] ${connections.size} players remaining`);
 
