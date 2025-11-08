@@ -50,15 +50,16 @@ Visit `http://localhost:3000` in your browser.
   - Engineer repairs
   - Real-time multiplayer (Socket.io)
 
-### 🚧 In Progress (Stage 8)
+### ✅ Completed (Stage 8)
 - **Space Combat (Simplified)**
   - Scout vs Free Trader battles
   - 7 range bands (Adjacent → Distant)
   - Spacecraft weapons (Beam/Pulse Lasers)
   - Hull damage & critical hits
-  - ✅ Ship selection UI (Stage 8.6 complete)
-  - ✅ Space combat HUD (Stage 8.7 complete)
-  - Stage 8.8: Server-side combat logic (next)
+  - ✅ Ship selection UI (Stage 8.6)
+  - ✅ Space combat HUD (Stage 8.7)
+  - ✅ Server-side combat resolution (Stage 8.8)
+  - **Space combat is now fully playable!**
 
 ### 📋 Planned (Stages 9-16)
 - **Stage 9:** Movement, Thrust, Advanced Initiative
