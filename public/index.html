@@ -644,6 +644,338 @@
       font-size: 14px;
       opacity: 0.9;
     }
+
+    /* Stage 8.7: Space Combat HUD Styles */
+    #space-combat-hud {
+      display: none;
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .hud-ship-info {
+      flex: 1;
+    }
+
+    .hud-ship-name {
+      font-size: 24px;
+      font-weight: bold;
+      color: #00ff00;
+      margin-bottom: 4px;
+    }
+
+    .hud-ship-type {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .hud-stats {
+      display: flex;
+      gap: 20px;
+    }
+
+    .hud-stat {
+      text-align: right;
+    }
+
+    .hud-stat-label {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-right: 5px;
+    }
+
+    .hud-stat-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #00ff00;
+    }
+
+    .hud-hull-section {
+      margin-bottom: 15px;
+    }
+
+    .hud-hull-label {
+      font-size: 14px;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .hud-hull-bar {
+      width: 100%;
+      height: 30px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hud-hull-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff00, #00cc00);
+      transition: width 0.5s ease, background 0.3s ease;
+    }
+
+    .hud-hull-fill.damaged {
+      background: linear-gradient(90deg, #ffaa00, #ff8800);
+    }
+
+    .hud-hull-fill.critical {
+      background: linear-gradient(90deg, #ff0000, #cc0000);
+    }
+
+    .hud-initiative {
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .initiative-label {
+      opacity: 0.8;
+      margin-right: 8px;
+    }
+
+    .initiative-value {
+      font-weight: bold;
+      color: #00ff00;
+    }
+
+    .crew-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      padding: 5px 0;
+      transition: opacity 0.2s;
+    }
+
+    .crew-panel-header:hover {
+      opacity: 0.8;
+    }
+
+    .crew-panel-header h3 {
+      margin: 0;
+    }
+
+    .collapse-icon {
+      font-size: 16px;
+      transition: transform 0.3s;
+    }
+
+    .crew-panel-header.collapsed .collapse-icon {
+      transform: rotate(-90deg);
+    }
+
+    .crew-panel-content {
+      max-height: 500px;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      opacity: 1;
+    }
+
+    .crew-panel-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    #crew-panel {
+      margin-top: 10px;
+    }
+
+    .crew-role {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 5px;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+
+    .role-name {
+      font-weight: bold;
+      min-width: 80px;
+      color: #00ff00;
+    }
+
+    .crew-name {
+      flex: 1;
+    }
+
+    .turret-assignment {
+      padding: 3px 8px;
+      background: rgba(0, 255, 0, 0.2);
+      border: 1px solid rgba(0, 255, 0, 0.5);
+      border-radius: 3px;
+      font-size: 12px;
+      color: #00ff00;
+    }
+
+    .gunner-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .gunner-controls .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .gunner-controls .control-group label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #00ff00;
+    }
+
+    .gunner-controls select {
+      width: 100%;
+    }
+
+    .fire-button {
+      grid-column: span 2;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: bold;
+      background: linear-gradient(135deg, #ff4444, #cc0000);
+      border: 2px solid #ff6666;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .fire-button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #ff6666, #ff0000);
+      box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+      transform: scale(1.02);
+    }
+
+    .fire-button:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.3);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .turn-management {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .turn-timer-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 15px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+    }
+
+    .timer-label {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+
+    .timer-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #00ff00;
+      min-width: 50px;
+    }
+
+    .timer-value.warning {
+      color: #ffaa00;
+    }
+
+    .timer-value.critical {
+      color: #ff0000;
+      animation: pulse 0.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .turn-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-button {
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: bold;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      color: #fff;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: all 0.3s;
+    }
+
+    .action-button:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .action-button.primary {
+      background: linear-gradient(135deg, #00ff00, #00cc00);
+      border-color: #00ff00;
+      color: #000;
+    }
+
+    .action-button.primary:hover {
+      background: linear-gradient(135deg, #00ff44, #00ff00);
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+    }
+
+    .combat-log {
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 5px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .log-entry {
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-entry.hit {
+      color: #ff4444;
+    }
+
+    .log-entry.miss {
+      color: #888;
+    }
+
+    .log-entry.critical {
+      color: #ffaa00;
+      font-weight: bold;
+    }
+
+    .log-entry.system {
+      color: #00ff00;
+    }
   </style>
 </head>
 <body>
@@ -714,6 +1046,128 @@
         </div>
 
         <div id="ready-status"></div>
+      </div>
+    </div>
+
+    <!-- Stage 8.7: Space Combat HUD -->
+    <div id="space-combat-hud" style="display: none;">
+      <div class="header">
+        <h1>🚀 Traveller Space Combat</h1>
+        <div class="stage">STAGE 8.7: SPACE COMBAT HUD</div>
+      </div>
+
+      <!-- Ship Status HUD -->
+      <div class="card">
+        <div class="hud-top">
+          <div class="hud-ship-info">
+            <div class="hud-ship-name" id="ship-name">Scout</div>
+            <div class="hud-ship-type">Type-S Scout/Courier</div>
+          </div>
+          <div class="hud-stats">
+            <div class="hud-stat">
+              <span class="hud-stat-label">Armour:</span>
+              <span class="hud-stat-value" id="ship-armour">4</span>
+            </div>
+            <div class="hud-stat">
+              <span class="hud-stat-label">Range:</span>
+              <span class="hud-stat-value" id="current-range">Short</span>
+            </div>
+            <div class="hud-stat">
+              <span class="hud-stat-label">Round:</span>
+              <span class="hud-stat-value" id="round-counter">1</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="hud-hull-section">
+          <div class="hud-hull-label">
+            Hull: <span id="hull-current">20</span> / <span id="hull-max">20</span>
+          </div>
+          <div class="hud-hull-bar">
+            <div class="hud-hull-fill" id="hull-bar-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="hud-initiative" id="initiative-display">
+          <span class="initiative-label">Initiative:</span>
+          <span class="initiative-value" id="initiative-value">Calculating...</span>
+        </div>
+      </div>
+
+      <!-- Crew Panel (Collapsible) -->
+      <div class="card">
+        <div class="crew-panel-header" id="crew-panel-toggle">
+          <h3>👥 Crew</h3>
+          <span class="collapse-icon">▼</span>
+        </div>
+        <div class="crew-panel-content" id="crew-panel-content">
+          <div id="crew-panel">
+            <div class="crew-role">
+              <span class="role-name">Pilot:</span>
+              <span class="crew-name">Miller (Skill +2)</span>
+            </div>
+            <div class="crew-role">
+              <span class="role-name">Gunner:</span>
+              <span class="crew-name">Chen (Skill +1)</span>
+              <span class="turret-assignment">Turret 1</span>
+            </div>
+            <div class="crew-role">
+              <span class="role-name">Engineer:</span>
+              <span class="crew-name">Rodriguez (Skill +1)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gunner Actions -->
+      <div class="card">
+        <h3>🎯 Gunner Actions</h3>
+        <div class="gunner-controls">
+          <div class="control-group">
+            <label for="turret-select">Turret:</label>
+            <select id="turret-select">
+              <option value="0">Turret 1 (Triple)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="target-select">Target:</label>
+            <select id="target-select">
+              <option value="opponent">Enemy Ship</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="weapon-select">Weapon:</label>
+            <select id="weapon-select">
+              <option value="0">Pulse Laser (2d6)</option>
+              <option value="1">Sandcaster (Defense)</option>
+              <option value="2">Missiles (4d6, 6 shots)</option>
+            </select>
+          </div>
+          <button id="fire-button" class="fire-button" disabled>🔥 FIRE!</button>
+        </div>
+      </div>
+
+      <!-- Turn Management -->
+      <div class="card">
+        <div class="turn-management">
+          <div class="turn-timer-display">
+            <span class="timer-label">Turn Timer:</span>
+            <span class="timer-value" id="turn-timer">30s</span>
+          </div>
+          <div class="turn-buttons">
+            <button id="use-default-button" class="action-button">⚡ Use Default</button>
+            <button id="end-turn-button" class="action-button primary">✅ End Turn</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Combat Log -->
+      <div class="card">
+        <h3>📜 Combat Log</h3>
+        <div class="combat-log" id="combat-log">
+          <div class="log-entry">Round 1 begins!</div>
+          <div class="log-entry">Combat started at Short range</div>
+        </div>
       </div>
     </div>
 
@@ -1887,11 +2341,12 @@
     socket.on('space:combatStart', (data) => {
       console.log('[COMBAT START]', data);
 
-      // Hide ship selection, show combat screen
+      // Hide ship selection, show space combat HUD
       shipSelectionScreen.style.display = 'none';
+      spaceCombatHUD.style.display = 'block';
 
-      // For now, show personal combat screen (will be replaced with space combat UI in 8.7)
-      personalCombatScreen.style.display = 'block';
+      // Initialize HUD with ship data
+      initializeSpaceCombatHUD(data);
 
       readyStatusText.innerHTML = 'Combat started!';
     });
@@ -1907,6 +2362,258 @@
     console.log('2. Choose starting range (Adjacent to Distant)');
     console.log('3. Click "Ready" when ready to fight');
     console.log('4. Combat starts when both players ready');
+    console.log('========================================');
+
+    // ======== STAGE 8.7: SPACE COMBAT HUD ========
+
+    const spaceCombatHUD = document.getElementById('space-combat-hud');
+    const crewPanelToggle = document.getElementById('crew-panel-toggle');
+    const crewPanelContent = document.getElementById('crew-panel-content');
+    const fireButton = document.getElementById('fire-button');
+    const turretSelect = document.getElementById('turret-select');
+    const targetSelect = document.getElementById('target-select');
+    const weaponSelect = document.getElementById('weapon-select');
+    const useDefaultButton = document.getElementById('use-default-button');
+    const endTurnButton = document.getElementById('end-turn-button');
+    const combatLog = document.getElementById('combat-log');
+    const turnTimer = document.getElementById('turn-timer');
+
+    let currentShipData = null;
+    let turnTimeRemaining = 30;
+    let turnTimerInterval = null;
+
+    // Initialize Space Combat HUD with ship data
+    function initializeSpaceCombatHUD(data) {
+      console.log('[HUD] Initializing with data:', data);
+
+      // Store combat data
+      currentShipData = {
+        ship: selectedShip,
+        range: data.range || selectedRange,
+        round: 1,
+        hull: selectedShip === 'scout' ? 20 : 30,
+        maxHull: selectedShip === 'scout' ? 20 : 30,
+        armour: selectedShip === 'scout' ? 4 : 2,
+        turrets: selectedShip === 'scout' ? 1 : 2
+      };
+
+      // Update HUD display
+      updateShipHUD();
+
+      // Update combat log
+      addLogEntry(`Combat started at ${data.range} range`, 'system');
+      addLogEntry(`Round ${currentShipData.round} begins!`, 'system');
+
+      // Start turn timer
+      startTurnTimer();
+    }
+
+    // Update ship HUD display
+    function updateShipHUD() {
+      if (!currentShipData) return;
+
+      // Ship name and type
+      const shipNameEl = document.getElementById('ship-name');
+      const shipTypeEl = shipNameEl.nextElementSibling;
+
+      if (currentShipData.ship === 'scout') {
+        shipNameEl.textContent = '⚡ Scout';
+        shipTypeEl.textContent = 'Type-S Scout/Courier';
+      } else {
+        shipNameEl.textContent = '📦 Free Trader';
+        shipTypeEl.textContent = 'Type-A Free Trader';
+      }
+
+      // Hull bar
+      document.getElementById('hull-current').textContent = currentShipData.hull;
+      document.getElementById('hull-max').textContent = currentShipData.maxHull;
+
+      const hullPercent = (currentShipData.hull / currentShipData.maxHull) * 100;
+      const hullFill = document.getElementById('hull-bar-fill');
+      hullFill.style.width = `${hullPercent}%`;
+
+      // Update hull bar color based on damage
+      hullFill.classList.remove('damaged', 'critical');
+      if (hullPercent <= 25) {
+        hullFill.classList.add('critical');
+      } else if (hullPercent <= 50) {
+        hullFill.classList.add('damaged');
+      }
+
+      // Other stats
+      document.getElementById('ship-armour').textContent = currentShipData.armour;
+      document.getElementById('current-range').textContent = currentShipData.range;
+      document.getElementById('round-counter').textContent = currentShipData.round;
+
+      // Initiative (placeholder for now)
+      document.getElementById('initiative-value').textContent = 'Your turn';
+    }
+
+    // Crew panel collapse/expand
+    crewPanelToggle.addEventListener('click', () => {
+      crewPanelContent.classList.toggle('collapsed');
+      crewPanelToggle.classList.toggle('collapsed');
+    });
+
+    // Fire button enable/disable based on selections
+    function updateFireButtonState() {
+      const turretSelected = turretSelect.value !== '';
+      const targetSelected = targetSelect.value !== '';
+      const weaponSelected = weaponSelect.value !== '';
+
+      fireButton.disabled = !(turretSelected && targetSelected && weaponSelected);
+    }
+
+    turretSelect.addEventListener('change', updateFireButtonState);
+    targetSelect.addEventListener('change', updateFireButtonState);
+    weaponSelect.addEventListener('change', updateFireButtonState);
+
+    // Fire button handler
+    fireButton.addEventListener('click', () => {
+      console.log('[FIRE] Button clicked');
+
+      const action = {
+        turret: parseInt(turretSelect.value),
+        target: targetSelect.value,
+        weapon: parseInt(weaponSelect.value)
+      };
+
+      addLogEntry(`Firing turret ${action.turret + 1} at ${action.target}...`, 'system');
+
+      // Emit fire action to server
+      socket.emit('space:fire', action);
+
+      // Disable fire button until next turn
+      fireButton.disabled = true;
+    });
+
+    // Use Default button
+    useDefaultButton.addEventListener('click', () => {
+      console.log('[USE DEFAULT] Button clicked');
+
+      // Auto-select first options
+      turretSelect.value = '0';
+      targetSelect.value = 'opponent';
+      weaponSelect.value = '0';
+
+      updateFireButtonState();
+      addLogEntry('Using default action (auto-fire)', 'system');
+
+      // Auto-fire
+      fireButton.click();
+    });
+
+    // End Turn button
+    endTurnButton.addEventListener('click', () => {
+      console.log('[END TURN] Button clicked');
+
+      addLogEntry('Turn ended', 'system');
+
+      // Emit end turn to server
+      socket.emit('space:endTurn');
+
+      // Disable buttons
+      fireButton.disabled = true;
+      endTurnButton.disabled = true;
+      useDefaultButton.disabled = true;
+
+      // Reset turn timer
+      stopTurnTimer();
+    });
+
+    // Turn timer functions
+    function startTurnTimer() {
+      turnTimeRemaining = 30;
+      updateTimerDisplay();
+
+      if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+      }
+
+      turnTimerInterval = setInterval(() => {
+        turnTimeRemaining--;
+        updateTimerDisplay();
+
+        if (turnTimeRemaining <= 0) {
+          stopTurnTimer();
+          // Auto-end turn
+          useDefaultButton.click();
+        }
+      }, 1000);
+    }
+
+    function stopTurnTimer() {
+      if (turnTimerInterval) {
+        clearInterval(turnTimerInterval);
+        turnTimerInterval = null;
+      }
+    }
+
+    function updateTimerDisplay() {
+      turnTimer.textContent = `${turnTimeRemaining}s`;
+
+      // Update timer color
+      turnTimer.classList.remove('warning', 'critical');
+      if (turnTimeRemaining <= 5) {
+        turnTimer.classList.add('critical');
+      } else if (turnTimeRemaining <= 10) {
+        turnTimer.classList.add('warning');
+      }
+    }
+
+    // Add entry to combat log
+    function addLogEntry(message, type = '') {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry' + (type ? ' ' + type : '');
+      entry.textContent = message;
+      combatLog.appendChild(entry);
+
+      // Auto-scroll to bottom
+      combatLog.scrollTop = combatLog.scrollHeight;
+    }
+
+    // Listen for combat events from server
+    socket.on('space:hit', (data) => {
+      console.log('[HIT]', data);
+      addLogEntry(`HIT! ${data.damage} damage dealt`, 'hit');
+
+      // Update hull if it's our ship that was hit
+      if (data.target === 'player') {
+        currentShipData.hull -= data.damage;
+        updateShipHUD();
+      }
+    });
+
+    socket.on('space:miss', (data) => {
+      console.log('[MISS]', data);
+      addLogEntry('MISS! Attack failed', 'miss');
+    });
+
+    socket.on('space:critical', (data) => {
+      console.log('[CRITICAL]', data);
+      addLogEntry(`CRITICAL HIT! ${data.system} system damaged!`, 'critical');
+    });
+
+    socket.on('space:newRound', (data) => {
+      console.log('[NEW ROUND]', data);
+
+      currentShipData.round = data.round;
+      updateShipHUD();
+      addLogEntry(`Round ${data.round} begins!`, 'system');
+
+      // Re-enable buttons
+      fireButton.disabled = false;
+      endTurnButton.disabled = false;
+      useDefaultButton.disabled = false;
+
+      // Restart turn timer
+      startTurnTimer();
+    });
+
+    console.log('========================================');
+    console.log('TRAVELLER COMBAT VTT - STAGE 8.7');
+    console.log('========================================');
+    console.log('Space Combat HUD loaded');
     console.log('========================================');
   </script>
   </div> <!-- Close personal-combat-screen -->
