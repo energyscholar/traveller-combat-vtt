@@ -4,7 +4,7 @@
   "description": "Traveller Combat VTT - Multiplayer space combat tracker",
   "main": "server.js",
   "scripts": {
-    "start": "echo '\n👥 MULTIPLAYER MODE: http://localhost:3000\n' && node server.js",
+    "start": "echo '\n🔧 If port 3000 is busy, run: kill $(lsof -t -i:3000)\n👥 MULTIPLAYER MODE: http://localhost:3000\n' && node server.js",
     "dev": "echo '\n🎮 SINGLE-PLAYER TEST MODE: http://localhost:3000/test.html\n' && node server.js",
     "test": "node tools/validate-json.js && node tests/run-all-tests.js",
     "test:unit": "node tests/run-all-tests.js",
