@@ -39,6 +39,20 @@
 - Escape pod options
 - Crew casualties to personal combat characters
 
+---
+
+## Incremental Refactoring (Stage 12)
+
+**While implementing boarding actions, extract boarding-specific modules:**
+
+- **Create `lib/boarding.js`** - Boarding action resolution, docking, deployment
+- **Create `lib/crew-combat.js`** - Crew-to-crew combat (if distinct from ship combat)
+- **Consider `lib/maneuvers/docking.js`** - Docking maneuvers and opposed checks
+- Final incremental extraction before Stage 13 major refactor
+- By now, `combat.js` should be significantly smaller
+
+---
+
 ## Acceptance Criteria
 - [ ] Ships can dock at Adjacent range
 - [ ] Marines can board enemy ships

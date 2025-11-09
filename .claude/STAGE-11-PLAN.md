@@ -47,6 +47,21 @@
 - Attack bonus per extra weapon (+1/die)
 - UI for linked fire
 
+---
+
+## Incremental Refactoring (Stage 11)
+
+**While implementing missiles & sandcasters, extract weapon-specific modules:**
+
+- **Create `lib/weapons/missiles.js`** - Missile launch, tracking, movement, point defense
+- **Create `lib/weapons/sandcasters.js`** - Sandcaster reactions, countermeasures
+- **Create `lib/weapons/index.js`** - Weapon type registry (consider factory pattern)
+- **Create `lib/weapons/linking.js`** - Weapon linking and combined fire
+- Continue reducing `combat.js` size
+- Each weapon type becomes independently testable
+
+---
+
 ## Acceptance Criteria
 - [ ] Missiles launch and track targets
 - [ ] Missiles move 1 band per round

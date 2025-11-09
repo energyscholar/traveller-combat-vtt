@@ -205,17 +205,114 @@
 
 ---
 
+## Refactoring Strategy - Incremental Then Comprehensive
+
+### Incremental Refactoring (Stages 10-12)
+
+**Strategy:** Extract small, focused modules as features are added. Don't wait for Stage 13.
+
+**Stage 10 (Critical Hits):**
+- Extract `lib/critical-hits.js` - Severity calculation, crit resolution
+- Extract `lib/damage-effects.js` - System damage effects
+- Reduces `combat.js` by ~200-300 LOC
+
+**Stage 11 (Missiles):**
+- Extract `lib/weapons/missiles.js` - Missile mechanics
+- Extract `lib/weapons/sandcasters.js` - Countermeasures
+- Extract `lib/weapons/index.js` - Weapon registry
+- Reduces `combat.js` by ~200-300 LOC
+
+**Stage 12 (Boarding):**
+- Extract `lib/boarding.js` - Boarding actions
+- Extract `lib/crew-combat.js` - Crew combat (if distinct)
+- Reduces `combat.js` by ~150-200 LOC
+
+**Benefits:**
+- Maintains velocity (no big-bang refactor)
+- Each module focused, single-purpose, testable
+- By Stage 13, `combat.js` down from 1,605 LOC to ~900-1,000 LOC
+- Sets pattern for Stage 13 major refactor
+
+---
+
+### Comprehensive Refactoring (Stage 13.0)
+
+**Timing:** Perfect time for major refactoring
+- All features complete (Stages 8-12 done)
+- Requirements stable (UI redesign done)
+- Architecture known (no guessing)
+- Natural breaking point before production
+
+**Scope:** Modularize the three monoliths
+
+**1. Refactor `lib/combat.js` (1,605 LOC → 5+ modules)**
+```
+lib/combat/
+  index.js       - Facade, backward compatibility
+  core.js        - Attack resolution, damage
+  movement.js    - Hex grid utilities
+  validation.js  - Input validation
+  formatting.js  - Result formatting
+  data/
+    ships.js     - SHIPS constant (deprecated)
+    crew.js      - CREW constant (deprecated)
+```
+
+**2. Refactor `server.js` (1,364 LOC → handlers + state)**
+```
+server/
+  index.js                 - HTTP/Express setup
+  socket-handlers/
+    connection.js          - Player lifecycle
+    combat.js              - Combat events
+    movement.js            - Movement events
+    space.js               - Space sessions
+  game-state/
+    manager.js             - State management
+    sessions.js            - Combat sessions
+```
+
+**3. Refactor `public/app.js` (1,504 LOC → UI + networking + state)**
+```
+public/js/
+  app.js              - Main initialization
+  ui/
+    combat-log.js     - Combat log rendering
+    hex-grid.js       - Hex grid rendering
+    controls.js       - UI controls
+  networking/
+    socket.js         - Socket.io wrapper
+    logger.js         - Client logger
+  state/
+    game-state.js     - Client state
+```
+
+**Design Patterns:**
+- Single Responsibility Principle
+- Command Pattern (socket events)
+- State Pattern (game state)
+- Observer Pattern (UI updates)
+- Facade Pattern (simplified interfaces)
+
+**Effort:** ~6,000 tokens, ~600 LOC refactoring code, ~20 hours
+
+---
+
 ## Recommendations for Next Steps
 
-### Before Stage 8.2
-- ✅ Review this document
-- ✅ Prioritize debt items
-- ✅ Budget time for debt in Stage 9+
+### During Stages 10-12 (Incremental)
+- Extract focused modules as features are added
+- Keep tests passing throughout
+- Document module boundaries
+- Add JSDoc comments
+- Prepare for Stage 13 major refactor
 
-### During Stage 8.2-8.8
-- Keep SPACE_SHIPS for compatibility
-- Test ShipRegistry in all new code
-- Add ships via JSON (not code)
+### Stage 13.0 (Comprehensive Refactoring)
+- Split all three monoliths (combat.js, server.js, app.js)
+- Apply design patterns systematically
+- Zero regressions - all tests must pass
+- Measure complexity reduction
+- ~20 hours budgeted
 
 ### Stage 9 Debt Sprint (Recommended)
 - Remove SPACE_SHIPS constant (2 hours)

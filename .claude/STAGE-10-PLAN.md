@@ -51,6 +51,20 @@
 - Temporary vs permanent repairs
 - Jump safety (misjump mechanics)
 
+---
+
+## Incremental Refactoring (Stage 10)
+
+**While implementing critical hits, extract focused modules to reduce `combat.js` bloat:**
+
+- **Create `lib/critical-hits.js`** - Critical hit resolution, severity calculation
+- **Create `lib/damage-effects.js`** - System damage effects (M-Drive, PP, Sensors, Weapons, Crew)
+- Keep modules single-purpose and testable
+- Sets pattern for Stage 11-12 extractions
+- **Goal:** Start paying down technical debt while adding features
+
+---
+
 ## Acceptance Criteria
 - [ ] Severity scales with damage (1-6)
 - [ ] All 11 crit locations have effects
