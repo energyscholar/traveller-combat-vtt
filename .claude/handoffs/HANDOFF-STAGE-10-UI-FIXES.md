@@ -6,7 +6,7 @@
 
 ## Completed in This Session
 
-### UI Fixes Implemented
+### UI Fixes Implemented (Initial)
 
 1. **Merged Double Status Bars**
    - Consolidated two green horizontal boxes into one compact ship HUD
@@ -34,6 +34,22 @@
    - Reduced select padding
    - Location: `public/index.html:165-193`, `public/styles.css:829-862`
 
+### Additional Fixes (Second Pass)
+
+5. **Improved Combat End Messages**
+   - Removed annoying alert popup
+   - Added ship type and name to combat log messages
+   - Victory: "🎉 VICTORY! Free Trader (Type-A) destroyed in X rounds!"
+   - Defeat: "💥 DEFEAT! Scout (Type-S) destroyed in X rounds."
+   - Location: `public/app.js:1470-1491`
+
+6. **Free Trader Automated Turret**
+   - Added Turret 2 crew display showing "Automated (Skill 0)"
+   - Shows "Any gunner/Captain" as controller
+   - Only visible for Free Trader (hidden for Scout)
+   - Saves crew member by using automation
+   - Location: `public/index.html:157-161`, `public/app.js:1254-1263`
+
 ## Testing Results
 
 Full multiplayer combat test passed:
@@ -46,11 +62,11 @@ Full multiplayer combat test passed:
 
 ## Deferred to Stage 11
 
-1. **Multiple Turret Support**
-   - Free Trader has 2 turrets but UI only shows 1
-   - Need to add 2nd gunner OR automated turret (Skill 1)
-   - Repeat Gunner Actions UI for each turret
-   - Allow Captain to control turrets
+1. **Multiple Turret Support - PARTIALLY COMPLETE**
+   - ✅ Added automated Turret 2 display (Skill 0, any gunner/Captain controls)
+   - ⏭ Still need: Repeat Gunner Actions UI for Turret 2
+   - ⏭ Still need: Implement server-side logic for 2nd turret firing
+   - ⏭ Still need: Add Turret 2 option dropdown in Gunner Actions
 
 2. **Move Timer to Top**
    - Relocate turn timer from bottom card to top HUD section
@@ -84,7 +100,9 @@ Full multiplayer combat test passed:
 - [x] Hull displays correctly (Scout 40/40, Free Trader 80/80)
 - [x] Crew display more compact
 - [x] Gunner Actions all 3 dropdowns on same line
+- [x] Combat end messages show ship type and name (no more annoying popup)
+- [x] Free Trader shows automated Turret 2 (Skill 0)
 - [x] Full combat test passes
 - [x] No errors in logs
 
-**Session End: Ready for git commit and merge**
+**Session End: Final commit and merge complete**

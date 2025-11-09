@@ -1251,9 +1251,15 @@
       if (currentShipData.ship === 'scout') {
         shipNameEl.textContent = '⚡ Scout';
         shipTypeEl.textContent = 'Type-S Scout/Courier';
+        // Hide Turret 2 crew for Scout (only 1 turret)
+        const turret2Crew = document.getElementById('turret-2-crew');
+        if (turret2Crew) turret2Crew.style.display = 'none';
       } else {
         shipNameEl.textContent = '📦 Free Trader';
         shipTypeEl.textContent = 'Type-A Free Trader';
+        // Show Turret 2 crew for Free Trader (2 turrets)
+        const turret2Crew = document.getElementById('turret-2-crew');
+        if (turret2Crew) turret2Crew.style.display = 'flex';
       }
 
       // Hull bar
@@ -1474,22 +1480,20 @@
 
       const isWinner = (data.winner === 'player1' && currentShipData.ship === selectedShip);
 
+      // Get ship display names
+      const myShipName = currentShipData.ship === 'scout' ? 'Scout (Type-S)' : 'Free Trader (Type-A)';
+      const enemyShipName = currentShipData.ship === 'scout' ? 'Free Trader (Type-A)' : 'Scout (Type-S)';
+
       if (isWinner) {
-        addLogEntry(`🎉 VICTORY! Enemy ship destroyed in ${data.rounds} rounds!`, 'system');
+        addLogEntry(`🎉 VICTORY! ${enemyShipName} destroyed in ${data.rounds} rounds!`, 'system');
       } else {
-        addLogEntry(`💥 DEFEAT! Your ship was destroyed in ${data.rounds} rounds.`, 'system');
+        addLogEntry(`💥 DEFEAT! ${myShipName} destroyed in ${data.rounds} rounds.`, 'system');
       }
 
       // Disable all combat buttons
       fireButton.disabled = true;
       endTurnButton.disabled = true;
       useDefaultButton.disabled = true;
-
-      // Show victory/defeat message
-      setTimeout(() => {
-        alert(isWinner ? `VICTORY!\n\nEnemy destroyed in ${data.rounds} rounds!\n\nYour Hull: ${currentShipData.hull}/${currentShipData.maxHull}`
-                        : `DEFEAT!\n\nYour ship was destroyed in ${data.rounds} rounds.`);
-      }, 500);
     });
 
     socket.on('space:notYourTurn', (data) => {
