@@ -4,16 +4,18 @@
   "description": "Traveller Combat VTT - Multiplayer space combat tracker",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "echo '\n👥 MULTIPLAYER MODE: http://localhost:3000\n' && node server.js",
+    "dev": "echo '\n🎮 SINGLE-PLAYER TEST MODE: http://localhost:3000/test.html\n' && node server.js",
     "test": "node tools/validate-json.js && node tests/run-all-tests.js",
     "test:unit": "node tests/run-all-tests.js",
     "test:data": "node tools/validate-json.js",
-    "test:security": "node tests/unit/xss-validation.test.js"
+    "test:security": "node tests/unit/xss-validation.test.js",
+    "play": "echo '\n🎮 SINGLE-PLAYER TEST: http://localhost:3000/test.html\n👥 MULTIPLAYER: http://localhost:3000\n' && node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "winston": "^3.18.3"
   },
   "engines": {
     "node": ">=18.0.0"

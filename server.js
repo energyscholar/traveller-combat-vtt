@@ -1,8 +1,11 @@
-// Traveller Combat VTT - Stage 9.2
+// Traveller Combat VTT - Stage 9 Complete
 // Purpose: Hex-based movement system with initiative-based turns
-// Status: Stage 9.1-9.2 Complete, Full Stage 9 in progress
+// Status: Stage 9 Complete - Movement & Advanced Initiative
 
 const express = require('express');
+const config = require('./config');
+const { server: log, client: clientLog, socket: socketLog, game: gameLog, combat: combatLog } = require('./lib/logger');
+
 const app = express();
 const server = require('http').createServer(app);
 const io = require('socket.io')(server, {
@@ -25,6 +28,21 @@ const connections = new Map();
 
 // Stage 8.8: Track active space combat sessions
 const activeCombats = new Map();
+
+// Stage 9: Create dummy opponent for single-player testing
+function createDummyPlayer(player1) {
+  // Choose opposite ship from player 1
+  const oppositeShip = player1.spaceSelection.ship === 'scout' ? 'free_trader' : 'scout';
+
+  return {
+    id: 'dummy_ai',
+    spaceSelection: {
+      ship: oppositeShip,
+      range: player1.spaceSelection.range,
+      ready: true
+    }
+  };
+}
 
 // Stage 8.8: Generate default crew for a ship
 function generateDefaultCrew(shipType) {
@@ -112,7 +130,7 @@ function resetShipStates() {
   shipState.corsair.ammo = initializeAmmo(SHIPS.corsair);
   shipState.scout.position = { q: 2, r: 2 };  // Reset to starting position
   shipState.corsair.position = { q: 7, r: 7 };  // Reset to starting position
-  console.log('[GAME] Ship states reset (hull + ammo + positions)');
+  gameLog.info(' Ship states reset (hull + ammo + positions)');
 }
 
 // Helper: Get available ship for new player
@@ -157,20 +175,20 @@ function rollInitiative() {
     total: corsairInitiative
   };
 
-  console.log(`[INITIATIVE] Scout: ${scoutRoll.total} + ${shipState.scout.pilotSkill} = ${scoutInitiative}`);
-  console.log(`[INITIATIVE] Corsair: ${corsairRoll.total} + ${shipState.corsair.pilotSkill} = ${corsairInitiative}`);
+  gameLog.info(`Scout: ${scoutRoll.total} + ${shipState.scout.pilotSkill} = ${scoutInitiative}`);
+  gameLog.info(`Corsair: ${corsairRoll.total} + ${shipState.corsair.pilotSkill} = ${corsairInitiative}`);
 
   // Determine who goes first (handle ties by re-rolling)
   if (scoutInitiative > corsairInitiative) {
     gameState.currentTurn = 'scout';
-    console.log('[INITIATIVE] Scout goes first');
+    gameLog.info('Scout goes first');
   } else if (corsairInitiative > scoutInitiative) {
     gameState.currentTurn = 'corsair';
-    console.log('[INITIATIVE] Corsair goes first');
+    gameLog.info('Corsair goes first');
   } else {
     // Tie - Scout wins ties (simple tiebreaker)
     gameState.currentTurn = 'scout';
-    console.log('[INITIATIVE] Tie! Scout wins tiebreaker');
+    gameLog.info('Tie! Scout wins tiebreaker');
   }
 
   return {
@@ -183,7 +201,7 @@ function rollInitiative() {
 // Stage 4: Helper - Start a new round
 function startNewRound() {
   gameState.currentRound++;
-  console.log(`[ROUND] Starting Round ${gameState.currentRound}`);
+  gameLog.info(` Starting Round ${gameState.currentRound}`);
 
   // Roll initiative at the start of each round
   const initiativeResult = rollInitiative();
@@ -214,7 +232,7 @@ function endTurn() {
     return startNewRound();
   }
 
-  console.log(`[TURN] ${previousTurn} turn ended, ${gameState.currentTurn} turn begins`);
+  gameLog.info(` ${previousTurn} turn ended, ${gameState.currentTurn} turn begins`);
 
   return {
     round: gameState.currentRound,
@@ -230,14 +248,22 @@ function resetGameState() {
   gameState.initiative.scout = null;
   gameState.initiative.corsair = null;
   gameState.roundHistory = [];
-  console.log('[GAME] Game state reset');
+  gameLog.info(' Game state reset');
 }
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
+  log.debug(' ========================================');
+  log.debug(' NEW CONNECTION RECEIVED!');
+  log.debug(' Socket ID:', socket.id);
+  log.debug(' ========================================');
+
   connectionCount++;
   const connectionId = connectionCount;
   const assignedShip = getAvailableShip();
+
+  log.debug(' Connection ID:', connectionId);
+  log.debug(' Assigned Ship:', assignedShip);
 
   connections.set(socket.id, {
     id: connectionId,
@@ -245,11 +271,12 @@ io.on('connection', (socket) => {
     connected: Date.now()
   });
 
-  console.log(`[CONNECT] Player ${connectionId} connected (socket: ${socket.id})`);
-  console.log(`[ASSIGN] Player ${connectionId} assigned: ${assignedShip || 'spectator'}`);
-  console.log(`[STATUS] ${connections.size} players connected`);
+  socketLog.info(` Player ${connectionId} connected (socket: ${socket.id})`);
+  socketLog.info(` Player ${connectionId} assigned: ${assignedShip || 'spectator'}`);
+  socketLog.info(` ${connections.size} players connected`);
 
   // Send welcome with ship assignment
+  log.debug(' Emitting "welcome" event...');
   socket.emit('welcome', {
     message: `You are Player ${connectionId}`,
     playerId: connectionId,
@@ -257,6 +284,27 @@ io.on('connection', (socket) => {
     role: assignedShip || 'spectator',
     totalPlayers: connections.size
   });
+  log.debug(' "welcome" event emitted');
+
+  // AUTO-ASSIGN: Initialize space selection with defaults
+  socket.spaceSelection = {
+    ship: assignedShip,
+    range: 'Medium',  // Default range
+    ready: false
+  };
+  log.debug(' socket.spaceSelection initialized:', socket.spaceSelection);
+
+  // AUTO-ASSIGN: Send initial ship and range selection to client
+  if (assignedShip) {
+    log.debug(' Emitting "space:autoAssigned" event...');
+    socket.emit('space:autoAssigned', {
+      ship: assignedShip,
+      range: 'Medium'
+    });
+    socketLog.info(` Player ${connectionId} auto-assigned ${assignedShip} at Medium range`);
+  } else {
+    log.debug(' No ship assigned (spectator mode)');
+  }
 
   // Broadcast to others that a new player joined
   socket.broadcast.emit('playerJoined', {
@@ -280,11 +328,35 @@ io.on('connection', (socket) => {
   io.emit('shipStateUpdate', {
     ships: shipState
   });
-  
+
+  // ======== CLIENT LOGGING HANDLER ========
+  // Receive logs from client and log them on server
+  socket.on('client:log', (data) => {
+    const { level, message, meta, playerId } = data;
+    const playerInfo = playerId ? `Player ${playerId}` : `Socket ${socket.id.substring(0, 8)}`;
+
+    // Log using appropriate level
+    switch (level) {
+      case 'error':
+        clientLog.error(`${playerInfo}: ${message}`, meta);
+        break;
+      case 'warn':
+        clientLog.warn(`${playerInfo}: ${message}`, meta);
+        break;
+      case 'info':
+        clientLog.info(`${playerInfo}: ${message}`, meta);
+        break;
+      case 'debug':
+      default:
+        clientLog.debug(`${playerInfo}: ${message}`, meta);
+        break;
+    }
+  });
+
   // Handle "hello" messages (Stage 1)
   socket.on('hello', (data) => {
     const timestamp = Date.now();
-    console.log(`[HELLO] Tab ${connectionId} says hello`);
+    socketLog.info(` Tab ${connectionId} says hello`);
     
     io.emit('helloReceived', {
       fromTab: connectionId,
@@ -298,13 +370,13 @@ io.on('connection', (socket) => {
   socket.on('combat', (data) => {
     const conn = connections.get(socket.id);
 
-    console.log(`[COMBAT] Player ${connectionId} (${conn.ship}) initiates combat`);
-    console.log(`[COMBAT] Attacker: ${data.attacker}, Target: ${data.target}`);
-    console.log(`[COMBAT] Range: ${data.range}, Dodge: ${data.dodge}`);
+    combatLog.info(` Player ${connectionId} (${conn.ship}) initiates combat`);
+    combatLog.info(` Attacker: ${data.attacker}, Target: ${data.target}`);
+    combatLog.info(` Range: ${data.range}, Dodge: ${data.dodge}`);
 
     // Stage 3: Validate player can only control their assigned ship
     if (conn.ship !== data.attacker) {
-      console.log(`[COMBAT] REJECTED: Player ${connectionId} tried to attack with ${data.attacker} but controls ${conn.ship}`);
+      combatLog.info(` REJECTED: Player ${connectionId} tried to attack with ${data.attacker} but controls ${conn.ship}`);
       socket.emit('combatError', {
         message: `You can only attack with your assigned ship (${conn.ship || 'none'})`,
         yourShip: conn.ship,
@@ -315,7 +387,7 @@ io.on('connection', (socket) => {
 
     // Stage 4: Validate it's the player's turn
     if (gameState.currentRound > 0 && conn.ship !== gameState.currentTurn) {
-      console.log(`[COMBAT] REJECTED: Not ${conn.ship}'s turn (current: ${gameState.currentTurn})`);
+      combatLog.info(` REJECTED: Not ${conn.ship}'s turn (current: ${gameState.currentTurn})`);
       socket.emit('combatError', {
         message: `It's not your turn! Current turn: ${gameState.currentTurn || 'game not started'}`,
         currentTurn: gameState.currentTurn
@@ -341,24 +413,24 @@ io.on('connection', (socket) => {
       return;
     }
 
-    console.log(`[COMBAT] Weapon: ${weapon.name}`);
+    combatLog.info(` Weapon: ${weapon.name}`);
 
     // Stage 5: Validate ammo if weapon uses ammo
     if (weapon.ammo !== null) {
       const currentAmmo = shipState[data.attacker].ammo[weapon.id];
       if (currentAmmo <= 0) {
-        console.log(`[COMBAT] REJECTED: Out of ammo for ${weapon.name}`);
+        combatLog.info(` REJECTED: Out of ammo for ${weapon.name}`);
         socket.emit('combatError', {
           message: `Out of ammo for ${weapon.name}!`
         });
         return;
       }
-      console.log(`[COMBAT] ${weapon.name} ammo: ${currentAmmo}`);
+      combatLog.info(` ${weapon.name} ammo: ${currentAmmo}`);
     }
 
     // Stage 5: Validate range restriction
     if (weapon.rangeRestriction && !weapon.rangeRestriction.includes(data.range)) {
-      console.log(`[COMBAT] REJECTED: ${weapon.name} out of range (${data.range})`);
+      combatLog.info(` REJECTED: ${weapon.name} out of range (${data.range})`);
       socket.emit('combatError', {
         message: `${weapon.name} out of range! Valid ranges: ${weapon.rangeRestriction.join(', ')}`
       });
@@ -398,27 +470,27 @@ io.on('connection', (socket) => {
 
     const breakdown = getAttackBreakdown(result);
 
-    console.log(`[COMBAT] Result: ${result.hit ? 'HIT' : 'MISS'} with ${weapon.name}`);
+    combatLog.info(` Result: ${result.hit ? 'HIT' : 'MISS'} with ${weapon.name}`);
 
     // Stage 5: Decrement ammo if weapon uses ammo (regardless of hit/miss)
     if (weapon.ammo !== null) {
       const oldAmmo = shipState[data.attacker].ammo[weapon.id];
       shipState[data.attacker].ammo[weapon.id]--;
-      console.log(`[AMMO] ${weapon.name}: ${oldAmmo} → ${shipState[data.attacker].ammo[weapon.id]}`);
+      combatLog.info(` ${weapon.name}: ${oldAmmo} → ${shipState[data.attacker].ammo[weapon.id]}`);
     }
 
     if (result.hit) {
-      console.log(`[COMBAT] Damage: ${result.damage} (${targetShip.hull} → ${result.newHull} hull)`);
+      combatLog.info(` Damage: ${result.damage} (${targetShip.hull} → ${result.newHull} hull)`);
 
       // Update persistent ship state
       const oldHull = shipState[data.target].hull;
       shipState[data.target].hull = result.newHull;
 
-      console.log(`[STATE] ${targetBase.name} hull: ${oldHull} → ${shipState[data.target].hull}`);
+      combatLog.info(` ${targetBase.name} hull: ${oldHull} → ${shipState[data.target].hull}`);
 
       // Check for victory
       if (shipState[data.target].hull <= 0) {
-        console.log(`[VICTORY] ${attackerBase.name} has destroyed ${targetBase.name}!`);
+        combatLog.info(` ${attackerBase.name} has destroyed ${targetBase.name}!`);
       }
     }
 
@@ -439,7 +511,7 @@ io.on('connection', (socket) => {
   // Stage 6: Handle engineer repair action
   socket.on('engineerRepair', (data) => {
     const conn = connections.get(socket.id);
-    console.log(`[REPAIR] Player ${connectionId} (${conn.ship}) requests engineer repair`);
+    combatLog.info(` Player ${connectionId} (${conn.ship}) requests engineer repair`);
 
     // Validate player controls this ship
     if (conn.ship !== data.ship) {
@@ -475,7 +547,7 @@ io.on('connection', (socket) => {
 
     const repairResult = engineerRepair(shipToRepair, engineer, { seed: data.seed });
 
-    console.log(`[REPAIR] ${engineer.name} repairs ${repairResult.hullRepaired} HP (${shipToRepair.hull} → ${repairResult.newHull})`);
+    combatLog.info(` ${engineer.name} repairs ${repairResult.hullRepaired} HP (${shipToRepair.hull} → ${repairResult.newHull})`);
 
     // Update ship state
     shipState[data.ship].hull = repairResult.newHull;
@@ -498,7 +570,7 @@ io.on('connection', (socket) => {
   // Stage 7: Handle ship movement
   socket.on('moveShip', (data) => {
     const conn = connections.get(socket.id);
-    console.log(`[MOVE] Player ${connectionId} (${conn.ship}) requests move to (${data.to.q}, ${data.to.r})`);
+    combatLog.info(` Player ${connectionId} (${conn.ship}) requests move to (${data.to.q}, ${data.to.r})`);
 
     // Validate player controls this ship
     if (conn.ship !== data.ship) {
@@ -524,7 +596,7 @@ io.on('connection', (socket) => {
     const moveResult = validateMove(from, data.to, movementPoints);
 
     if (!moveResult.valid) {
-      console.log(`[MOVE] REJECTED: ${moveResult.error}`);
+      combatLog.info(` REJECTED: ${moveResult.error}`);
       socket.emit('moveError', {
         message: moveResult.error
       });
@@ -545,7 +617,7 @@ io.on('connection', (socket) => {
     const oldPosition = { ...shipState[data.ship].position };
     shipState[data.ship].position = moveResult.newPosition;
 
-    console.log(`[MOVE] ${data.ship} moved from (${oldPosition.q},${oldPosition.r}) to (${moveResult.newPosition.q},${moveResult.newPosition.r})`);
+    combatLog.info(` ${data.ship} moved from (${oldPosition.q},${oldPosition.r}) to (${moveResult.newPosition.q},${moveResult.newPosition.r})`);
 
     // Calculate new range between ships
     const scoutPos = shipState.scout.position;
@@ -553,7 +625,7 @@ io.on('connection', (socket) => {
     const distance = hexDistance(scoutPos, corsairPos);
     const range = rangeFromDistance(distance);
 
-    console.log(`[RANGE] Ships now at distance ${distance} (${range})`);
+    combatLog.info(` Ships now at distance ${distance} (${range})`);
 
     // Broadcast move result to all players
     io.emit('moveResult', {
@@ -573,7 +645,7 @@ io.on('connection', (socket) => {
 
   // Stage 4: Handle game reset request (UPDATED to reset game state)
   socket.on('resetGame', () => {
-    console.log(`[RESET] Player ${connectionId} requested game reset`);
+    gameLog.info(` Player ${connectionId} requested game reset`);
     resetShipStates();
     resetGameState(); // Stage 4: Also reset rounds/turns
 
@@ -602,7 +674,7 @@ io.on('connection', (socket) => {
   // Stage 4: Handle start game request
   socket.on('startGame', () => {
     const conn = connections.get(socket.id);
-    console.log(`[START] Player ${connectionId} requested game start`);
+    gameLog.info(` Player ${connectionId} requested game start`);
 
     // Check if both players are connected
     const assignments = getShipAssignments();
@@ -628,7 +700,7 @@ io.on('connection', (socket) => {
   // Stage 4: Handle end turn request
   socket.on('endTurn', () => {
     const conn = connections.get(socket.id);
-    console.log(`[TURN] Player ${connectionId} (${conn.ship}) requested end turn`);
+    gameLog.info(` Player ${connectionId} (${conn.ship}) requested end turn`);
 
     // Validate it's their turn
     if (conn.ship !== gameState.currentTurn) {
@@ -661,28 +733,23 @@ io.on('connection', (socket) => {
       }
     }
   });
-  
+
   // ======== STAGE 8.6: SPACE COMBAT SHIP SELECTION ========
 
-  // Track ship selection state per socket
-  socket.spaceSelection = {
-    ship: null,
-    range: null,
-    ready: false
-  };
+  // Note: socket.spaceSelection is initialized earlier with auto-assigned values
 
   socket.on('space:shipSelected', (data) => {
-    console.log(`[SPACE] Player ${connectionId} selected ship: ${data.ship}`);
+    combatLog.info(` Player ${connectionId} selected ship: ${data.ship}`);
     socket.spaceSelection.ship = data.ship;
   });
 
   socket.on('space:rangeSelected', (data) => {
-    console.log(`[SPACE] Player ${connectionId} selected range: ${data.range}`);
+    combatLog.info(` Player ${connectionId} selected range: ${data.range}`);
     socket.spaceSelection.range = data.range;
   });
 
   socket.on('space:playerReady', (data) => {
-    console.log(`[SPACE] Player ${connectionId} ready with ${data.ship} at ${data.range}`);
+    combatLog.info(` Player ${connectionId} ready with ${data.ship} at ${data.range}`);
 
     socket.spaceSelection.ship = data.ship;
     socket.spaceSelection.range = data.range;
@@ -694,22 +761,25 @@ io.on('connection', (socket) => {
       range: data.range
     });
 
-    // Check if both players are ready
+    // Check if both players are ready (or single player for testing)
     const allSockets = Array.from(connections.keys()).map(id => io.sockets.sockets.get(id));
     const readyPlayers = allSockets.filter(s => s && s.spaceSelection && s.spaceSelection.ready);
 
-    console.log(`[SPACE] ${readyPlayers.length}/${allSockets.length} players ready`);
+    combatLog.info(` ${readyPlayers.length}/${allSockets.length} players ready`);
 
-    if (readyPlayers.length >= 2) {
-      // Both players ready - start combat!
+    // TEST MODE: Allow single player to start combat (for testing purposes)
+    const testMode = readyPlayers.length === 1 && allSockets.length === 1;
+
+    if (readyPlayers.length >= 2 || testMode) {
+      // Both players ready - start combat! (or single player in test mode)
       const player1 = readyPlayers[0];
-      const player2 = readyPlayers[1];
+      const player2 = testMode ? createDummyPlayer(player1) : readyPlayers[1];
 
       // Use the last player's range selection
       const finalRange = player2.spaceSelection.range || player1.spaceSelection.range || 'Short';
 
-      console.log(`[SPACE COMBAT] Starting! Range: ${finalRange}`);
-      console.log(`[SPACE COMBAT] Ships: ${player1.spaceSelection.ship} vs ${player2.spaceSelection.ship}`);
+      combatLog.info(` Starting! Range: ${finalRange}`);
+      combatLog.info(` Ships: ${player1.spaceSelection.ship} vs ${player2.spaceSelection.ship}`);
 
       // Broadcast combat start to both players
       io.emit('space:combatStart', {
@@ -757,7 +827,14 @@ io.on('connection', (socket) => {
           activePlayer: player1.id,
           turnComplete: { [player1.id]: false, [player2.id]: false }
         });
-        console.log(`[SPACE COMBAT] Combat state initialized: ${combatId}`);
+        combatLog.info(` Combat state initialized: ${combatId}`);
+
+        // Notify both players who goes first (Player 1 always starts)
+        io.emit('space:turnChange', {
+          activePlayer: player1.id,
+          round: 1
+        });
+        combatLog.info(` Initial turn set to player1: ${player1.id}`);
       }
     }
   });
@@ -766,7 +843,7 @@ io.on('connection', (socket) => {
 
   // Handle fire action
   socket.on('space:fire', (data) => {
-    console.log(`[SPACE:FIRE] Player ${connectionId} firing`, data);
+    combatLog.info(`[SPACE:FIRE] Player ${connectionId} firing`, data);
 
     // Find combat for this player
     let combat = null;
@@ -794,13 +871,13 @@ io.on('connection', (socket) => {
     }
 
     if (!combat) {
-      console.log(`[SPACE:FIRE] No active combat found for player ${connectionId}`);
+      combatLog.info(`[SPACE:FIRE] No active combat found for player ${connectionId}`);
       return;
     }
 
     // Check if it's this player's turn
     if (combat.activePlayer !== socket.id) {
-      console.log(`[SPACE:FIRE] Not player's turn: ${connectionId}`);
+      combatLog.info(`[SPACE:FIRE] Not player's turn: ${connectionId}`);
       socket.emit('space:notYourTurn', { message: 'Wait for your turn!' });
       return;
     }
@@ -816,14 +893,14 @@ io.on('connection', (socket) => {
       }
     );
 
-    console.log(`[SPACE:FIRE] Attack result:`, attackResult);
+    combatLog.info(`[SPACE:FIRE] Attack result:`, attackResult);
 
     if (attackResult.hit) {
       // Apply damage
       defenderPlayer.hull -= attackResult.damage;
       if (defenderPlayer.hull < 0) defenderPlayer.hull = 0;
 
-      console.log(`[SPACE:FIRE] HIT! ${attackResult.damage} damage. Hull: ${defenderPlayer.hull}/${defenderPlayer.maxHull}`);
+      combatLog.info(`[SPACE:FIRE] HIT! ${attackResult.damage} damage. Hull: ${defenderPlayer.hull}/${defenderPlayer.maxHull}`);
 
       // HOTFIX: Safe emit to attacker with null check
       if (attackerSocket && attackerSocket.connected) {
@@ -835,7 +912,7 @@ io.on('connection', (socket) => {
           total: attackResult.total
         });
       } else {
-        console.error(`[SOCKET_ERROR] Attacker socket disconnected during combat! Combat: ${combat.id}, Attacker: ${attackerPlayer.id}`);
+        socketLog.error(` Attacker socket disconnected during combat! Combat: ${combat.id}, Attacker: ${attackerPlayer.id}`);
       }
 
       // HOTFIX: Safe emit to defender with null check and disconnect handling
@@ -848,8 +925,8 @@ io.on('connection', (socket) => {
         });
       } else {
         // Defender disconnected - forfeit combat
-        console.error(`[SOCKET_ERROR] Defender socket disconnected during combat! Combat: ${combat.id}, Defender: ${defenderPlayer.id}`);
-        console.log(`[SPACE:FORFEIT] ${defenderPlayer.id} disconnected, awarding victory to ${attackerPlayer.id}`);
+        socketLog.error(` Defender socket disconnected during combat! Combat: ${combat.id}, Defender: ${defenderPlayer.id}`);
+        combatLog.info(`[SPACE:FORFEIT] ${defenderPlayer.id} disconnected, awarding victory to ${attackerPlayer.id}`);
 
         // Award victory to attacker
         activeCombats.delete(combat.id);
@@ -891,7 +968,7 @@ io.on('connection', (socket) => {
           attackerSocket.emit('space:critical', criticalData);
           emitSuccess++;
         } else {
-          console.error(`[SOCKET_ERROR] Cannot emit critical to attacker (disconnected): ${attackerPlayer.id}`);
+          socketLog.error(` Cannot emit critical to attacker (disconnected): ${attackerPlayer.id}`);
           emitFailure++;
         }
 
@@ -899,11 +976,11 @@ io.on('connection', (socket) => {
           defenderSocket.emit('space:critical', criticalData);
           emitSuccess++;
         } else {
-          console.error(`[SOCKET_ERROR] Cannot emit critical to defender (disconnected): ${defenderPlayer.id}`);
+          socketLog.error(` Cannot emit critical to defender (disconnected): ${defenderPlayer.id}`);
           emitFailure++;
         }
 
-        console.log(`[SPACE:CRITICAL] ${criticalSystem} damaged! Notified ${emitSuccess}/2 players (${emitFailure} disconnected)`);
+        combatLog.info(`[SPACE:CRITICAL] ${criticalSystem} damaged! Notified ${emitSuccess}/2 players (${emitFailure} disconnected)`);
       }
 
       // Check for victory
@@ -911,7 +988,7 @@ io.on('connection', (socket) => {
         const winner = attackerPlayer.id === combat.player1.id ? 'player1' : 'player2';
         const loser = defenderPlayer.id === combat.player1.id ? 'player1' : 'player2';
 
-        console.log(`[SPACE:VICTORY] ${winner} wins! ${loser} destroyed.`);
+        combatLog.info(`[SPACE:VICTORY] ${winner} wins! ${loser} destroyed.`);
 
         // HOTFIX: Safe emit for victory with comprehensive logging
         const victoryData = {
@@ -930,24 +1007,24 @@ io.on('connection', (socket) => {
           attackerSocket.emit('space:combatEnd', victoryData);
           victoryNotified++;
         } else {
-          console.error(`[SOCKET_ERROR] Cannot notify attacker of victory (disconnected): ${attackerPlayer.id}`);
+          socketLog.error(` Cannot notify attacker of victory (disconnected): ${attackerPlayer.id}`);
         }
 
         if (defenderSocket && defenderSocket.connected) {
           defenderSocket.emit('space:combatEnd', victoryData);
           victoryNotified++;
         } else {
-          console.error(`[SOCKET_ERROR] Cannot notify defender of defeat (disconnected): ${defenderPlayer.id}`);
+          socketLog.error(` Cannot notify defender of defeat (disconnected): ${defenderPlayer.id}`);
         }
 
-        console.log(`[SPACE:VICTORY] Victory notifications sent to ${victoryNotified}/2 players`);
+        combatLog.info(`[SPACE:VICTORY] Victory notifications sent to ${victoryNotified}/2 players`);
 
         // Clean up combat
         activeCombats.delete(combat.id);
         return;
       }
     } else {
-      console.log(`[SPACE:FIRE] MISS!`);
+      combatLog.info(`[SPACE:FIRE] MISS!`);
 
       // HOTFIX: Safe emit for miss with null checks
       if (attackerSocket && attackerSocket.connected) {
@@ -958,7 +1035,7 @@ io.on('connection', (socket) => {
           targetNumber: attackResult.targetNumber
         });
       } else {
-        console.error(`[SOCKET_ERROR] Cannot emit miss result to attacker (disconnected): ${attackerPlayer.id}`);
+        socketLog.error(` Cannot emit miss result to attacker (disconnected): ${attackerPlayer.id}`);
       }
 
       if (defenderSocket && defenderSocket.connected) {
@@ -966,8 +1043,8 @@ io.on('connection', (socket) => {
           hit: false
         });
       } else {
-        console.error(`[SOCKET_ERROR] Cannot emit miss to defender (disconnected): ${defenderPlayer.id}`);
-        console.log(`[SPACE:FORFEIT] ${defenderPlayer.id} disconnected during miss, awarding victory to ${attackerPlayer.id}`);
+        socketLog.error(` Cannot emit miss to defender (disconnected): ${defenderPlayer.id}`);
+        combatLog.info(`[SPACE:FORFEIT] ${defenderPlayer.id} disconnected during miss, awarding victory to ${attackerPlayer.id}`);
 
         // Award victory to attacker
         activeCombats.delete(combat.id);
@@ -998,7 +1075,7 @@ io.on('connection', (socket) => {
       combat.round++;
       combat.turnComplete = { [combat.player1.id]: false, [combat.player2.id]: false };
 
-      console.log(`[SPACE:ROUND] Starting round ${combat.round}`);
+      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}`);
 
       const newRoundData = {
         round: combat.round,
@@ -1015,17 +1092,17 @@ io.on('connection', (socket) => {
         p1Socket.emit('space:newRound', newRoundData);
         roundNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player1 of new round (disconnected): ${combat.player1.id}`);
+        socketLog.error(` Cannot notify player1 of new round (disconnected): ${combat.player1.id}`);
       }
 
       if (p2Socket && p2Socket.connected) {
         p2Socket.emit('space:newRound', newRoundData);
         roundNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player2 of new round (disconnected): ${combat.player2.id}`);
+        socketLog.error(` Cannot notify player2 of new round (disconnected): ${combat.player2.id}`);
       }
 
-      console.log(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
+      combatLog.info(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
     } else {
       // Switch active player
       combat.activePlayer = combat.activePlayer === combat.player1.id ? combat.player2.id : combat.player1.id;
@@ -1044,23 +1121,23 @@ io.on('connection', (socket) => {
         p1Socket.emit('space:turnChange', turnChangeData);
         turnNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player1 of turn change (disconnected): ${combat.player1.id}`);
+        socketLog.error(` Cannot notify player1 of turn change (disconnected): ${combat.player1.id}`);
       }
 
       if (p2Socket && p2Socket.connected) {
         p2Socket.emit('space:turnChange', turnChangeData);
         turnNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player2 of turn change (disconnected): ${combat.player2.id}`);
+        socketLog.error(` Cannot notify player2 of turn change (disconnected): ${combat.player2.id}`);
       }
 
-      console.log(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
+      combatLog.info(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
     }
   });
 
   // Handle end turn
   socket.on('space:endTurn', () => {
-    console.log(`[SPACE:END_TURN] Player ${connectionId} ending turn`);
+    combatLog.info(`[SPACE:END_TURN] Player ${connectionId} ending turn`);
 
     // Find combat for this player
     let combat = null;
@@ -1073,14 +1150,14 @@ io.on('connection', (socket) => {
     }
 
     if (!combat) {
-      console.log(`[SPACE:END_TURN] No active combat found for player ${connectionId}`);
+      combatLog.info(`[SPACE:END_TURN] No active combat found for player ${connectionId}`);
       return;
     }
 
     // Mark turn as complete for this player
     combat.turnComplete[socket.id] = true;
 
-    console.log(`[SPACE:END_TURN] Turn complete for ${connectionId}`);
+    combatLog.info(`[SPACE:END_TURN] Turn complete for ${connectionId}`);
 
     // HOTFIX: Safe emit for round/turn transitions with null checks
     // Check if both players have completed their turns
@@ -1089,7 +1166,7 @@ io.on('connection', (socket) => {
       combat.round++;
       combat.turnComplete = { [combat.player1.id]: false, [combat.player2.id]: false };
 
-      console.log(`[SPACE:ROUND] Starting round ${combat.round}`);
+      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}`);
 
       const newRoundData = {
         round: combat.round,
@@ -1106,17 +1183,17 @@ io.on('connection', (socket) => {
         p1Socket.emit('space:newRound', newRoundData);
         roundNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player1 of new round (disconnected): ${combat.player1.id}`);
+        socketLog.error(` Cannot notify player1 of new round (disconnected): ${combat.player1.id}`);
       }
 
       if (p2Socket && p2Socket.connected) {
         p2Socket.emit('space:newRound', newRoundData);
         roundNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player2 of new round (disconnected): ${combat.player2.id}`);
+        socketLog.error(` Cannot notify player2 of new round (disconnected): ${combat.player2.id}`);
       }
 
-      console.log(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
+      combatLog.info(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
     } else {
       // Switch active player
       combat.activePlayer = combat.activePlayer === combat.player1.id ? combat.player2.id : combat.player1.id;
@@ -1135,17 +1212,17 @@ io.on('connection', (socket) => {
         p1Socket.emit('space:turnChange', turnChangeData);
         turnNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player1 of turn change (disconnected): ${combat.player1.id}`);
+        socketLog.error(` Cannot notify player1 of turn change (disconnected): ${combat.player1.id}`);
       }
 
       if (p2Socket && p2Socket.connected) {
         p2Socket.emit('space:turnChange', turnChangeData);
         turnNotified++;
       } else {
-        console.error(`[SOCKET_ERROR] Cannot notify player2 of turn change (disconnected): ${combat.player2.id}`);
+        socketLog.error(` Cannot notify player2 of turn change (disconnected): ${combat.player2.id}`);
       }
 
-      console.log(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
+      combatLog.info(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
     }
   });
 
@@ -1154,7 +1231,7 @@ io.on('connection', (socket) => {
     const duration = Date.now() - conn.connected;
     const disconnectedShip = conn.ship;
 
-    console.log(`[DISCONNECT] Player ${connectionId} (${disconnectedShip || 'spectator'}) disconnected after ${duration}ms`);
+    socketLog.info(` Player ${connectionId} (${disconnectedShip || 'spectator'}) disconnected after ${duration}ms`);
 
     // HOTFIX: Check if disconnecting player is in active space combat
     let combatFound = null;
@@ -1166,7 +1243,7 @@ io.on('connection', (socket) => {
     }
 
     if (combatFound) {
-      console.log(`[SPACE:FORFEIT] Player ${connectionId} disconnected during active combat ${combatFound.id}`);
+      combatLog.info(`[SPACE:FORFEIT] Player ${connectionId} disconnected during active combat ${combatFound.id}`);
 
       // Determine winner (the player who DIDN'T disconnect)
       const isPlayer1 = combatFound.combat.player1.id === socket.id;
@@ -1175,7 +1252,7 @@ io.on('connection', (socket) => {
 
       // Clean up combat state
       activeCombats.delete(combatFound.id);
-      console.log(`[SPACE:COMBAT] Combat ${combatFound.id} ended due to disconnect. ${activeCombats.size} combats remaining.`);
+      combatLog.info(`[SPACE:COMBAT] Combat ${combatFound.id} ended due to disconnect. ${activeCombats.size} combats remaining.`);
 
       // Notify winner with null check
       if (winnerSocket && winnerSocket.connected) {
@@ -1189,14 +1266,14 @@ io.on('connection', (socket) => {
           },
           rounds: combatFound.combat.round
         });
-        console.log(`[SPACE:VICTORY] Opponent disconnected, victory awarded to ${winnerId}`);
+        combatLog.info(`[SPACE:VICTORY] Opponent disconnected, victory awarded to ${winnerId}`);
       } else {
-        console.error(`[SOCKET_ERROR] Winner also disconnected, combat ${combatFound.id} ends with no notification`);
+        socketLog.error(` Winner also disconnected, combat ${combatFound.id} ends with no notification`);
       }
     }
 
     connections.delete(socket.id);
-    console.log(`[STATUS] ${connections.size} players remaining`);
+    socketLog.info(` ${connections.size} players remaining`);
 
     // Broadcast updated game state to remaining players
     socket.broadcast.emit('playerLeft', {
@@ -1243,38 +1320,39 @@ app.get('/status', (req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log('========================================');
-  console.log('TRAVELLER COMBAT VTT - STAGE 9.2');
-  console.log('========================================');
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log('');
-  console.log('Current Features:');
-  console.log('- Hex-based movement system');
-  console.log('- Initiative-based turn order (2d6 + pilot skill)');
-  console.log('- Multiple weapon types (Pulse Laser, Beam Laser, Missile)');
-  console.log('- Crew management (Pilot, Gunner, Engineer)');
-  console.log('- Engineer repair actions');
-  console.log('- Server-side combat resolution (TDD)');
-  console.log('');
-  console.log('Status:');
-  console.log('- Stage 9.1-9.2 Complete: Movement & Initiative');
-  console.log('- NOTE: Full Stage 9 in progress');
-  console.log('');
-  console.log('Instructions:');
-  console.log('1. Open browser to http://localhost:3000');
-  console.log('2. Two players connect to select ships');
-  console.log('3. Players move ships on hex grid');
-  console.log('4. Initiative determines turn order each round');
-  console.log('5. Combat with weapons, movement, and repairs');
-  console.log('========================================');
+server.listen(config.server.port, () => {
+  log.info('========================================');
+  log.info('TRAVELLER COMBAT VTT - STAGE 9 COMPLETE');
+  log.info('========================================');
+  log.info(`Server running on http://localhost:${config.server.port}`);
+  log.info(`Environment: ${config.env}`);
+  log.info(`Log Level: ${config.logging.level}`);
+  log.info(`Client Logging: ${config.logging.clientLogging ? 'ENABLED' : 'DISABLED'}`);
+  log.info('');
+  log.info('Current Features:');
+  log.info('- Hex-based movement system');
+  log.info('- Initiative-based turn order (2d6 + pilot skill)');
+  log.info('- Multiple weapon types (Pulse Laser, Beam Laser, Missile)');
+  log.info('- Crew management (Pilot, Gunner, Engineer)');
+  log.info('- Engineer repair actions');
+  log.info('- Server-side combat resolution (TDD)');
+  log.info('- Winston logging system with client-to-server forwarding');
+  log.info('');
+  log.info('Status: Stage 9 Complete - Movement & Advanced Initiative');
+  log.info('');
+  log.info('Instructions:');
+  log.info('1. Open browser to http://localhost:' + config.server.port);
+  log.info('2. Two players connect to select ships');
+  log.info('3. Players move ships on hex grid');
+  log.info('4. Initiative determines turn order each round');
+  log.info('5. Combat with weapons, movement, and repairs');
+  log.info('========================================');
 });
 
 process.on('SIGTERM', () => {
-  console.log('Shutting down gracefully...');
+  log.info('Shutting down gracefully...');
   server.close(() => {
-    console.log('Server closed');
+    log.info('Server closed');
     process.exit(0);
   });
 });

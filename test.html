@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traveller VTT - Single Player Test Mode</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #00ff00;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 { text-align: center; border-bottom: 2px solid #00ff00; padding-bottom: 10px; }
+    .panel { background: #1a1a1a; border: 1px solid #00ff00; padding: 15px; margin: 10px 0; }
+    button { 
+      background: #003300; 
+      color: #00ff00; 
+      border: 1px solid #00ff00; 
+      padding: 10px 20px; 
+      cursor: pointer; 
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover { background: #005500; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ship-select { display: flex; gap: 20px; justify-content: center; }
+    .ship-card { 
+      border: 1px solid #00ff00; 
+      padding: 15px; 
+      cursor: pointer; 
+      transition: all 0.3s;
+    }
+    .ship-card:hover { background: #003300; }
+    .ship-card.selected { background: #005500; border: 2px solid #00ff00; }
+    .log { 
+      background: #000; 
+      border: 1px solid #00ff00; 
+      padding: 10px; 
+      height: 200px; 
+      overflow-y: auto; 
+      font-size: 12px;
+    }
+    .status { color: #ffff00; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>TRAVELLER VTT - SINGLE PLAYER TEST MODE</h1>
+  
+  <div class="panel">
+    <h2>Test Mode Instructions</h2>
+    <p>This is a single-player test interface. Select your ship and click "Start Combat" to fight against an AI opponent.</p>
+    <p class="status" id="connectionStatus">Connecting...</p>
+  </div>
+
+  <div class="panel" id="shipSelection">
+    <h2>Select Your Ship</h2>
+    <div class="ship-select">
+      <div class="ship-card" data-ship="scout" onclick="selectShip('scout')">
+        <h3>Scout Ship</h3>
+        <p>Hull: 20<br>Armor: 4<br>Turrets: 1<br>Fast & Nimble</p>
+      </div>
+      <div class="ship-card" data-ship="free_trader" onclick="selectShip('free_trader')">
+        <h3>Free Trader</h3>
+        <p>Hull: 30<br>Armor: 2<br>Turrets: 2<br>More Firepower</p>
+      </div>
+    </div>
+    <p style="text-align: center; margin-top: 15px;">
+      Range: 
+      <select id="rangeSelect">
+        <option value="Short">Short</option>
+        <option value="Medium">Medium</option>
+        <option value="Long">Long</option>
+      </select>
+    </p>
+    <p style="text-align: center;">
+      <button onclick="startCombat()" id="startBtn" disabled>START COMBAT</button>
+    </p>
+  </div>
+
+  <div class="panel" id="combatPanel" style="display:none;">
+    <h2>Combat In Progress</h2>
+    <p><strong>Your Ship:</strong> <span id="yourShip"></span></p>
+    <p><strong>Enemy Ship:</strong> <span id="enemyShip"></span></p>
+    <p><strong>Range:</strong> <span id="combatRange"></span></p>
+    <p><strong>Round:</strong> <span id="roundNum">1</span></p>
+    <p><strong>Your Hull:</strong> <span id="yourHull">-</span> / <span id="yourMaxHull">-</span></p>
+    <p><strong>Enemy Hull:</strong> <span id="enemyHull">-</span> / <span id="enemyMaxHull">-</span></p>
+    
+    <div style="text-align: center; margin-top: 15px;">
+      <button onclick="fireWeapon()" id="fireBtn">FIRE!</button>
+      <button onclick="endTurn()" id="endTurnBtn">END TURN</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Combat Log</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let selectedShip = null;
+    let combatActive = false;
+    let myMaxHull = 0;
+    let enemyMaxHull = 0;
+
+    function log(msg) {
+      const logEl = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      logEl.innerHTML += `[${time}] ${msg}<br>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function selectShip(ship) {
+      selectedShip = ship;
+      document.querySelectorAll('.ship-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+      document.querySelector(`[data-ship="${ship}"]`).classList.add('selected');
+      document.getElementById('startBtn').disabled = false;
+      log(`Selected ship: ${ship}`);
+    }
+
+    function startCombat() {
+      if (!selectedShip) return;
+      
+      const range = document.getElementById('rangeSelect').value;
+      
+      log(`Starting combat with ${selectedShip} at ${range} range...`);
+      
+      socket.emit('space:shipSelected', { ship: selectedShip });
+      socket.emit('space:rangeSelected', { range: range });
+      socket.emit('space:playerReady', { 
+        ship: selectedShip, 
+        range: range 
+      });
+    }
+
+    function fireWeapon() {
+      log('Firing weapon...');
+      socket.emit('space:fire', { weapon: 0, turret: 0 });
+    }
+
+    function endTurn() {
+      log('Ending turn...');
+      socket.emit('space:endTurn');
+    }
+
+    // Socket event handlers
+    socket.on('connect', () => {
+      log('Connected to server');
+      document.getElementById('connectionStatus').textContent = 'Connected - Ready to Play';
+    });
+
+    socket.on('welcome', (data) => {
+      log(`Welcome! You are Player ${data.playerId}`);
+    });
+
+    socket.on('space:combatStart', (data) => {
+      log(`COMBAT STARTED! ${data.ships.player1} vs ${data.ships.player2} at ${data.range}`);
+      
+      document.getElementById('shipSelection').style.display = 'none';
+      document.getElementById('combatPanel').style.display = 'block';
+      
+      document.getElementById('yourShip').textContent = selectedShip;
+      document.getElementById('enemyShip').textContent = selectedShip === 'scout' ? 'free_trader' : 'scout';
+      document.getElementById('combatRange').textContent = data.range;
+      
+      // Set initial hull values
+      myMaxHull = selectedShip === 'scout' ? 20 : 30;
+      enemyMaxHull = selectedShip === 'scout' ? 30 : 20;
+      
+      document.getElementById('yourHull').textContent = myMaxHull;
+      document.getElementById('yourMaxHull').textContent = myMaxHull;
+      document.getElementById('enemyHull').textContent = enemyMaxHull;
+      document.getElementById('enemyMaxHull').textContent = enemyMaxHull;
+      
+      combatActive = true;
+    });
+
+    socket.on('space:attackResult', (data) => {
+      if (data.hit) {
+        log(`🎯 HIT! You dealt ${data.damage} damage! (Roll: ${data.total})`);
+        document.getElementById('enemyHull').textContent = data.targetHull;
+      } else {
+        log(`❌ MISS! (Roll: ${data.total} vs ${data.targetNumber})`);
+      }
+    });
+
+    socket.on('space:attacked', (data) => {
+      if (data.hit) {
+        log(`💥 You were hit for ${data.damage} damage!`);
+        document.getElementById('yourHull').textContent = data.hull;
+      } else {
+        log(`✓ Enemy missed!`);
+      }
+    });
+
+    socket.on('space:critical', (data) => {
+      log(`⚠️ CRITICAL HIT! ${data.system} damaged!`);
+    });
+
+    socket.on('space:newRound', (data) => {
+      log(`--- ROUND ${data.round} ---`);
+      document.getElementById('roundNum').textContent = data.round;
+    });
+
+    socket.on('space:turnChange', (data) => {
+      log(`Turn changed (Round ${data.round})`);
+    });
+
+    socket.on('space:combatEnd', (data) => {
+      if (data.winner === 'player1') {
+        log(`🏆 VICTORY! You destroyed the enemy ship in ${data.rounds} rounds!`);
+      } else {
+        log(`💀 DEFEAT! Your ship was destroyed in ${data.rounds} rounds.`);
+      }
+      
+      document.getElementById('fireBtn').disabled = true;
+      document.getElementById('endTurnBtn').disabled = true;
+      combatActive = false;
+      
+      setTimeout(() => {
+        if (confirm('Combat ended. Start new combat?')) {
+          location.reload();
+        }
+      }, 2000);
+    });
+
+    socket.on('space:notYourTurn', (data) => {
+      log(`⏸️ ${data.message}`);
+    });
+  </script>
+</body>
+</html>

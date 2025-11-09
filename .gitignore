@@ -17,6 +17,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+logs/
 
 # Testing
 coverage/
@@ -26,3 +27,6 @@ test-screenshot-*.png
 # Reference Materials
 reference/
 *.pdf
+
+# Screenshots and excluded content
+exclude_from_git/

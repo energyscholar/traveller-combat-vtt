@@ -2,7 +2,7 @@
 
 A web-based Virtual Tabletop (VTT) for **Mongoose Traveller 2nd Edition** space combat, built with TDD principles.
 
-**Status:** ✅ **Stage 9 (Partial) - Movement & Initiative Added!**
+**Status:** ✅ **Stage 9 Complete - Movement & Advanced Initiative!**
 
 ---
 
@@ -15,15 +15,49 @@ npm install
 # Run all tests (328 tests, 100% passing)
 npm test
 
-# Start server
-node server.js
+# Start server for multiplayer mode
+npm start
+# Then open http://localhost:3000 in TWO browser tabs
 ```
 
-**Play Space Combat:**
-1. Open `http://localhost:3000` in **TWO** browser tabs
-2. Tab 1: Select Scout → Choose range → Click Ready
-3. Tab 2: Select Free Trader → Click Ready
-4. Combat begins! Take turns firing until one ship destroyed
+---
+
+## 🎮 How to Play
+
+### Multiplayer Mode (Default - Two Browser Tabs)
+
+**This is the ONLY working mode. There is NO single-player mode.**
+
+1. **Start the server:**
+   ```bash
+   npm start
+   ```
+
+2. **Open TWO browser tabs:**
+   - Tab 1: Navigate to `http://localhost:3000`
+   - Tab 2: Navigate to `http://localhost:3000` (in a new tab or window)
+
+3. **You'll see clear player indicators:**
+   - Top of screen shows: **"Player 1"** or **"Player 2"**
+   - Shows which ship you're assigned: **Scout** or **Free Trader**
+
+4. **Select ships:**
+   - Each tab (player) selects their spacecraft
+   - Choose starting range
+   - Click **"Ready"** when done
+
+5. **Combat begins:**
+   - Turn-based combat starts automatically when both players are ready
+   - UI clearly indicates whose turn it is
+   - Switch between browser tabs to play both sides
+
+### Playing Against Yourself
+The easiest way to test the game is to:
+1. Open Tab 1 → Select Scout → Click Ready
+2. Open Tab 2 → Select Free Trader → Click Ready
+3. Switch between tabs to take turns for each player
+
+**Important:** Each browser tab represents one player. You control ONLY the ship assigned to that tab.
 
 ---
 
@@ -196,36 +230,52 @@ ALL TESTS PASSED ✓
 
 ---
 
-## 🎮 Gameplay
+## 🎮 Gameplay Guide
 
-### Space Combat (Stage 8 - Playable Now!)
+### Space Combat (Fully Playable!)
 
-**Setup:**
-1. Open `http://localhost:3000` in two browser tabs
-2. Each player selects their spacecraft:
-   - **Scout:** Fast (20 hull, 4 armour, 1 turret)
-   - **Free Trader:** Tough (30 hull, 2 armour, 2 turrets)
-3. Player 1 chooses starting range (Adjacent → Distant)
-4. Both players click "Ready"
+**Setup (Two Browser Tabs Required):**
 
-**Combat:**
-1. Combat HUD appears with ship status
-2. Turn-based system (player 1 → player 2)
-3. On your turn:
+1. **Tab 1 - Player 1:**
+   - Navigate to `http://localhost:3000`
+   - You'll see **"Player 1"** at the top
+   - Select your spacecraft (Scout or Free Trader)
+   - Choose starting range
+   - Click **"Ready"**
+
+2. **Tab 2 - Player 2:**
+   - Open a new tab/window to `http://localhost:3000`
+   - You'll see **"Player 2"** at the top
+   - Select your spacecraft (different from Player 1)
+   - The range is set by Player 1
+   - Click **"Ready"**
+
+**Ships:**
+- **Scout:** Fast (20 hull, 4 armour, 1 turret, Thrust 2)
+- **Free Trader:** Tough (30 hull, 2 armour, 2 turrets, Thrust 1)
+
+**Combat (Switch Between Tabs):**
+
+1. Combat HUD appears when both players ready
+2. **Clear turn indicators** show whose turn it is
+3. **On your turn (in your tab):**
    - Select turret, target, weapon
-   - Click "Fire!" to attack
-   - Or click "End Turn" to pass
-4. Combat log shows attack results
-5. Hull bar updates in real-time
-6. Critical hits occur when ship damaged (<50% hull)
-7. Victory when opponent hull reaches 0
+   - Click **"Fire!"** to attack
+   - Or click **"End Turn"** to pass
+4. **On opponent's turn:**
+   - Switch to the other browser tab
+   - Take their turn
+5. Combat log shows all attack results
+6. Hull bar updates in real-time
+7. Critical hits occur when ship < 50% hull
+8. **Victory when opponent hull reaches 0**
 
-**Features:**
-- 30-second turn timer (auto-fire if timeout)
-- "Use Default" button (auto-selects and fires)
-- Real-time hull tracking
+**Combat Features:**
+- 30-second turn timer
+- "Use Default" button (quick auto-fire)
+- Real-time synchronization between tabs
 - Critical hit notifications
-- Victory/defeat screen
+- Combat log with full history
 
 ### Personal Combat (Stages 1-7)
 1. Select ships (DEEP HOPE, WILD CARD)

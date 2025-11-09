@@ -1,52 +1,52 @@
-# Traveller Combat VTT - Fresh Container Setup
+# Traveller Combat VTT - Setup Guide
 
-## Quick Start (5 minutes)
+## Quick Start
 
-### 1. Clone the Repository
-```bash
-cd /workspaces
-git clone https://github.com/energyscholar/traveller-combat.git
-cd traveller-combat
-```
-
-### 2. Install Dependencies
+### 1. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Verify Installation
+### 2. Run Tests
 ```bash
-# Check all files present
-ls -la
-
-# Verify Claude documentation
-ls -la .claude/*/
-
-# Run tests
 npm test
 ```
 
-### 4. Start the Server
+Expected: 328/328 tests passing across 19 test suites
+
+### 3. Start the Server
 ```bash
-node server.js
+npm start
 ```
 
-Server will start on port 3000. Open two browser tabs to test.
+Server starts on `http://localhost:3000`
+
+### 4. Play the Game
+
+**Single Player Testing:**
+- Open `http://localhost:3000` in one browser tab
+- Select ship (Scout or Free Trader)
+- Choose starting range
+- Click Ready
+- Combat starts automatically vs AI opponent
+
+**Two Player:**
+- Open `http://localhost:3000` in TWO browser tabs
+- Both players select ships and range
+- Both click Ready
+- Combat begins with hex movement and initiative system
 
 ## Current Status
 
-- **Stage:** 2 Complete ✅
-- **Next:** Stage 3 (Multiplayer Sync)
-- **Tests:** 7/7 passing
-
-## Resume Work
-
-Upload `.claude/handoffs/HANDOFF-STAGE-2-COMPLETE.md` to Claude and say:
-> "Continue from handoff document. Start Stage 3."
+- **Stage:** 9 Complete ✅
+- **Features:** Full space combat with movement, initiative, weapons, crew
+- **Tests:** 328/328 passing (100%)
+- **Next:** Stage 10+ (Enhanced combat features)
 
 ## Verify Everything Works
 
-1. Server starts without errors
-2. Browser shows combat interface
-3. Two tabs can connect
-4. Test button (orange, bottom-right) shows 7/7 tests passing
+1. Run `npm test` - All 328 tests should pass
+2. Run `npm start` - Server starts on port 3000
+3. Open browser to `http://localhost:3000`
+4. Single player mode: Select ship → Click Ready → Combat starts
+5. Test combat actions: Fire weapons, move on hex grid, end turn
