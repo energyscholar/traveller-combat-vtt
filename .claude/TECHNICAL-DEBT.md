@@ -73,6 +73,19 @@
 
 ### MEDIUM PRIORITY (Nice to have)
 
+#### 3. **Test Constants - Reduce Duplication**
+- **Location:** All test files in `tests/unit/`
+- **Issue:** Magic numbers duplicated across tests; imports from game code incomplete
+- **Impact:** LOW - Tests work fine, but harder to maintain when values change
+- **Resolution Plan:**
+  - Stage 13: Refactor test constants
+  - Import game constants from `lib/combat.js` instead of hardcoding (e.g., `SHIPS.scout.hull`)
+  - Extract test-specific formulas to `tests/test-helpers.js` (e.g., `calculateHullFromTonnage()`)
+  - Add clarifying comments for remaining magic numbers
+  - Do NOT create separate config file - import from source code
+- **Effort:** 3 hours (refactor + verify all tests still pass)
+- **Benefits:** Single source of truth, easier bulk updates, catches inconsistencies
+
 #### 3A. **Combat Log Display Order**
 - **Location:** `public/app.js` combat log rendering
 - **Issue:** Combat log shows oldest entries at top, newest at bottom (should be reversed)
