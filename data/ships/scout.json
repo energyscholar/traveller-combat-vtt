@@ -5,7 +5,7 @@
   "name": "Scout",
   "tonnage": 100,
   "role": "exploration",
-  "hull": 20,
+  "hull": 40,
   "armour": 4,
   "thrust": 2,
   "turrets": [

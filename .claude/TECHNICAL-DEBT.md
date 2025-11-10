@@ -9,6 +9,20 @@
 
 ### HIGH PRIORITY (Address before Stage 13)
 
+#### 0. **Multiple Shots Per Round - Rules Violation**
+- **Location:** Server-side combat resolution (likely `server.js` space:fire handler)
+- **Issue:** Players can fire multiple times in a single round, violating Traveller rules
+- **Impact:** HIGH - Game-breaking rules violation
+- **Traveller Rule:** "Each turret or bay may only fire once per round"
+- **Observed Behavior:** Players consistently fire 2x per round (e.g., Round 6: fires at :55 and :56, Round 7: fires at :01 and :02)
+- **Pattern:** Appears to happen when a new round starts - player can fire immediately after round start without waiting for opponent
+- **Resolution Plan:**
+  - Stage 11: Add per-turret fire tracking (firedThisRound flag)
+  - Reset flags when new round starts
+  - Block fire events if turret already fired this round
+  - Add server-side validation
+- **Effort:** 3 hours (tracking system + validation + tests)
+
 #### 1. **Deprecated SPACE_SHIPS Constant**
 - **Location:** `lib/combat.js:530-593`
 - **Issue:** Hardcoded ship definitions still present for backward compatibility
@@ -46,6 +60,29 @@
 - **Effort:** 6 hours (integration + migration)
 
 ### MEDIUM PRIORITY (Nice to have)
+
+#### 3A. **Combat Log Display Order**
+- **Location:** `public/app.js` combat log rendering
+- **Issue:** Combat log shows oldest entries at top, newest at bottom (should be reversed)
+- **Impact:** MEDIUM - Poor UX, users must scroll down to see latest events
+- **Expected Behavior:** Most recent combat messages should appear at top
+- **Resolution Plan:**
+  - Stage 11: Reverse the order of log entries before rendering
+  - Or use CSS flexbox `flex-direction: column-reverse`
+  - Verify existing log entries aren't already handled elsewhere
+- **Effort:** 1 hour (CSS change or array reverse + testing)
+
+#### 3B. **Combat Log Formatting Bug**
+- **Location:** `public/app.js` or server-side combat message formatting
+- **Issue:** Damage messages show "[object Object]" instead of roll details
+- **Example:** "IT! 1 damage dealt (Roll: [object Object], Total: undefined)"
+- **Impact:** MEDIUM - Confusing to players, debugging info not useful
+- **Expected:** "HIT! 1 damage dealt (Roll: [3,4]=7, Total: 7)"
+- **Resolution Plan:**
+  - Stage 11: Fix roll object serialization in combat messages
+  - Properly format dice array and total
+  - Add tests for message formatting
+- **Effort:** 2 hours (find formatting code + fix + test)
 
 #### 4. **No Ship Data Versioning/Migration**
 - **Location:** `data/ships/*.json`
@@ -168,10 +205,10 @@
 ## Debt Metrics
 
 ### By Priority
-- **HIGH:** 3 items (~12 hours to resolve)
-- **MEDIUM:** 3 items (~12 hours to resolve)
+- **HIGH:** 4 items (~15 hours to resolve)
+- **MEDIUM:** 5 items (~15 hours to resolve)
 - **LOW:** 3 items (~21 hours to resolve)
-- **TOTAL:** 9 items, ~45 hours effort
+- **TOTAL:** 12 items, ~51 hours effort
 
 ### By Stage
 - **Stage 8.1:** 5 items resolved ✅

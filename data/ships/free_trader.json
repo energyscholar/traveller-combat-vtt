@@ -5,7 +5,7 @@
   "name": "Free Trader",
   "tonnage": 200,
   "role": "trading",
-  "hull": 30,
+  "hull": 80,
   "armour": 2,
   "thrust": 1,
   "turrets": [

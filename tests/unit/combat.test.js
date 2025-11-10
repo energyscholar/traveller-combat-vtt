@@ -28,8 +28,8 @@ console.log(`   Rolled: ${result1.attackRoll.total}, Total: ${result1.attackTota
 // Test 2: Hit with damage
 console.log('Test 2: Damage calculation');
 if (result1.hit) {
-  assert(result1.damage === Math.max(0, result1.damageRoll.total - 4), 'Damage math correct');
-  console.log(`   Damage: ${result1.damageRoll.total} - 4 (armor) = ${result1.damage}\n`);
+  assert(result1.damage === Math.max(0, result1.damageRoll.total - free_trader.armor), 'Damage math correct');
+  console.log(`   Damage: ${result1.damageRoll.total} - ${free_trader.armor} (armor) = ${result1.damage}\n`);
 } else {
   console.log('   (Skipped - attack missed)\n');
 }

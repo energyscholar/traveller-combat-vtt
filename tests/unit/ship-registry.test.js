@@ -24,7 +24,7 @@ test('Load scout ship from JSON', () => {
   assertEqual(scout.name, 'Scout');
   assertEqual(scout.tonnage, 100);
   assertEqual(scout.role, 'exploration');
-  assertEqual(scout.hull, 20);
+  assertEqual(scout.hull, 40);  // Traveller rules: 100 tons = 40 hull
   assertEqual(scout.armour, 4);
   assertEqual(scout.thrust, 2);
 });
@@ -37,7 +37,7 @@ test('Load free trader from JSON', () => {
   assertEqual(trader.name, 'Free Trader');
   assertEqual(trader.tonnage, 200);
   assertEqual(trader.role, 'trading');
-  assertEqual(trader.hull, 30);
+  assertEqual(trader.hull, 80);  // Traveller rules: 200 tons = 80 hull
   assertEqual(trader.armour, 2);
   assertEqual(trader.thrust, 1);
 });
@@ -112,16 +112,18 @@ test('Calculate scout critical thresholds', () => {
   const registry = new ShipRegistry();
   const scout = registry.getShip('scout');
 
-  assertArrayEqual(scout.critThresholds, [18, 16, 14, 12, 10, 8, 6, 4, 2]);
-  assertEqual(scout.maxHull, 20);
+  // Critical hits trigger at 90%, 80%, 70%, 60%, 50%, 40%, 30%, 20%, 10% of max hull
+  assertArrayEqual(scout.critThresholds, [36, 32, 28, 24, 20, 16, 12, 8, 4]);
+  assertEqual(scout.maxHull, 40);
 });
 
 test('Calculate free trader critical thresholds', () => {
   const registry = new ShipRegistry();
   const trader = registry.getShip('free_trader');
 
-  assertArrayEqual(trader.critThresholds, [27, 24, 21, 18, 15, 12, 9, 6, 3]);
-  assertEqual(trader.maxHull, 30);
+  // Critical hits trigger at 90%, 80%, 70%, 60%, 50%, 40%, 30%, 20%, 10% of max hull
+  assertArrayEqual(trader.critThresholds, [72, 64, 56, 48, 40, 32, 24, 16, 8]);
+  assertEqual(trader.maxHull, 80);
 });
 
 test('Verify crew requirements loaded', () => {
@@ -207,7 +209,7 @@ test('Initialize instance runtime state', () => {
   const registry = new ShipRegistry();
   const instance = registry.createShipInstance('scout');
 
-  assertEqual(instance.currentHull, 20);
+  assertEqual(instance.currentHull, 40);  // Scout has 40 hull
   assertTrue(instance.crew !== undefined);
   assertTrue(instance.crew.pilot === null);
   assertArrayEqual(instance.crew.gunners, []);
@@ -238,7 +240,7 @@ test('Instance mutation does not affect template', () => {
   instance1.currentHull = 5;
   instance1.crew.pilot = { id: 'test' };
 
-  assertEqual(instance2.currentHull, 20);
+  assertEqual(instance2.currentHull, 40);  // Scout has 40 hull
   assertTrue(instance2.crew.pilot === null);
 });
 

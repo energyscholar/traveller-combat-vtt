@@ -165,17 +165,12 @@ function testMissilesHaveAmmo() {
   console.log('Test 7: Missiles have ammo (6 shots)');
 
   const scoutMissiles = SHIPS.scout.weapons.find(w => w.id === 'missiles');
-  const free_traderMissiles = SHIPS.free_trader.weapons.find(w => w.id === 'missiles');
 
   if (scoutMissiles.ammo !== 6) {
     throw new Error(`Scout missiles should have 6 ammo, got ${scoutMissiles.ammo}`);
   }
 
-  if (free_traderMissiles.ammo !== 6) {
-    throw new Error(`Free Trader missiles should have 6 ammo, got ${free_traderMissiles.ammo}`);
-  }
-
-  console.log('✅ PASS: Missiles start with 6 ammo\n');
+  console.log('✅ PASS: Scout missiles start with 6 ammo\n');
 }
 
 function testLasersHaveUnlimitedAmmo() {
@@ -308,7 +303,7 @@ function testScoutHasTwoWeapons() {
   console.log('✅ PASS: Scout has Pulse Laser and Missiles\n');
 }
 
-function testFree TraderHasTwoWeapons() {
+function testFreeTraderHasTwoWeapons() {
   console.log('Test 14: Free Trader has two weapons');
 
   if (SHIPS.free_trader.weapons.length !== 2) {
@@ -317,15 +312,13 @@ function testFree TraderHasTwoWeapons() {
 
   const weaponIds = SHIPS.free_trader.weapons.map(w => w.id);
 
-  if (!weaponIds.includes('beamLaser')) {
-    throw new Error('Free Trader should have Beam Laser');
+  // Free Trader has 2 turrets with Beam Lasers (no missiles - too expensive for merchants)
+  const beamLaserCount = weaponIds.filter(id => id === 'beamLaser').length;
+  if (beamLaserCount !== 2) {
+    throw new Error(`Free Trader should have 2 Beam Lasers, got ${beamLaserCount}`);
   }
 
-  if (!weaponIds.includes('missiles')) {
-    throw new Error('Free Trader should have Missiles');
-  }
-
-  console.log('✅ PASS: Free Trader has Beam Laser and Missiles\n');
+  console.log('✅ PASS: Free Trader has 2 Beam Lasers\n');
 }
 
 function testWeaponHasRequiredFields() {
@@ -462,31 +455,24 @@ function testWeaponPropertiesPersist() {
   console.log('✅ PASS: Weapon properties persist\n');
 }
 
-function testBothShipsHaveMissiles() {
-  console.log('Test 20: Both ships have missiles');
+function testScoutHasMissiles() {
+  console.log('Test 20: Scout has missiles');
 
   const scoutMissiles = SHIPS.scout.weapons.find(w => w.id === 'missiles');
-  const free_traderMissiles = SHIPS.free_trader.weapons.find(w => w.id === 'missiles');
 
   if (!scoutMissiles) {
     throw new Error('Scout should have missiles');
   }
 
-  if (!free_traderMissiles) {
-    throw new Error('Free Trader should have missiles');
+  if (scoutMissiles.damage !== '4d6') {
+    throw new Error(`Missiles should deal 4d6 damage, got ${scoutMissiles.damage}`);
   }
 
-  // Both should have same missile properties
-  if (scoutMissiles.damage !== free_traderMissiles.damage) {
-    throw new Error('Missiles should have same damage on both ships');
+  if (scoutMissiles.ammo !== 6) {
+    throw new Error(`Missiles should have 6 ammo, got ${scoutMissiles.ammo}`);
   }
 
-  if (scoutMissiles.ammo !== free_traderMissiles.ammo) {
-    throw new Error('Missiles should have same ammo on both ships');
-  }
-
-  console.log('✅ PASS: Both ships have identical missiles');
-  console.log(`   Damage: ${scoutMissiles.damage}, Ammo: ${scoutMissiles.ammo}\n`);
+  console.log('✅ PASS: Scout has missiles (4d6 damage, 6 rounds)\n');
 }
 
 // ========================================
@@ -513,13 +499,13 @@ async function runAllTests() {
 
     // Weapon selection tests (8)
     testScoutHasTwoWeapons,
-    testFree TraderHasTwoWeapons,
+    testFreeTraderHasTwoWeapons,
     testWeaponHasRequiredFields,
     testWeaponSelectionInCombat,
     testDefaultWeaponSelection,
     testDifferentWeaponsDifferentDamage,
     testWeaponPropertiesPersist,
-    testBothShipsHaveMissiles
+    testScoutHasMissiles
   ];
 
   let passed = 0;

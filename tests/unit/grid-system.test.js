@@ -43,12 +43,12 @@ function assertFalse(condition, message = '') {
 
 console.log('--- MOVEMENT VALIDATION (8 tests) ---\n');
 
-test('Scout has 3 movement points', () => {
-  assertEqual(SHIPS.scout.movement, 3, 'Scout should have 3 movement points');
+test('Scout has 2 movement points', () => {
+  assertEqual(SHIPS.scout.movement, 2, 'Scout should have 2 movement points (Thrust 2)');
 });
 
-test('Free Trader has 2 movement points', () => {
-  assertEqual(SHIPS.free_trader.movement, 2, 'Free Trader should have 2 movement points');
+test('Free Trader has 1 movement point', () => {
+  assertEqual(SHIPS.free_trader.movement, 1, 'Free Trader should have 1 movement point (Thrust 1)');
 });
 
 test('Ship can move within movement points', () => {
