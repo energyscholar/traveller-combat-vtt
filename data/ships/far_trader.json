@@ -1,0 +1,43 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "far_trader",
+  "type": "far_trader",
+  "name": "Far Trader (Type-A2)",
+  "tonnage": 200,
+  "role": "trading",
+  "hull": 80,
+  "armour": 2,
+  "thrust": 1,
+  "jump": 2,
+  "fuel": 41,
+  "cargo": 64,
+  "passengers": 10,
+  "lowBerths": 6,
+  "turrets": [
+    {
+      "id": "turret1",
+      "type": "single",
+      "weapons": []
+    },
+    {
+      "id": "turret2",
+      "type": "single",
+      "weapons": []
+    }
+  ],
+  "hardpoints": 2,
+  "hardpointsUsed": 2,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 0,
+    "engineer": 1,
+    "sensors": 0,
+    "marines": 0
+  },
+  "computer": "Computer/5bis",
+  "software": ["Jump Control/2", "Manoeuvre/0", "Library"],
+  "sensors": "Civilian Grade",
+  "techLevel": 12,
+  "cost": 52420000,
+  "description": "Modified free trader with Jump-2 capability at the cost of cargo space. Popular for cluster trade routes."
+}

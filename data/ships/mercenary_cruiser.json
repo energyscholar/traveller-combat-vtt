@@ -1,0 +1,73 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "mercenary_cruiser",
+  "type": "mercenary_cruiser",
+  "name": "Mercenary Cruiser (Type-C)",
+  "tonnage": 800,
+  "role": "military",
+  "hull": 320,
+  "armour": 4,
+  "thrust": 3,
+  "jump": 3,
+  "fuel": 252,
+  "cargo": 119,
+  "passengers": 25,
+  "lowBerths": 0,
+  "turrets": [
+    {
+      "id": "turret1",
+      "type": "triple",
+      "weapons": ["pulse_laser", "beam_laser", "sandcaster"]
+    },
+    {
+      "id": "turret2",
+      "type": "triple",
+      "weapons": ["pulse_laser", "beam_laser", "sandcaster"]
+    },
+    {
+      "id": "turret3",
+      "type": "triple",
+      "weapons": ["missile_rack", "missile_rack", "missile_rack"]
+    },
+    {
+      "id": "turret4",
+      "type": "triple",
+      "weapons": ["missile_rack", "missile_rack", "missile_rack"]
+    },
+    {
+      "id": "turret5",
+      "type": "triple",
+      "weapons": ["pulse_laser", "pulse_laser", "pulse_laser"]
+    },
+    {
+      "id": "turret6",
+      "type": "triple",
+      "weapons": ["pulse_laser", "pulse_laser", "pulse_laser"]
+    },
+    {
+      "id": "turret7",
+      "type": "triple",
+      "weapons": ["beam_laser", "beam_laser", "sandcaster"]
+    },
+    {
+      "id": "turret8",
+      "type": "triple",
+      "weapons": ["beam_laser", "beam_laser", "sandcaster"]
+    }
+  ],
+  "hardpoints": 8,
+  "hardpointsUsed": 8,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 8,
+    "engineer": 3,
+    "sensors": 1,
+    "marines": 25
+  },
+  "computer": "Computer/20fib",
+  "software": ["Auto-Repair/2", "Evade/1", "Fire Control/1", "Jump Control/3", "Manoeuvre/0", "Library"],
+  "sensors": "Military Grade",
+  "techLevel": 12,
+  "cost": 305270000,
+  "description": "Large military transport carrying a combat platoon. Heavily armed with mixed weapon loadouts and repair drones."
+}

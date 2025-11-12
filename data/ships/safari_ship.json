@@ -1,0 +1,38 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "safari_ship",
+  "type": "safari_ship",
+  "name": "Safari Ship (Type-K)",
+  "tonnage": 200,
+  "role": "exploration",
+  "hull": 80,
+  "armour": 0,
+  "thrust": 1,
+  "jump": 2,
+  "fuel": 41,
+  "cargo": 14,
+  "passengers": 11,
+  "lowBerths": 0,
+  "turrets": [
+    {
+      "id": "turret1",
+      "type": "double",
+      "weapons": ["beam_laser", "sandcaster"]
+    }
+  ],
+  "hardpoints": 2,
+  "hardpointsUsed": 1,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 0,
+    "engineer": 1,
+    "sensors": 0,
+    "marines": 0
+  },
+  "computer": "Computer/5bis",
+  "software": ["Jump Control/2", "Manoeuvre/0", "Library"],
+  "sensors": "Civilian Grade",
+  "techLevel": 12,
+  "cost": 71510000,
+  "description": "Excursion vessel for expeditions and specimen collection. Features trophy lounge and multi-environment holding tanks."
+}

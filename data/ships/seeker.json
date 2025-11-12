@@ -1,0 +1,38 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "seeker",
+  "type": "seeker",
+  "name": "Seeker Mining Ship (Type-J)",
+  "tonnage": 100,
+  "role": "mining",
+  "hull": 40,
+  "armour": 4,
+  "thrust": 2,
+  "jump": 2,
+  "fuel": 21,
+  "cargo": 26,
+  "passengers": 2,
+  "lowBerths": 0,
+  "turrets": [
+    {
+      "id": "turret1",
+      "type": "double",
+      "weapons": ["beam_laser", "sandcaster"]
+    }
+  ],
+  "hardpoints": 1,
+  "hardpointsUsed": 1,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 0,
+    "engineer": 1,
+    "sensors": 0,
+    "marines": 0
+  },
+  "computer": "Computer/5bis",
+  "software": ["Jump Control/2", "Manoeuvre/0", "Library"],
+  "sensors": "Military Grade",
+  "techLevel": 12,
+  "cost": 33840000,
+  "description": "Refitted scout optimized for asteroid mining operations. Includes 10 mining drones and ore processing equipment."
+}

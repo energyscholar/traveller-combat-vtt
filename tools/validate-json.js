@@ -64,7 +64,7 @@ class JSONValidator {
     }
 
     // Role validation
-    const validRoles = ['exploration', 'trading', 'military', 'piracy', 'patrol', 'transport', 'mining'];
+    const validRoles = ['exploration', 'trading', 'military', 'piracy', 'patrol', 'transport', 'mining', 'passenger', 'research'];
     if (data.role && !validRoles.includes(data.role)) {
       errors.push(`Field 'role' must be one of: ${validRoles.join(', ')}, got '${data.role}'`);
     }

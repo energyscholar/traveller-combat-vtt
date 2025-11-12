@@ -1,0 +1,53 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "patrol_corvette",
+  "type": "patrol_corvette",
+  "name": "Patrol Corvette (Type-T)",
+  "tonnage": 400,
+  "role": "military",
+  "hull": 160,
+  "armour": 4,
+  "thrust": 4,
+  "jump": 3,
+  "fuel": 124,
+  "cargo": 38,
+  "passengers": 12,
+  "lowBerths": 4,
+  "turrets": [
+    {
+      "id": "turret1",
+      "type": "triple",
+      "weapons": ["pulse_laser", "pulse_laser", "pulse_laser"]
+    },
+    {
+      "id": "turret2",
+      "type": "triple",
+      "weapons": ["pulse_laser", "pulse_laser", "pulse_laser"]
+    },
+    {
+      "id": "turret3",
+      "type": "triple",
+      "weapons": ["missile_rack", "missile_rack", "missile_rack"]
+    },
+    {
+      "id": "turret4",
+      "type": "triple",
+      "weapons": ["missile_rack", "missile_rack", "missile_rack"]
+    }
+  ],
+  "hardpoints": 4,
+  "hardpointsUsed": 4,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 4,
+    "engineer": 2,
+    "sensors": 1,
+    "marines": 8
+  },
+  "computer": "Computer/15",
+  "software": ["Evade/1", "Fire Control/1", "Jump Control/3", "Manoeuvre/0", "Library"],
+  "sensors": "Military Grade",
+  "techLevel": 12,
+  "cost": 184460000,
+  "description": "Military patrol vessel for customs enforcement, anti-piracy operations, and system defense. High thrust and firepower."
+}

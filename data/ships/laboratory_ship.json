@@ -1,0 +1,32 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "laboratory_ship",
+  "type": "laboratory_ship",
+  "name": "Laboratory Ship (Type-L)",
+  "tonnage": 400,
+  "role": "research",
+  "hull": 160,
+  "armour": 0,
+  "thrust": 2,
+  "jump": 2,
+  "fuel": 82,
+  "cargo": 3,
+  "passengers": 20,
+  "lowBerths": 0,
+  "turrets": [],
+  "hardpoints": 4,
+  "hardpointsUsed": 0,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 0,
+    "engineer": 1,
+    "sensors": 1,
+    "marines": 0
+  },
+  "computer": "Computer/10",
+  "software": ["Jump Control/2", "Manoeuvre/0", "Library"],
+  "sensors": "Improved",
+  "techLevel": 12,
+  "cost": 136370000,
+  "description": "Research vessel with 100 tons of laboratories, 15 probe drones, and rotating hull for spin gravity. Improved sensors for scientific work."
+}

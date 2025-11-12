@@ -1,0 +1,32 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "subsidised_liner",
+  "type": "subsidised_liner",
+  "name": "Subsidised Liner (Type-M)",
+  "tonnage": 600,
+  "role": "passenger",
+  "hull": 240,
+  "armour": 0,
+  "thrust": 1,
+  "jump": 3,
+  "fuel": 183,
+  "cargo": 119,
+  "passengers": 30,
+  "lowBerths": 20,
+  "turrets": [],
+  "hardpoints": 6,
+  "hardpointsUsed": 0,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 0,
+    "engineer": 2,
+    "sensors": 0,
+    "marines": 0
+  },
+  "computer": "Computer/10bis",
+  "software": ["Jump Control/3", "Manoeuvre/0", "Library"],
+  "sensors": "Civilian Grade",
+  "techLevel": 12,
+  "cost": 158320000,
+  "description": "Long-haul passenger transport with Jump-3 capability. Unarmed by default but can be retrofitted with up to 6 turrets."
+}

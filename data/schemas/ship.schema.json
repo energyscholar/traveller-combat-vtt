@@ -31,7 +31,7 @@
     "role": {
       "type": "string",
       "description": "Ship role/class",
-      "enum": ["exploration", "trading", "military", "piracy", "patrol", "transport", "mining"]
+      "enum": ["exploration", "trading", "military", "piracy", "patrol", "transport", "mining", "passenger", "research"]
     },
     "hull": {
       "type": "number",
@@ -88,6 +88,73 @@
         "sensors": {"type": "number", "minimum": 0},
         "marines": {"type": "number", "minimum": 0}
       }
+    },
+    "jump": {
+      "type": "number",
+      "description": "Jump drive rating (parsecs per jump)",
+      "minimum": 0,
+      "maximum": 6
+    },
+    "fuel": {
+      "type": "number",
+      "description": "Fuel capacity in tons",
+      "minimum": 0
+    },
+    "cargo": {
+      "type": "number",
+      "description": "Cargo capacity in tons",
+      "minimum": 0
+    },
+    "passengers": {
+      "type": "number",
+      "description": "Number of passenger staterooms",
+      "minimum": 0
+    },
+    "lowBerths": {
+      "type": "number",
+      "description": "Number of low berths (cryogenic)",
+      "minimum": 0
+    },
+    "hardpoints": {
+      "type": "number",
+      "description": "Total hardpoint capacity (tonnage ÷ 100)",
+      "minimum": 0
+    },
+    "hardpointsUsed": {
+      "type": "number",
+      "description": "Number of hardpoints with turrets installed",
+      "minimum": 0
+    },
+    "computer": {
+      "type": "string",
+      "description": "Computer model (e.g., Computer/5bis)"
+    },
+    "software": {
+      "type": "array",
+      "description": "Installed software packages",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sensors": {
+      "type": "string",
+      "description": "Sensor grade",
+      "enum": ["Civilian Grade", "Military Grade", "Improved", "Advanced"]
+    },
+    "techLevel": {
+      "type": "number",
+      "description": "Ship technology level",
+      "minimum": 7,
+      "maximum": 15
+    },
+    "cost": {
+      "type": "number",
+      "description": "Purchase cost in credits (not MCr)",
+      "minimum": 0
+    },
+    "description": {
+      "type": "string",
+      "description": "Ship description and capabilities"
     }
   }
 }
