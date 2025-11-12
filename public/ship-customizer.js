@@ -879,6 +879,37 @@ function setupEventListeners() {
       return;
     }
 
-    alert('Ship saving will be implemented in Sub-stage 12.5 (Ship Library)');
+    // Get current template and modifications
+    const template = shipTemplates[currentTemplate];
+    if (!template) {
+      alert('No ship template selected');
+      return;
+    }
+
+    // Check if we have any modifications
+    if (Object.keys(currentModifications).length === 0) {
+      const confirmSave = confirm('You haven\'t made any modifications. Save the default configuration anyway?');
+      if (!confirmSave) {
+        return;
+      }
+    }
+
+    // Save to library
+    try {
+      const savedShip = ShipLibrary.saveShip(template, currentModifications, shipName);
+
+      // Clear ship name input
+      document.getElementById('ship-name').value = '';
+
+      // Show success message
+      alert(`✅ Ship "${savedShip.name}" saved successfully!\n\nTotal Cost: MCr ${(savedShip.totalCost / 1000000).toFixed(2)}\n\nYou can view and manage your ships in the Ship Library.`);
+
+      console.log('[CUSTOMIZER] Ship saved:', savedShip);
+
+      // TODO: Refresh ship library UI when it's implemented
+    } catch (error) {
+      console.error('[CUSTOMIZER] Error saving ship:', error);
+      alert('❌ Error saving ship. Please try again.');
+    }
   });
 }

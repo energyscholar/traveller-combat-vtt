@@ -15,6 +15,80 @@ Every screen should feel like a station on a starship:
 - **Ship Customizer** = Engineering workstation
 - **Ship Library** = Database access terminal
 
+### 1.1. **Role-Specific Combat Stations** 🎯
+**CRITICAL FEATURE:** When combat starts, each player sees their crew role's unique full-screen interface:
+
+**Pilot Station:**
+- Cockpit-style HUD
+- Range bands visualized
+- Movement options (thrust, dodge, disengage)
+- Initiative/turn order display
+- Enemy bearing and relative velocity
+
+**Gunner Station:**
+- Weapons console with targeting reticle
+- Target selection (enemy ships, specific systems)
+- Weapon status (charged, reloading, damaged)
+- Fire control computer readouts
+- Point defense automation controls
+- Ammunition/power reserves
+
+**Engineer Station:**
+- Ship schematic with system status overlay
+- Color-coded damage (green=healthy, amber=damaged, red=critical)
+- Clickable systems for repair attempts
+- Power distribution controls
+- Hull/armor integrity readouts
+- Emergency systems (life support, fire suppression)
+
+**Sensors/Comms Officer:**
+- Tactical map with sensor readings
+- Electronic warfare options (jamming, decoys)
+- Target analysis and threat assessment
+- Communication channels
+- Scan results and enemy ship data
+
+**Damage Control:**
+- Full ship schematic
+- Crew status and locations
+- Damage reports with priorities
+- Repair queue management
+- Fire/breach indicators
+- Medical status
+
+**Captain/Commander:**
+- Overview tactical display
+- All crew station status at a glance
+- Strategic options (flee, negotiate, surrender)
+- Victory/defeat conditions tracker
+- Command communications
+
+**Implementation Notes:**
+- Role stations available ANYTIME, not just in combat
+- Players enter role station view when they choose/change crew role
+- **"LEAVE CREW ROLE" button always visible** - returns to general UI/UX
+- Each role's UI persists even if uncrewed (background automation)
+- **Players can switch roles mid-combat** (critical crew casualties!)
+- UI transitions smoothly when entering/exiting role view
+- All role UIs share the same data but present it differently
+- Future: Picture-in-picture for multi-role management
+
+**Use Case - Mid-Combat Role Change:**
+Real scenario from Tuesday game group:
+1. Pirate attack - incoming fire
+2. Critical hit on Turret 1 - Gunner killed instantly
+3. Damage Control officer rushes to turret
+4. DC clears vacuum, liquid metal, frozen remains
+5. Backup gunner takes over turret (in vacc suit, exposed to space)
+6. System operational again, combat continues
+
+Our VTT must support:
+- Instant role switching when crew casualties occur
+- Damage Control can make systems operational mid-combat
+- New gunner can take over functional-but-damaged turret
+- Environmental hazards visible (vacuum, fire, etc.)
+- Smooth UI transition during crisis
+
 ### 2. **Functional Aesthetics**
 - **No unnecessary decoration** - every element serves a purpose
 - **Clear information hierarchy** - critical data is immediately visible
