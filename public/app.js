@@ -18,24 +18,8 @@
         // Socket.io and combat system will initialize below
         return 'battle';
       } else if (mode === 'customize') {
-        // Customize mode: Show customization screen (Stage 12.3+)
-        mainMenuScreen.style.display = 'none';
-        shipSelectionScreen.style.display = 'none';
-        spaceCombatHud.style.display = 'none';
-        // Show placeholder message
-        document.body.innerHTML = `
-          <div class="container">
-            <div class="card" style="text-align: center; padding: 40px;">
-              <h2>🔧 Ship Customization</h2>
-              <p style="font-size: 1.2em; color: #ccc; margin: 30px 0;">
-                Ship customization system coming in Stage 12.3!
-              </p>
-              <button onclick="window.location.href='/'" style="padding: 15px 30px; font-size: 1em; background: #667eea; border: none; border-radius: 8px; color: white; cursor: pointer;">
-                ← Back to Main Menu
-              </button>
-            </div>
-          </div>
-        `;
+        // Customize mode: Redirect to ship-customizer.html (Stage 12.3)
+        window.location.href = '/ship-customizer.html';
         return 'customize';
       } else {
         // No mode specified: Show main menu
@@ -48,7 +32,7 @@
           window.location.href = '/?mode=battle';
         });
         document.getElementById('btn-customize-ship').addEventListener('click', () => {
-          window.location.href = '/?mode=customize';
+          window.location.href = '/ship-customizer.html';
         });
 
         return 'menu';
