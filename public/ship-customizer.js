@@ -288,9 +288,13 @@ function updateSchematicTitle(template) {
   title.textContent = `${template.name} (${template.tonnage}t ${template.role})`;
 }
 
-function updateCostDisplay(template) {
+function updateCostDisplay(template, modifications = null) {
+  const mods = modifications || currentModifications;
   const baseCost = template.cost ? (template.cost / 1000000) : 0;
-  const modCost = calculateModificationCost();
+
+  // Use ShipCosts module to calculate modification cost
+  const modCostCredits = ShipCosts.calculateModificationCost(template, mods);
+  const modCost = modCostCredits / 1000000;
   const totalCost = baseCost + modCost;
 
   document.getElementById('base-cost').textContent = `MCr ${baseCost.toFixed(2)}`;
@@ -299,8 +303,10 @@ function updateCostDisplay(template) {
 }
 
 function calculateModificationCost() {
-  // TODO: Implement in Sub-stage 12.4
-  return 0.00;
+  // Use ShipCosts module
+  const template = shipTemplates[currentTemplate];
+  const costCredits = ShipCosts.calculateModificationCost(template, currentModifications);
+  return costCredits / 1000000;
 }
 
 // ======== COMPONENT INTERACTION ========
@@ -352,83 +358,474 @@ function showComponentPanel(componentType, componentId) {
 }
 
 function generateTurretPanel(turretId, template) {
+  // Get existing turret configuration or defaults
+  const existingTurret = currentModifications.turrets?.find(t => t.id === turretId);
+  const turretType = existingTurret?.type || 'single';
+  const weapons = existingTurret?.weapons || [];
+
+  // Calculate current turret cost
+  const turretCost = ShipCosts.calculateSingleTurretCost(turretType, weapons);
+  const turretCostMCr = (turretCost / 1000000).toFixed(2);
+
   return `
     <div class="panel-header">
       <div class="panel-title">🎯 ${turretId.toUpperCase()}</div>
       <button class="panel-close" onclick="clearComponentPanel()">×</button>
     </div>
     <div class="panel-body">
-      <p style="color: #aaa; font-size: 0.9em;">
-        Turret customization will be implemented in Sub-stage 12.4 (Ship Customization UI).
-      </p>
-      <p style="color: #888; font-size: 0.85em; margin-top: 10px;">
-        Features coming soon:<br>
-        • Turret type selection (Single/Double/Triple)<br>
-        • Weapon assignment<br>
-        • Cost calculation
-      </p>
+      <div class="form-group">
+        <label for="turret-type-${turretId}">Turret Type:</label>
+        <select id="turret-type-${turretId}" onchange="updateTurretWeaponSlots('${turretId}')">
+          <option value="single" ${turretType === 'single' ? 'selected' : ''}>Single (1 weapon) - MCr 0.2</option>
+          <option value="double" ${turretType === 'double' ? 'selected' : ''}>Double (2 weapons) - MCr 0.5</option>
+          <option value="triple" ${turretType === 'triple' ? 'selected' : ''}>Triple (3 weapons) - MCr 1.0</option>
+        </select>
+      </div>
+
+      <div id="weapon-slots-${turretId}">
+        ${generateWeaponSlots(turretId, turretType, weapons)}
+      </div>
+
+      <div class="component-cost" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+        <span class="component-cost-label">Turret Cost:</span>
+        <span class="component-cost-value" id="turret-cost-${turretId}">MCr ${turretCostMCr}</span>
+      </div>
+
+      <button class="action-button primary" onclick="applyTurretChanges('${turretId}')" style="margin-top: 15px; width: 100%;">
+        Apply Changes
+      </button>
     </div>
   `;
 }
 
+function generateWeaponSlots(turretId, turretType, currentWeapons) {
+  const capacity = ShipCustomization.getTurretCapacity(turretType);
+  let html = '';
+
+  for (let i = 0; i < capacity; i++) {
+    const weaponValue = currentWeapons[i] || '';
+    html += `
+      <div class="form-group">
+        <label for="weapon-${turretId}-${i}">Weapon ${i + 1}:</label>
+        <select id="weapon-${turretId}-${i}" onchange="updateTurretCost('${turretId}')">
+          <option value="">-- Empty --</option>
+          <option value="pulse_laser" ${weaponValue === 'pulse_laser' ? 'selected' : ''}>Pulse Laser - MCr 1.0</option>
+          <option value="beam_laser" ${weaponValue === 'beam_laser' ? 'selected' : ''}>Beam Laser - MCr 0.5</option>
+          <option value="missile_rack" ${weaponValue === 'missile_rack' ? 'selected' : ''}>Missile Rack - MCr 0.75</option>
+          <option value="sandcaster" ${weaponValue === 'sandcaster' ? 'selected' : ''}>Sandcaster - MCr 0.25</option>
+          <option value="particle_beam" ${weaponValue === 'particle_beam' ? 'selected' : ''}>Particle Beam - MCr 4.0</option>
+          <option value="railgun" ${weaponValue === 'railgun' ? 'selected' : ''}>Railgun - MCr 2.0</option>
+        </select>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+function updateTurretWeaponSlots(turretId) {
+  const turretTypeSelect = document.getElementById(`turret-type-${turretId}`);
+  const turretType = turretTypeSelect.value;
+
+  // Get current weapons before regenerating
+  const existingTurret = currentModifications.turrets?.find(t => t.id === turretId);
+  const currentWeapons = existingTurret?.weapons || [];
+
+  // Regenerate weapon slots
+  const weaponSlotsContainer = document.getElementById(`weapon-slots-${turretId}`);
+  weaponSlotsContainer.innerHTML = generateWeaponSlots(turretId, turretType, currentWeapons);
+
+  // Update cost display
+  updateTurretCost(turretId);
+}
+
+function updateTurretCost(turretId) {
+  const turretTypeSelect = document.getElementById(`turret-type-${turretId}`);
+  const turretType = turretTypeSelect.value;
+
+  // Collect weapons
+  const capacity = ShipCustomization.getTurretCapacity(turretType);
+  const weapons = [];
+  for (let i = 0; i < capacity; i++) {
+    const weaponSelect = document.getElementById(`weapon-${turretId}-${i}`);
+    if (weaponSelect && weaponSelect.value) {
+      weapons.push(weaponSelect.value);
+    }
+  }
+
+  // Calculate cost
+  const cost = ShipCosts.calculateSingleTurretCost(turretType, weapons);
+  const costMCr = (cost / 1000000).toFixed(2);
+
+  // Update display
+  const costDisplay = document.getElementById(`turret-cost-${turretId}`);
+  if (costDisplay) {
+    costDisplay.textContent = `MCr ${costMCr}`;
+  }
+}
+
+function applyTurretChanges(turretId) {
+  const template = shipTemplates[currentTemplate];
+
+  // Get values from form
+  const turretTypeSelect = document.getElementById(`turret-type-${turretId}`);
+  const turretType = turretTypeSelect.value;
+
+  // Collect weapons
+  const capacity = ShipCustomization.getTurretCapacity(turretType);
+  const weapons = [];
+  for (let i = 0; i < capacity; i++) {
+    const weaponSelect = document.getElementById(`weapon-${turretId}-${i}`);
+    if (weaponSelect && weaponSelect.value) {
+      weapons.push(weaponSelect.value);
+    }
+  }
+
+  // Initialize turrets array if needed
+  if (!currentModifications.turrets) {
+    currentModifications.turrets = [];
+  }
+
+  // Find or create turret entry
+  let turretEntry = currentModifications.turrets.find(t => t.id === turretId);
+  if (!turretEntry) {
+    turretEntry = { id: turretId };
+    currentModifications.turrets.push(turretEntry);
+  }
+
+  // Update turret configuration
+  turretEntry.type = turretType;
+  turretEntry.weapons = weapons;
+
+  // Validate modifications
+  const validation = ShipCustomization.validateCustomShip(template, currentModifications);
+
+  // Display validation results
+  if (!validation.valid) {
+    alert('Validation errors:\n' + validation.errors.join('\n'));
+    return;
+  }
+
+  if (validation.warnings.length > 0) {
+    console.log('[CUSTOMIZER] Warnings:', validation.warnings);
+  }
+
+  // Update cost display
+  updateCostDisplay(template, currentModifications);
+
+  // Re-render SVG with updated labels
+  renderShipSVG(template);
+
+  // Show success feedback
+  console.log('[CUSTOMIZER] Turret changes applied:', turretId, turretEntry);
+
+  // Keep panel open to allow further edits
+}
+
 function generateCargoPanel(template) {
+  const currentCargo = currentModifications.cargo !== undefined ? currentModifications.cargo : template.cargo;
+  const currentFuel = currentModifications.fuel !== undefined ? currentModifications.fuel : template.fuel;
+  const flexibleTonnage = template.cargo + template.fuel;
+
   return `
     <div class="panel-header">
       <div class="panel-title">📦 Cargo Bay</div>
       <button class="panel-close" onclick="clearComponentPanel()">×</button>
     </div>
     <div class="panel-body">
-      <p style="color: #aaa;">Current: ${template.cargo || 0} tons</p>
-      <p style="color: #888; font-size: 0.85em; margin-top: 10px;">
-        Cargo/Fuel trade-off coming in Sub-stage 12.4
-      </p>
+      <div class="form-group">
+        <label for="cargo-slider">Cargo: <span id="cargo-value">${currentCargo}</span> tons</label>
+        <input type="range" id="cargo-slider" min="0" max="${flexibleTonnage}" value="${currentCargo}" step="1"
+               oninput="updateCargoFuelDisplay()" onchange="updateCargoFuelDisplay()">
+      </div>
+
+      <div class="form-group">
+        <label for="fuel-slider">Fuel: <span id="fuel-value">${currentFuel}</span> tons</label>
+        <input type="range" id="fuel-slider" min="0" max="${flexibleTonnage}" value="${currentFuel}" step="1"
+               oninput="updateCargoFuelDisplay()" onchange="updateCargoFuelDisplay()">
+      </div>
+
+      <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 4px; font-size: 0.85em; color: #aaa;">
+        <p style="margin: 5px 0;"><strong>Flexible Space:</strong> ${flexibleTonnage} tons total</p>
+        <p style="margin: 5px 0;"><strong>Current Allocation:</strong></p>
+        <p style="margin: 5px 0 5px 15px;">Cargo: ${currentCargo}t | Fuel: ${currentFuel}t</p>
+        <p style="margin: 5px 0;" id="cargo-fuel-balance">
+          <strong>Balance:</strong> <span id="balance-value">${currentCargo + currentFuel - flexibleTonnage}</span> tons
+          <span id="balance-status" style="color: ${currentCargo + currentFuel === flexibleTonnage ? '#4caf50' : '#f44336'};">
+            ${currentCargo + currentFuel === flexibleTonnage ? '✓' : '⚠ Must equal ' + flexibleTonnage}
+          </span>
+        </p>
+      </div>
+
+      <div style="margin: 15px 0; padding: 10px; background: rgba(100,150,255,0.1); border-left: 3px solid #6496ff; border-radius: 4px; font-size: 0.85em; color: #aaa;">
+        <p style="margin: 0;"><strong>Note:</strong> Cargo/fuel trade-offs don't affect cost - you're just reallocating existing space.</p>
+      </div>
+
+      <button class="action-button primary" onclick="applyCargoFuelChanges()" style="margin-top: 15px; width: 100%;">
+        Apply Changes
+      </button>
     </div>
   `;
 }
 
 function generateFuelPanel(template) {
-  return `
-    <div class="panel-header">
-      <div class="panel-title">⛽ Fuel Tanks</div>
-      <button class="panel-close" onclick="clearComponentPanel()">×</button>
-    </div>
-    <div class="panel-body">
-      <p style="color: #aaa;">Current: ${template.fuel || 0} tons</p>
-      <p style="color: #888; font-size: 0.85em; margin-top: 10px;">
-        Cargo/Fuel trade-off coming in Sub-stage 12.4
-      </p>
-    </div>
-  `;
+  // Fuel panel is identical to cargo panel since they're interdependent
+  return generateCargoPanel(template);
+}
+
+function updateCargoFuelDisplay() {
+  const template = shipTemplates[currentTemplate];
+  const flexibleTonnage = template.cargo + template.fuel;
+
+  const cargoSlider = document.getElementById('cargo-slider');
+  const fuelSlider = document.getElementById('fuel-slider');
+  const cargoDisplay = document.getElementById('cargo-value');
+  const fuelDisplay = document.getElementById('fuel-value');
+  const balanceValue = document.getElementById('balance-value');
+  const balanceStatus = document.getElementById('balance-status');
+
+  if (cargoSlider && fuelSlider && cargoDisplay && fuelDisplay) {
+    const cargo = parseInt(cargoSlider.value);
+    const fuel = parseInt(fuelSlider.value);
+    const total = cargo + fuel;
+    const balance = total - flexibleTonnage;
+
+    cargoDisplay.textContent = cargo;
+    fuelDisplay.textContent = fuel;
+    balanceValue.textContent = balance;
+
+    const isValid = total === flexibleTonnage;
+    balanceStatus.style.color = isValid ? '#4caf50' : '#f44336';
+    balanceStatus.textContent = isValid ? '✓' : '⚠ Must equal ' + flexibleTonnage;
+  }
+}
+
+function applyCargoFuelChanges() {
+  const template = shipTemplates[currentTemplate];
+  const flexibleTonnage = template.cargo + template.fuel;
+
+  const cargoSlider = document.getElementById('cargo-slider');
+  const fuelSlider = document.getElementById('fuel-slider');
+  const newCargo = parseInt(cargoSlider.value);
+  const newFuel = parseInt(fuelSlider.value);
+
+  // Validate total equals flexible tonnage
+  if (newCargo + newFuel !== flexibleTonnage) {
+    alert(`Cargo (${newCargo}t) + Fuel (${newFuel}t) must equal ${flexibleTonnage}t`);
+    return;
+  }
+
+  // Update modifications
+  currentModifications.cargo = newCargo;
+  currentModifications.fuel = newFuel;
+
+  // Validate
+  const validation = ShipCustomization.validateCustomShip(template, currentModifications);
+
+  if (!validation.valid) {
+    alert('Validation errors:\n' + validation.errors.join('\n'));
+    return;
+  }
+
+  if (validation.warnings.length > 0) {
+    console.log('[CUSTOMIZER] Warnings:', validation.warnings);
+  }
+
+  // Update cost display (no cost change for cargo/fuel)
+  updateCostDisplay(template, currentModifications);
+
+  // Re-render SVG
+  renderShipSVG(template);
+
+  console.log('[CUSTOMIZER] Cargo/Fuel changes applied:', { cargo: newCargo, fuel: newFuel });
 }
 
 function generateMDrivePanel(template) {
+  const currentThrust = currentModifications.thrust !== undefined ? currentModifications.thrust : template.thrust;
+  const baseCost = ShipCosts.calculateMDriveCost(template, template.thrust);
+  const newCost = ShipCosts.calculateMDriveCost(template, currentThrust);
+  const costDiff = newCost - baseCost;
+  const costDiffMCr = (costDiff / 1000000).toFixed(2);
+
   return `
     <div class="panel-header">
       <div class="panel-title">🚀 Maneuver Drive</div>
       <button class="panel-close" onclick="clearComponentPanel()">×</button>
     </div>
     <div class="panel-body">
-      <p style="color: #aaa;">Current Thrust: ${template.thrust || 0}</p>
-      <p style="color: #888; font-size: 0.85em; margin-top: 10px;">
-        Drive upgrades coming in Sub-stage 12.4
-      </p>
+      <div class="form-group">
+        <label for="thrust-slider">Thrust Rating: <span id="thrust-value">${currentThrust}</span></label>
+        <input type="range" id="thrust-slider" min="1" max="6" value="${currentThrust}" step="1"
+               oninput="updateThrustDisplay()" onchange="updateMDriveCost()">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: #888; margin-top: 5px;">
+          <span>1 (Slow)</span>
+          <span>6 (Fast)</span>
+        </div>
+      </div>
+
+      <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 4px; font-size: 0.85em; color: #aaa;">
+        <p style="margin: 5px 0;"><strong>Base Thrust:</strong> ${template.thrust}</p>
+        <p style="margin: 5px 0;"><strong>New Thrust:</strong> ${currentThrust}</p>
+        <p style="margin: 5px 0;"><strong>Performance:</strong> ${currentThrust}G acceleration</p>
+      </div>
+
+      <div class="component-cost" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+        <span class="component-cost-label">Cost Change:</span>
+        <span class="component-cost-value" id="mdrive-cost">${costDiff >= 0 ? '+' : ''}MCr ${costDiffMCr}</span>
+      </div>
+
+      <button class="action-button primary" onclick="applyMDriveChanges()" style="margin-top: 15px; width: 100%;">
+        Apply Changes
+      </button>
     </div>
   `;
 }
 
+function updateThrustDisplay() {
+  const slider = document.getElementById('thrust-slider');
+  const display = document.getElementById('thrust-value');
+  if (slider && display) {
+    display.textContent = slider.value;
+  }
+}
+
+function updateMDriveCost() {
+  const template = shipTemplates[currentTemplate];
+  const slider = document.getElementById('thrust-slider');
+  const newThrust = parseInt(slider.value);
+
+  const baseCost = ShipCosts.calculateMDriveCost(template, template.thrust);
+  const newCost = ShipCosts.calculateMDriveCost(template, newThrust);
+  const costDiff = newCost - baseCost;
+  const costDiffMCr = (costDiff / 1000000).toFixed(2);
+
+  const costDisplay = document.getElementById('mdrive-cost');
+  if (costDisplay) {
+    costDisplay.textContent = `${costDiff >= 0 ? '+' : ''}MCr ${costDiffMCr}`;
+  }
+}
+
+function applyMDriveChanges() {
+  const template = shipTemplates[currentTemplate];
+  const slider = document.getElementById('thrust-slider');
+  const newThrust = parseInt(slider.value);
+
+  // Update modifications
+  currentModifications.thrust = newThrust;
+
+  // Validate
+  const validation = ShipCustomization.validateCustomShip(template, currentModifications);
+
+  if (!validation.valid) {
+    alert('Validation errors:\n' + validation.errors.join('\n'));
+    return;
+  }
+
+  if (validation.warnings.length > 0) {
+    console.log('[CUSTOMIZER] Warnings:', validation.warnings);
+  }
+
+  // Update cost display
+  updateCostDisplay(template, currentModifications);
+
+  // Re-render SVG
+  renderShipSVG(template);
+
+  console.log('[CUSTOMIZER] M-Drive changes applied:', newThrust);
+}
+
 function generateJDrivePanel(template) {
+  const currentJump = currentModifications.jump !== undefined ? currentModifications.jump : template.jump;
+  const baseCost = ShipCosts.calculateJDriveCost(template, template.jump);
+  const newCost = ShipCosts.calculateJDriveCost(template, currentJump);
+  const costDiff = newCost - baseCost;
+  const costDiffMCr = (costDiff / 1000000).toFixed(2);
+
   return `
     <div class="panel-header">
       <div class="panel-title">⭐ Jump Drive</div>
       <button class="panel-close" onclick="clearComponentPanel()">×</button>
     </div>
     <div class="panel-body">
-      <p style="color: #aaa;">Current Jump: ${template.jump || 0}</p>
-      <p style="color: #888; font-size: 0.85em; margin-top: 10px;">
-        Drive upgrades coming in Sub-stage 12.4
-      </p>
+      <div class="form-group">
+        <label for="jump-slider">Jump Rating: <span id="jump-value">${currentJump}</span></label>
+        <input type="range" id="jump-slider" min="0" max="6" value="${currentJump}" step="1"
+               oninput="updateJumpDisplay()" onchange="updateJDriveCost()">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8em; color: #888; margin-top: 5px;">
+          <span>0 (In-system)</span>
+          <span>6 (Long range)</span>
+        </div>
+      </div>
+
+      <div style="margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 4px; font-size: 0.85em; color: #aaa;">
+        <p style="margin: 5px 0;"><strong>Base Jump:</strong> ${template.jump}</p>
+        <p style="margin: 5px 0;"><strong>New Jump:</strong> ${currentJump}</p>
+        <p style="margin: 5px 0;"><strong>Range:</strong> ${currentJump === 0 ? 'In-system only' : currentJump + ' parsecs'}</p>
+      </div>
+
+      <div class="component-cost" style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 4px;">
+        <span class="component-cost-label">Cost Change:</span>
+        <span class="component-cost-value" id="jdrive-cost">${costDiff >= 0 ? '+' : ''}MCr ${costDiffMCr}</span>
+      </div>
+
+      <button class="action-button primary" onclick="applyJDriveChanges()" style="margin-top: 15px; width: 100%;">
+        Apply Changes
+      </button>
     </div>
   `;
+}
+
+function updateJumpDisplay() {
+  const slider = document.getElementById('jump-slider');
+  const display = document.getElementById('jump-value');
+  if (slider && display) {
+    display.textContent = slider.value;
+  }
+}
+
+function updateJDriveCost() {
+  const template = shipTemplates[currentTemplate];
+  const slider = document.getElementById('jump-slider');
+  const newJump = parseInt(slider.value);
+
+  const baseCost = ShipCosts.calculateJDriveCost(template, template.jump);
+  const newCost = ShipCosts.calculateJDriveCost(template, newJump);
+  const costDiff = newCost - baseCost;
+  const costDiffMCr = (costDiff / 1000000).toFixed(2);
+
+  const costDisplay = document.getElementById('jdrive-cost');
+  if (costDisplay) {
+    costDisplay.textContent = `${costDiff >= 0 ? '+' : ''}MCr ${costDiffMCr}`;
+  }
+}
+
+function applyJDriveChanges() {
+  const template = shipTemplates[currentTemplate];
+  const slider = document.getElementById('jump-slider');
+  const newJump = parseInt(slider.value);
+
+  // Update modifications
+  currentModifications.jump = newJump;
+
+  // Validate
+  const validation = ShipCustomization.validateCustomShip(template, currentModifications);
+
+  if (!validation.valid) {
+    alert('Validation errors:\n' + validation.errors.join('\n'));
+    return;
+  }
+
+  if (validation.warnings.length > 0) {
+    console.log('[CUSTOMIZER] Warnings:', validation.warnings);
+  }
+
+  // Update cost display
+  updateCostDisplay(template, currentModifications);
+
+  // Re-render SVG
+  renderShipSVG(template);
+
+  console.log('[CUSTOMIZER] J-Drive changes applied:', newJump);
 }
 
 function clearComponentPanel() {
