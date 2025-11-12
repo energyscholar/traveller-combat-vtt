@@ -54,7 +54,7 @@ async function runTests() {
     // Test 1: Ship assignment
     console.log(`\n${YELLOW}Test 1: Ship Assignment${RESET}`);
     const page1 = await browser.newPage();
-    await page1.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
+    await page1.goto('http://localhost:3000?mode=battle', { waitUntil: 'networkidle0' });
 
     const assignment1 = await page1.evaluate(() => {
       return { myShip, myPlayerId, myRole };
@@ -68,7 +68,7 @@ async function runTests() {
     }
 
     const page2 = await browser.newPage();
-    await page2.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
+    await page2.goto('http://localhost:3000?mode=battle', { waitUntil: 'networkidle0' });
 
     const assignment2 = await page2.evaluate(() => {
       return { myShip, myPlayerId, myRole };

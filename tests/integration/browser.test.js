@@ -79,7 +79,7 @@ async function runTests() {
     console.log(`${GREEN}✓ Browser launched${RESET}`);
 
     // Open TWO tabs (required for multi-tab sync test)
-    console.log(`${BLUE}Opening Tab 1 at http://localhost:3000...${RESET}`);
+    console.log(`${BLUE}Opening Tab 1 at http://localhost:3000?mode=battle...${RESET}`);
     const page1 = await browser.newPage();
 
     // Listen to console logs from tab 1
@@ -91,16 +91,16 @@ async function runTests() {
       }
     });
 
-    await page1.goto('http://localhost:3000', {
+    await page1.goto('http://localhost:3000?mode=battle', {
       waitUntil: 'networkidle0',
       timeout: 30000
     });
     console.log(`${GREEN}✓ Tab 1 loaded${RESET}`);
 
     // Open second tab for multi-tab sync testing
-    console.log(`${BLUE}Opening Tab 2 at http://localhost:3000...${RESET}`);
+    console.log(`${BLUE}Opening Tab 2 at http://localhost:3000?mode=battle...${RESET}`);
     const page2 = await browser.newPage();
-    await page2.goto('http://localhost:3000', {
+    await page2.goto('http://localhost:3000?mode=battle', {
       waitUntil: 'networkidle0',
       timeout: 30000
     });

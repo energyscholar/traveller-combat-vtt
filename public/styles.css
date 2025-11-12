@@ -1046,3 +1046,13 @@
       font-size: 14px;
       line-height: 1.6;
     }
+
+    /* Stage 12.2: Main Menu Button Styles */
+    .menu-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .menu-button:active {
+      transform: translateY(0);
+    }

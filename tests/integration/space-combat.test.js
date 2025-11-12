@@ -4,7 +4,7 @@
 const io = require('socket.io-client');
 
 // Test configuration
-const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = 'http://localhost:3000?mode=battle';
 const TEST_TIMEOUT = 30000; // 30 seconds
 
 // Helper to create a socket client

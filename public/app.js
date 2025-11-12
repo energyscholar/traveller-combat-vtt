@@ -1,3 +1,71 @@
+    // ======== STAGE 12.2: URL ROUTING SYSTEM ========
+    // Parse URL parameters to determine which mode to load
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode'); // 'battle', 'customize', or null (show menu)
+
+    // Get screen elements
+    const mainMenuScreen = document.getElementById('main-menu-screen');
+    const shipSelectionScreen = document.getElementById('ship-selection-screen');
+    const spaceCombatHud = document.getElementById('space-combat-hud');
+
+    // Route to appropriate screen based on URL parameter
+    function initializeApp() {
+      if (mode === 'battle') {
+        // Battle mode: Show ship selection (existing behavior)
+        mainMenuScreen.style.display = 'none';
+        shipSelectionScreen.style.display = 'block';
+        spaceCombatHud.style.display = 'none';
+        // Socket.io and combat system will initialize below
+        return 'battle';
+      } else if (mode === 'customize') {
+        // Customize mode: Show customization screen (Stage 12.3+)
+        mainMenuScreen.style.display = 'none';
+        shipSelectionScreen.style.display = 'none';
+        spaceCombatHud.style.display = 'none';
+        // Show placeholder message
+        document.body.innerHTML = `
+          <div class="container">
+            <div class="card" style="text-align: center; padding: 40px;">
+              <h2>🔧 Ship Customization</h2>
+              <p style="font-size: 1.2em; color: #ccc; margin: 30px 0;">
+                Ship customization system coming in Stage 12.3!
+              </p>
+              <button onclick="window.location.href='/'" style="padding: 15px 30px; font-size: 1em; background: #667eea; border: none; border-radius: 8px; color: white; cursor: pointer;">
+                ← Back to Main Menu
+              </button>
+            </div>
+          </div>
+        `;
+        return 'customize';
+      } else {
+        // No mode specified: Show main menu
+        mainMenuScreen.style.display = 'block';
+        shipSelectionScreen.style.display = 'none';
+        spaceCombatHud.style.display = 'none';
+
+        // Add menu button event listeners
+        document.getElementById('btn-space-battle').addEventListener('click', () => {
+          window.location.href = '/?mode=battle';
+        });
+        document.getElementById('btn-customize-ship').addEventListener('click', () => {
+          window.location.href = '/?mode=customize';
+        });
+
+        return 'menu';
+      }
+    }
+
+    // Initialize routing
+    const appMode = initializeApp();
+
+    // Only initialize combat system if in battle mode
+    if (appMode !== 'battle') {
+      // Don't initialize Socket.io or combat system for other modes
+      console.log(`App initialized in '${appMode}' mode - skipping combat initialization`);
+      // Stop script execution here for non-battle modes
+      throw new Error('STOP_EXECUTION_NON_BATTLE_MODE');
+    }
+
     // ======== CLIENT LOGGING SYSTEM ========
     // Lightweight client logger that sends logs to server
     const ClientLogger = {

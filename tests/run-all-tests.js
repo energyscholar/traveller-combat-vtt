@@ -77,13 +77,25 @@ for (const testFile of allTests) {
     console.log(output.trim());
 
     // Try to extract pass/fail counts from output
-    const testCountMatch = output.match(/(\d+)\s+tests/i);
-    const passMatch = output.match(/(\d+)\s+passed/i);
-    const failMatch = output.match(/(\d+)\s+failed/i);
+    // Match formats: "PASSED: X/Y" (prioritize this), "X passed", "RESULTS: X passed, Y failed"
+    const passedRegex = /PASSED:\s*(\d+)\/(\d+)/i;
+    const resultsRegex = /RESULTS:\s*(\d+)\s+passed,\s*(\d+)\s+failed/i;
 
-    if (testCountMatch) totalPassed += parseInt(testCountMatch[1]);
-    if (passMatch) totalPassed += parseInt(passMatch[1]);
-    if (failMatch) totalFailed += parseInt(failMatch[1]);
+    const passMatch = output.match(passedRegex);
+    const resultsMatch = output.match(resultsRegex);
+
+    if (passMatch) {
+      // Use PASSED: X/Y format (most common)
+      const passed = parseInt(passMatch[1]);
+      const total = parseInt(passMatch[2]);
+      const failed = total - passed;
+      totalPassed += passed;
+      totalFailed += failed;
+    } else if (resultsMatch) {
+      // Use RESULTS: X passed, Y failed format
+      totalPassed += parseInt(resultsMatch[1]);
+      totalFailed += parseInt(resultsMatch[2]);
+    }
 
     suitesRun++;
 

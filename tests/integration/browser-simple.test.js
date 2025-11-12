@@ -60,7 +60,7 @@ async function runTests() {
       }
     });
 
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.goto('http://localhost:3000?mode=battle', { waitUntil: 'networkidle0', timeout: 30000 });
     console.log(`${GREEN}✓ Page loaded${RESET}`);
 
     // Take screenshot

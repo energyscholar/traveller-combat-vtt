@@ -62,12 +62,12 @@ async function runTests() {
     // Open two tabs
     console.log(`${BLUE}Opening Tab 1...${RESET}`);
     const page1 = await browser.newPage();
-    await page1.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
+    await page1.goto('http://localhost:3000?mode=battle', { waitUntil: 'networkidle0' });
     console.log(`${GREEN}✓ Tab 1 loaded${RESET}`);
 
     console.log(`${BLUE}Opening Tab 2 (for multi-tab sync)...${RESET}`);
     const page2 = await browser.newPage();
-    await page2.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
+    await page2.goto('http://localhost:3000?mode=battle', { waitUntil: 'networkidle0' });
     console.log(`${GREEN}✓ Tab 2 loaded${RESET}`);
 
     // Wait for Socket.io
