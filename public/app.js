@@ -1526,17 +1526,28 @@
 
       currentShipData.round = data.round;
       updateShipHUD();
-      addLogEntry(`Round ${data.round} begins!`, 'system');
 
-      // Re-enable buttons
-      updateFireButtonState();
-      endTurnButton.disabled = false;
-      useDefaultButton.disabled = false;
-      launchMissileButton.disabled = missilesRemaining <= 0;
-      useSandcasterButton.disabled = sandcasterRemaining <= 0;
-
-      // Restart turn timer
-      startTurnTimer();
+      // Check whose turn it is
+      const isMyTurn = data.activePlayer === socket.id;
+      if (isMyTurn) {
+        addLogEntry(`Round ${data.round} begins! Your turn!`, 'system');
+        // Enable buttons for active player
+        updateFireButtonState();
+        endTurnButton.disabled = false;
+        useDefaultButton.disabled = false;
+        launchMissileButton.disabled = missilesRemaining <= 0;
+        useSandcasterButton.disabled = sandcasterRemaining <= 0;
+        startTurnTimer();
+      } else {
+        addLogEntry(`Round ${data.round} begins! Opponent's turn...`, 'system');
+        // Disable buttons for inactive player
+        fireButton.disabled = true;
+        endTurnButton.disabled = true;
+        useDefaultButton.disabled = true;
+        launchMissileButton.disabled = true;
+        useSandcasterButton.disabled = true;
+        stopTurnTimer();
+      }
     });
 
     socket.on('space:turnChange', (data) => {
@@ -1695,3 +1706,44 @@
     console.log('========================================');
     console.log('Space Combat HUD loaded with missiles & sandcasters');
     console.log('========================================');
+
+    // ======== PLAYER FEEDBACK SYSTEM ========
+
+    const feedbackButton = document.getElementById('submit-feedback-button');
+    const feedbackText = document.getElementById('feedback-text');
+    const feedbackStatus = document.getElementById('feedback-status');
+
+    if (feedbackButton && feedbackText && feedbackStatus) {
+      feedbackButton.addEventListener('click', () => {
+        const feedback = feedbackText.value.trim();
+
+        if (!feedback) {
+          feedbackStatus.textContent = '⚠️ Please enter some feedback first';
+          feedbackStatus.style.color = '#ff6b6b';
+          return;
+        }
+
+        // Send feedback to server via Socket.io
+        socket.emit('player:feedback', {
+          feedback: feedback,
+          timestamp: new Date().toISOString(),
+          context: {
+            ship: currentShipData ? currentShipData.ship : 'unknown',
+            round: currentShipData ? currentShipData.round : 0,
+            hull: currentShipData ? `${currentShipData.hull}/${currentShipData.maxHull}` : 'unknown'
+          }
+        });
+
+        // Clear textarea and show success message
+        feedbackText.value = '';
+        feedbackStatus.textContent = '✅ Feedback submitted! Thank you!';
+        feedbackStatus.style.color = '#51cf66';
+
+        // Clear status after 3 seconds
+        setTimeout(() => {
+          feedbackStatus.textContent = '';
+        }, 3000);
+
+        console.log('[FEEDBACK] Submitted feedback');
+      });
+    }

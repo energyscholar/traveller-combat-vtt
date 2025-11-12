@@ -362,6 +362,63 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ======== PLAYER FEEDBACK HANDLER ========
+  // Receive player feedback and log with special marker for easy parsing
+  socket.on('player:feedback', (data) => {
+    const { feedback, timestamp, context } = data;
+    const playerInfo = `Socket ${socket.id.substring(0, 8)}`;
+
+    // SECURITY: Validate and sanitize feedback
+    if (!feedback || typeof feedback !== 'string') {
+      socketLog.warn(` Invalid feedback from ${connectionId}: not a string`);
+      return;
+    }
+
+    // Limit feedback length (prevent DoS via huge strings)
+    const MAX_FEEDBACK_LENGTH = 2000;
+    const sanitizedFeedback = feedback.substring(0, MAX_FEEDBACK_LENGTH).trim();
+
+    if (sanitizedFeedback.length === 0) {
+      socketLog.warn(` Empty feedback from ${connectionId}`);
+      return;
+    }
+
+    // Strip dangerous characters that could break log parsing
+    // Remove control characters, null bytes, and log injection attempts
+    const safeFeedback = sanitizedFeedback
+      .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+      .replace(/\n/g, ' ')              // Convert newlines to spaces
+      .replace(/\r/g, '')               // Remove carriage returns
+      .replace(/\t/g, ' ')              // Convert tabs to spaces
+      .replace(/\\/g, '\\\\')           // Escape backslashes
+      .replace(/"/g, '\\"');            // Escape quotes
+
+    // Validate context object
+    const safeContext = {};
+    if (context && typeof context === 'object') {
+      // Only allow specific whitelisted properties
+      if (context.ship && typeof context.ship === 'string') {
+        safeContext.ship = context.ship.substring(0, 50);
+      }
+      if (context.round && typeof context.round === 'number') {
+        safeContext.round = Math.floor(context.round);
+      }
+      if (context.hull && typeof context.hull === 'string') {
+        safeContext.hull = context.hull.substring(0, 20);
+      }
+    }
+
+    // Log with special marker [PLAYER_FEEDBACK] for easy grep/parsing
+    serverLog.info(`[PLAYER_FEEDBACK] ${playerInfo}: ${safeFeedback}`, {
+      timestamp: timestamp || new Date().toISOString(),
+      socketId: socket.id,
+      context: safeContext,
+      feedbackLength: safeFeedback.length
+    });
+
+    socketLog.info(` Player feedback received from ${connectionId} (${safeFeedback.length} chars)`);
+  });
+
   // Handle "hello" messages (Stage 1)
   socket.on('hello', (data) => {
     const timestamp = Date.now();
@@ -1108,12 +1165,17 @@ io.on('connection', (socket) => {
       combat.round++;
       combat.turnComplete = { [combat.player1.id]: false, [combat.player2.id]: false };
 
-      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}`);
+      // BUGFIX: Set active player for new round (round-robin alternating)
+      // Player 1 goes first on odd rounds, Player 2 on even rounds
+      combat.activePlayer = (combat.round % 2 === 1) ? combat.player1.id : combat.player2.id;
+
+      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}, active player: ${combat.activePlayer === combat.player1.id ? 'Player 1' : 'Player 2'}`);
 
       const newRoundData = {
         round: combat.round,
         player1Hull: combat.player1.hull,
-        player2Hull: combat.player2.hull
+        player2Hull: combat.player2.hull,
+        activePlayer: combat.activePlayer  // Include active player in round data
       };
 
       // Emit to both players with safety checks
@@ -1350,7 +1412,8 @@ io.on('connection', (socket) => {
       const newRoundData = {
         round: combat.round,
         player1Hull: combat.player1.hull,
-        player2Hull: combat.player2.hull
+        player2Hull: combat.player2.hull,
+        activePlayer: combat.activePlayer  // Include active player in round data
       };
 
       // Emit to both players with safety checks
@@ -1551,12 +1614,17 @@ io.on('connection', (socket) => {
       combat.round++;
       combat.turnComplete = { [combat.player1.id]: false, [combat.player2.id]: false };
 
-      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}`);
+      // BUGFIX: Set active player for new round (round-robin alternating)
+      // Player 1 goes first on odd rounds, Player 2 on even rounds
+      combat.activePlayer = (combat.round % 2 === 1) ? combat.player1.id : combat.player2.id;
+
+      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}, active player: ${combat.activePlayer === combat.player1.id ? 'Player 1' : 'Player 2'}`);
 
       const newRoundData = {
         round: combat.round,
         player1Hull: combat.player1.hull,
-        player2Hull: combat.player2.hull
+        player2Hull: combat.player2.hull,
+        activePlayer: combat.activePlayer  // Include active player in round data
       };
 
       // Emit to both players with safety checks

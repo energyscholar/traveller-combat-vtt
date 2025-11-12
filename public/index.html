@@ -231,6 +231,31 @@
           <div class="log-entry system">Waiting for combat to begin...</div>
         </div>
       </div>
+
+      <!-- Player Feedback -->
+      <div class="card" style="margin-top: 20px;">
+        <details>
+          <summary style="cursor: pointer; font-weight: bold; padding: 10px;">💬 Provide Feedback</summary>
+          <div style="padding: 10px;">
+            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
+              Help improve the game! Share bugs, suggestions, or comments.
+            </p>
+            <textarea
+              id="feedback-text"
+              placeholder="Enter your feedback here..."
+              style="width: 100%; height: 80px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"
+            ></textarea>
+            <button
+              id="submit-feedback-button"
+              class="action-button"
+              style="margin-top: 10px;"
+            >
+              📤 Submit Feedback
+            </button>
+            <div id="feedback-status" style="margin-top: 10px; font-size: 0.9em;"></div>
+          </div>
+        </details>
+      </div>
     </div>
   </div>
 
