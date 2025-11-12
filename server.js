@@ -23,6 +23,10 @@ const SHIP_ALIASES = {
 };
 const { DiceRoller } = require('./lib/dice');
 
+// STAGE 11: Missile and Sandcaster mechanics
+const { MissileTracker } = require('./lib/weapons/missiles');
+const { useSandcaster, canUseSandcaster, interceptMissile } = require('./lib/weapons/sandcasters');
+
 // Serve static files from public directory
 app.use(express.static('public'));
 app.use(express.json());
@@ -811,6 +815,12 @@ io.on('connection', (socket) => {
           const shipData = SHIPS[shipType];
           const crew = generateDefaultCrew(shipType);
 
+          // STAGE 11: Initialize ammo for each weapon type
+          const ammo = {
+            missiles: 12,      // 12 missiles per rack
+            sandcaster: 20     // 20 canisters per sandcaster
+          };
+
           return {
             id: player.id,
             name: shipData ? shipData.name : shipType,
@@ -821,9 +831,13 @@ io.on('connection', (socket) => {
             pilotSkill: shipData ? shipData.pilotSkill : 0,
             turrets: shipType === 'scout' ? 1 : 2,
             crew: crew,
-            criticals: []
+            criticals: [],
+            ammo: ammo  // STAGE 11: Track ammo per weapon type
           };
         };
+
+        // STAGE 11: Create missile tracker for this combat
+        const missileTracker = new MissileTracker();
 
         activeCombats.set(combatId, {
           id: combatId,
@@ -832,7 +846,8 @@ io.on('connection', (socket) => {
           range: finalRange,
           round: 1,
           activePlayer: player1.id,
-          turnComplete: { [player1.id]: false, [player2.id]: false }
+          turnComplete: { [player1.id]: false, [player2.id]: false },
+          missileTracker: missileTracker  // STAGE 11: Track missiles for this combat
         });
         combatLog.info(` Combat state initialized: ${combatId}`);
 
@@ -1150,6 +1165,358 @@ io.on('connection', (socket) => {
       }
 
       combatLog.info(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}, notifications sent to ${turnNotified}/2 players`);
+    }
+  });
+
+  // STAGE 11: Handle missile launch
+  socket.on('space:launchMissile', (data) => {
+    combatLog.info(`[SPACE:MISSILE] Player ${connectionId} launching missile`);
+
+    // Find combat for this player
+    let combat = null;
+    for (const [combatId, c] of activeCombats.entries()) {
+      if (c.player1.id === socket.id || c.player2.id === socket.id) {
+        combat = c;
+        break;
+      }
+    }
+
+    if (!combat) {
+      combatLog.info(`[SPACE:MISSILE] No active combat found for player ${connectionId}`);
+      socket.emit('space:error', { message: 'No active combat found' });
+      return;
+    }
+
+    // Determine attacker and defender
+    const isPlayer1 = socket.id === combat.player1.id;
+    const attackerPlayer = isPlayer1 ? combat.player1 : combat.player2;
+    const defenderPlayer = isPlayer1 ? combat.player2 : combat.player1;
+    const attackerSocket = socket;
+    const defenderSocket = io.sockets.sockets.get(defenderPlayer.id);
+
+    // Check if it's this player's turn
+    if (combat.activePlayer !== socket.id) {
+      combatLog.info(`[SPACE:MISSILE] Not player's turn: ${connectionId}`);
+      socket.emit('space:notYourTurn', { message: 'Wait for your turn!' });
+      return;
+    }
+
+    // Check if player has already fired this round
+    if (combat.turnComplete[socket.id]) {
+      combatLog.info(`[SPACE:MISSILE] Player already fired this round: ${connectionId}`);
+      socket.emit('space:alreadyFired', { message: 'You already fired this round!' });
+      return;
+    }
+
+    // Check missile ammo
+    if (attackerPlayer.ammo.missiles <= 0) {
+      combatLog.info(`[SPACE:MISSILE] No missile ammo remaining: ${connectionId}`);
+      socket.emit('space:noAmmo', { message: 'No missiles remaining!' });
+      return;
+    }
+
+    // Launch missile
+    const missile = combat.missileTracker.launchMissile({
+      attackerId: attackerPlayer.id,
+      defenderId: defenderPlayer.id,
+      currentRange: combat.range.toLowerCase(),
+      round: combat.round
+    });
+
+    // Decrement ammo
+    attackerPlayer.ammo.missiles--;
+
+    combatLog.info(`[SPACE:MISSILE] Missile launched: ${missile.id} from ${attackerPlayer.name} to ${defenderPlayer.name} at ${missile.launchRange}`);
+
+    // Emit to both players
+    const missileData = {
+      missileId: missile.id,
+      attacker: attackerPlayer.name,
+      defender: defenderPlayer.name,
+      currentRange: missile.currentRange,
+      ammoRemaining: attackerPlayer.ammo.missiles
+    };
+
+    if (attackerSocket && attackerSocket.connected) {
+      attackerSocket.emit('space:missileLaunched', { ...missileData, isAttacker: true });
+    }
+
+    if (defenderSocket && defenderSocket.connected) {
+      defenderSocket.emit('space:missileLaunched', { ...missileData, isAttacker: false });
+    }
+
+    // Mark turn as complete for this player
+    combat.turnComplete[socket.id] = true;
+
+    // Check if both players have completed their turns
+    if (combat.turnComplete[combat.player1.id] && combat.turnComplete[combat.player2.id]) {
+      // Start new round
+      combat.round++;
+      combat.turnComplete = { [combat.player1.id]: false, [combat.player2.id]: false };
+
+      // STAGE 11: Update missiles at start of new round
+      const missileUpdates = combat.missileTracker.updateMissiles(combat.round);
+
+      combatLog.info(`[SPACE:ROUND] Starting round ${combat.round}, ${missileUpdates.length} missile updates`);
+
+      // Process missile updates
+      for (const update of missileUpdates) {
+        if (update.action === 'moved') {
+          const missile = combat.missileTracker.missiles.get(update.missileId);
+          combatLog.info(`[SPACE:MISSILE] ${update.missileId} moved to ${update.newRange}`);
+
+          const moveData = {
+            missileId: update.missileId,
+            newRange: update.newRange,
+            oldRange: update.oldRange
+          };
+
+          const p1Socket = io.sockets.sockets.get(combat.player1.id);
+          const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+          if (p1Socket && p1Socket.connected) {
+            p1Socket.emit('space:missileMoved', moveData);
+          }
+
+          if (p2Socket && p2Socket.connected) {
+            p2Socket.emit('space:missileMoved', moveData);
+          }
+        } else if (update.action === 'impact') {
+          // Missile reached target - resolve impact
+          const impactResult = combat.missileTracker.resolveMissileImpact(update.missileId);
+
+          if (impactResult.hit) {
+            // Apply damage to defender
+            const missile = impactResult.missile;
+            const defender = missile.target === combat.player1.id ? combat.player1 : combat.player2;
+            defender.hull -= impactResult.damage;
+            if (defender.hull < 0) defender.hull = 0;
+
+            combatLog.info(`[SPACE:MISSILE] ${update.missileId} IMPACT! ${impactResult.damage} damage. Hull: ${defender.hull}/${defender.maxHull}`);
+
+            const impactData = {
+              missileId: update.missileId,
+              hit: true,
+              damage: impactResult.damage,
+              damageRoll: impactResult.damageRoll,
+              targetHull: defender.hull,
+              targetMaxHull: defender.maxHull
+            };
+
+            const p1Socket = io.sockets.sockets.get(combat.player1.id);
+            const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+            if (p1Socket && p1Socket.connected) {
+              p1Socket.emit('space:missileImpact', impactData);
+            }
+
+            if (p2Socket && p2Socket.connected) {
+              p2Socket.emit('space:missileImpact', impactData);
+            }
+
+            // Check for victory
+            if (defender.hull <= 0) {
+              const winner = defender.id === combat.player1.id ? 'player2' : 'player1';
+              const loser = defender.id === combat.player1.id ? 'player1' : 'player2';
+
+              combatLog.info(`[SPACE:VICTORY] ${winner} wins! ${loser} destroyed by missile.`);
+
+              const victoryData = {
+                winner,
+                loser,
+                finalHull: {
+                  player1: combat.player1.hull,
+                  player2: combat.player2.hull
+                },
+                rounds: combat.round
+              };
+
+              if (p1Socket && p1Socket.connected) {
+                p1Socket.emit('space:combatEnd', victoryData);
+              }
+
+              if (p2Socket && p2Socket.connected) {
+                p2Socket.emit('space:combatEnd', victoryData);
+              }
+
+              // Clean up combat
+              activeCombats.delete(combat.id);
+              return;
+            }
+          }
+        }
+      }
+
+      const newRoundData = {
+        round: combat.round,
+        player1Hull: combat.player1.hull,
+        player2Hull: combat.player2.hull
+      };
+
+      // Emit to both players with safety checks
+      const p1Socket = io.sockets.sockets.get(combat.player1.id);
+      const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+      let roundNotified = 0;
+      if (p1Socket && p1Socket.connected) {
+        p1Socket.emit('space:newRound', newRoundData);
+        roundNotified++;
+      }
+
+      if (p2Socket && p2Socket.connected) {
+        p2Socket.emit('space:newRound', newRoundData);
+        roundNotified++;
+      }
+
+      combatLog.info(`[SPACE:ROUND] Round ${combat.round} notifications sent to ${roundNotified}/2 players`);
+    } else {
+      // Switch active player
+      combat.activePlayer = combat.activePlayer === combat.player1.id ? combat.player2.id : combat.player1.id;
+
+      const turnChangeData = {
+        activePlayer: combat.activePlayer,
+        round: combat.round
+      };
+
+      const p1Socket = io.sockets.sockets.get(combat.player1.id);
+      const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+      if (p1Socket && p1Socket.connected) {
+        p1Socket.emit('space:turnChange', turnChangeData);
+      }
+
+      if (p2Socket && p2Socket.connected) {
+        p2Socket.emit('space:turnChange', turnChangeData);
+      }
+
+      combatLog.info(`[SPACE:TURN_CHANGE] Active player: ${combat.activePlayer}`);
+    }
+  });
+
+  // STAGE 11: Handle point defense against missiles
+  socket.on('space:pointDefense', (data) => {
+    combatLog.info(`[SPACE:POINT_DEFENSE] Player ${connectionId} using point defense against ${data.missileId}`);
+
+    // Find combat for this player
+    let combat = null;
+    for (const [combatId, c] of activeCombats.entries()) {
+      if (c.player1.id === socket.id || c.player2.id === socket.id) {
+        combat = c;
+        break;
+      }
+    }
+
+    if (!combat) {
+      combatLog.info(`[SPACE:POINT_DEFENSE] No active combat found for player ${connectionId}`);
+      socket.emit('space:error', { message: 'No active combat found' });
+      return;
+    }
+
+    // Determine attacker and defender
+    const isPlayer1 = socket.id === combat.player1.id;
+    const defenderPlayer = isPlayer1 ? combat.player1 : combat.player2;
+    const defenderSocket = socket;
+
+    // Attempt point defense
+    const result = combat.missileTracker.pointDefense(
+      data.missileId,
+      defenderPlayer,
+      defenderPlayer.crew.gunner || 0
+    );
+
+    if (!result.success) {
+      combatLog.info(`[SPACE:POINT_DEFENSE] Point defense failed: ${result.reason}`);
+      socket.emit('space:error', { message: `Point defense failed: ${result.reason}` });
+      return;
+    }
+
+    combatLog.info(`[SPACE:POINT_DEFENSE] Result: ${result.destroyed ? 'DESTROYED' : 'MISSED'} (roll: ${result.total})`);
+
+    // Emit to both players
+    const pdData = {
+      missileId: data.missileId,
+      destroyed: result.destroyed,
+      roll: result.roll,
+      total: result.total,
+      defender: defenderPlayer.name
+    };
+
+    const p1Socket = io.sockets.sockets.get(combat.player1.id);
+    const p2Socket = io.sockets.sockets.get(combat.player2.id);
+
+    if (p1Socket && p1Socket.connected) {
+      p1Socket.emit('space:pointDefenseResult', pdData);
+    }
+
+    if (p2Socket && p2Socket.connected) {
+      p2Socket.emit('space:pointDefenseResult', pdData);
+    }
+  });
+
+  // STAGE 11: Handle sandcaster defense
+  socket.on('space:useSandcaster', (data) => {
+    combatLog.info(`[SPACE:SANDCASTER] Player ${connectionId} using sandcaster`);
+
+    // Find combat for this player
+    let combat = null;
+    for (const [combatId, c] of activeCombats.entries()) {
+      if (c.player1.id === socket.id || c.player2.id === socket.id) {
+        combat = c;
+        break;
+      }
+    }
+
+    if (!combat) {
+      combatLog.info(`[SPACE:SANDCASTER] No active combat found for player ${connectionId}`);
+      socket.emit('space:error', { message: 'No active combat found' });
+      return;
+    }
+
+    // Determine defender
+    const isPlayer1 = socket.id === combat.player1.id;
+    const defenderPlayer = isPlayer1 ? combat.player1 : combat.player2;
+
+    // Check range (sandcasters only work at adjacent or close)
+    if (!canUseSandcaster(combat.range.toLowerCase())) {
+      combatLog.info(`[SPACE:SANDCASTER] Cannot use sandcaster at ${combat.range}`);
+      socket.emit('space:error', { message: 'Sandcasters only work at adjacent or close range' });
+      return;
+    }
+
+    // Check ammo
+    if (defenderPlayer.ammo.sandcaster <= 0) {
+      combatLog.info(`[SPACE:SANDCASTER] No sandcaster ammo remaining: ${connectionId}`);
+      socket.emit('space:noAmmo', { message: 'No sandcaster ammo remaining!' });
+      return;
+    }
+
+    // Use sandcaster
+    const result = useSandcaster({
+      gunnerSkill: defenderPlayer.crew.gunner || 0,
+      attackType: data.attackType || 'laser',
+      ammoRemaining: defenderPlayer.ammo.sandcaster
+    });
+
+    // Decrement ammo
+    defenderPlayer.ammo.sandcaster--;
+
+    combatLog.info(`[SPACE:SANDCASTER] Result: ${result.success ? 'SUCCESS' : 'FAILED'} (armor bonus: ${result.armorBonus})`);
+
+    // Emit result back to defender
+    const sandData = {
+      success: result.success,
+      armorBonus: result.armorBonus,
+      roll: result.roll,
+      total: result.total,
+      ammoRemaining: defenderPlayer.ammo.sandcaster
+    };
+
+    socket.emit('space:sandcasterResult', sandData);
+
+    // Store temporary armor bonus for this attack (if successful)
+    if (result.success) {
+      defenderPlayer.tempArmorBonus = result.armorBonus;
+      combatLog.info(`[SPACE:SANDCASTER] Temporary armor bonus: +${result.armorBonus}`);
     }
   });
 

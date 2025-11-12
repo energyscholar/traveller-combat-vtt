@@ -1210,9 +1210,21 @@
     const spaceCombatLog = document.getElementById('combat-log');
     const turnTimer = document.getElementById('turn-timer');
 
+    // STAGE 11: Missile and sandcaster controls
+    const launchMissileButton = document.getElementById('launch-missile-button');
+    const pointDefenseButton = document.getElementById('point-defense-button');
+    const useSandcasterButton = document.getElementById('use-sandcaster-button');
+    const missilesRemainingEl = document.getElementById('missiles-remaining');
+    const sandcasterRemainingEl = document.getElementById('sandcaster-remaining');
+
     let currentShipData = null;
     let turnTimeRemaining = 30;
     let turnTimerInterval = null;
+
+    // STAGE 11: Track active missiles and ammo
+    let activeMissiles = [];
+    let missilesRemaining = 12;
+    let sandcasterRemaining = 20;
 
     // Initialize Space Combat HUD with ship data
     function initializeSpaceCombatHUD(data) {
@@ -1354,9 +1366,66 @@
       fireButton.disabled = true;
       endTurnButton.disabled = true;
       useDefaultButton.disabled = true;
+      launchMissileButton.disabled = true;
+      pointDefenseButton.disabled = true;
+      useSandcasterButton.disabled = true;
 
       // Reset turn timer
       stopTurnTimer();
+    });
+
+    // STAGE 11: Launch Missile button
+    launchMissileButton.addEventListener('click', () => {
+      console.log('[LAUNCH MISSILE] Button clicked');
+
+      if (missilesRemaining <= 0) {
+        addLogEntry('No missiles remaining!', 'system');
+        return;
+      }
+
+      addLogEntry('Launching missile...', 'system');
+
+      // Emit missile launch to server
+      socket.emit('space:launchMissile', {});
+
+      // Disable buttons until next turn
+      launchMissileButton.disabled = true;
+      fireButton.disabled = true;
+      endTurnButton.disabled = true;
+      useDefaultButton.disabled = true;
+    });
+
+    // STAGE 11: Point Defense button
+    pointDefenseButton.addEventListener('click', () => {
+      console.log('[POINT DEFENSE] Button clicked');
+
+      if (activeMissiles.length === 0) {
+        addLogEntry('No incoming missiles to target!', 'system');
+        return;
+      }
+
+      // For simplicity, target the first active missile
+      const targetMissile = activeMissiles[0];
+
+      addLogEntry(`Attempting point defense against ${targetMissile.id}...`, 'system');
+
+      // Emit point defense to server
+      socket.emit('space:pointDefense', { missileId: targetMissile.id });
+    });
+
+    // STAGE 11: Use Sandcaster button
+    useSandcasterButton.addEventListener('click', () => {
+      console.log('[USE SANDCASTER] Button clicked');
+
+      if (sandcasterRemaining <= 0) {
+        addLogEntry('No sandcaster ammo remaining!', 'system');
+        return;
+      }
+
+      addLogEntry('Deploying sandcaster...', 'system');
+
+      // Emit sandcaster use to server
+      socket.emit('space:useSandcaster', { attackType: 'laser' });
     });
 
     // Turn timer functions
@@ -1463,6 +1532,8 @@
       updateFireButtonState();
       endTurnButton.disabled = false;
       useDefaultButton.disabled = false;
+      launchMissileButton.disabled = missilesRemaining <= 0;
+      useSandcasterButton.disabled = sandcasterRemaining <= 0;
 
       // Restart turn timer
       startTurnTimer();
@@ -1477,12 +1548,16 @@
         updateFireButtonState();
         endTurnButton.disabled = false;
         useDefaultButton.disabled = false;
+        launchMissileButton.disabled = missilesRemaining <= 0;
+        useSandcasterButton.disabled = sandcasterRemaining <= 0;
         startTurnTimer();
       } else {
         addLogEntry('Opponent\'s turn...', 'system');
         fireButton.disabled = true;
         endTurnButton.disabled = true;
         useDefaultButton.disabled = true;
+        launchMissileButton.disabled = true;
+        useSandcasterButton.disabled = true;
         stopTurnTimer();
       }
     });
@@ -1515,8 +1590,108 @@
       addLogEntry(data.message, 'system');
     });
 
+    // STAGE 11: Missile and Sandcaster events
+    socket.on('space:missileLaunched', (data) => {
+      console.log('[MISSILE LAUNCHED]', data);
+
+      if (data.isAttacker) {
+        addLogEntry(`Missile launched at ${data.defender}! Range: ${data.currentRange}`, 'system');
+        missilesRemaining = data.ammoRemaining;
+        missilesRemainingEl.textContent = `Missiles: ${missilesRemaining}`;
+      } else {
+        addLogEntry(`INCOMING MISSILE from ${data.attacker}! Range: ${data.currentRange}`, 'critical');
+        activeMissiles.push({ id: data.missileId, range: data.currentRange });
+        // Enable point defense if there are incoming missiles
+        pointDefenseButton.disabled = false;
+      }
+    });
+
+    socket.on('space:missileMoved', (data) => {
+      console.log('[MISSILE MOVED]', data);
+      addLogEntry(`Missile ${data.missileId} moved to ${data.newRange}`, 'system');
+
+      // Update active missiles tracking
+      const missile = activeMissiles.find(m => m.id === data.missileId);
+      if (missile) {
+        missile.range = data.newRange;
+      }
+    });
+
+    socket.on('space:missileImpact', (data) => {
+      console.log('[MISSILE IMPACT]', data);
+
+      if (data.hit) {
+        const rollText = data.damageRoll ? `[${data.damageRoll.join(',')}]` : '';
+        addLogEntry(`MISSILE IMPACT! ${data.damage} damage ${rollText}`, 'hit');
+
+        // Update hull if this is our ship
+        if (currentShipData) {
+          currentShipData.hull = data.targetHull;
+          updateShipHUD();
+        }
+
+        // Remove missile from active tracking
+        activeMissiles = activeMissiles.filter(m => m.id !== data.missileId);
+        if (activeMissiles.length === 0) {
+          pointDefenseButton.disabled = true;
+        }
+      }
+    });
+
+    socket.on('space:pointDefenseResult', (data) => {
+      console.log('[POINT DEFENSE]', data);
+
+      const rollText = data.roll && data.roll.dice
+        ? `[${data.roll.dice.join(',')}]=${data.roll.total}`
+        : data.total || '?';
+
+      if (data.destroyed) {
+        addLogEntry(`Point defense SUCCESS! Missile ${data.missileId} destroyed! (Roll: ${rollText})`, 'hit');
+
+        // Remove missile from active tracking
+        activeMissiles = activeMissiles.filter(m => m.id !== data.missileId);
+        if (activeMissiles.length === 0) {
+          pointDefenseButton.disabled = true;
+        }
+      } else {
+        addLogEntry(`Point defense MISS! (Roll: ${rollText})`, 'miss');
+      }
+    });
+
+    socket.on('space:sandcasterResult', (data) => {
+      console.log('[SANDCASTER RESULT]', data);
+
+      const rollText = data.roll && data.roll.dice
+        ? `[${data.roll.dice.join(',')}]=${data.roll.total}`
+        : data.total || '?';
+
+      if (data.success) {
+        addLogEntry(`Sandcaster deployed! +${data.armorBonus} armor bonus (Roll: ${rollText})`, 'hit');
+      } else {
+        addLogEntry(`Sandcaster failed! (Roll: ${rollText})`, 'miss');
+      }
+
+      sandcasterRemaining = data.ammoRemaining;
+      sandcasterRemainingEl.textContent = `Sand: ${sandcasterRemaining}`;
+    });
+
+    socket.on('space:noAmmo', (data) => {
+      console.log('[NO AMMO]', data);
+      addLogEntry(data.message, 'system');
+    });
+
+    socket.on('space:alreadyFired', (data) => {
+      console.log('[ALREADY FIRED]', data);
+      addLogEntry(data.message, 'system');
+    });
+
+    socket.on('space:error', (data) => {
+      console.log('[ERROR]', data);
+      addLogEntry(`Error: ${data.message}`, 'system');
+    });
+
     console.log('========================================');
-    console.log('TRAVELLER COMBAT VTT - STAGE 8.7');
+    console.log('TRAVELLER COMBAT VTT - STAGE 11');
     console.log('========================================');
-    console.log('Space Combat HUD loaded');
+    console.log('Space Combat HUD loaded with missiles & sandcasters');
     console.log('========================================');
