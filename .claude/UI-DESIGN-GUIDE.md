@@ -73,21 +73,40 @@ Every screen should feel like a station on a starship:
 - All role UIs share the same data but present it differently
 - Future: Picture-in-picture for multi-role management
 
-**Use Case - Mid-Combat Role Change:**
+**Use Case - Mid-Combat Role Change & Vacc Suit Selection:**
 Real scenario from Tuesday game group:
-1. Pirate attack - incoming fire
-2. Critical hit on Turret 1 - Gunner killed instantly
-3. Damage Control officer rushes to turret
-4. DC clears vacuum, liquid metal, frozen remains
-5. Backup gunner takes over turret (in vacc suit, exposed to space)
-6. System operational again, combat continues
+
+**Pre-Combat:**
+- Crew dons vacc suits (combat preparation protocol)
+- Different vacc suit types: role-optimized vs generic lightweight
+- Smart choice: lightweight minimal suit (1-2 hours vacuum safety, explosive decompression survival)
+- Physicist's note: Explosive decompression is a real risk in space combat
+
+**During Combat:**
+1. Pirate attack - pulse laser incoming
+2. **Critical hit to CREW, not turret** (rolled 5 on 1d6 = 50 damage)
+3. Pulse laser melts through hull, hits gunner in turret couch directly
+4. Instant kill through armored vacc suit (laser + spray of liquified hull metal)
+5. Hull breach - explosive decompression in turret compartment
+6. **Turret system undamaged per rules** - temporarily disabled by:
+   - Dead gunner strapped into couch
+   - Vacuum conditions
+   - Liquified/frozen metal debris
+7. Damage Control officer (in vacc suit) rushes to turret
+8. DC clears: vacuum safe, removes remains, cleans liquid metal
+9. Brave replacement gunner takes damaged turret couch (exposed to space)
+10. Turret operational again - combat continues
 
 Our VTT must support:
+- **Pre-combat vacc suit selection** (role-optimized vs lightweight generic)
 - Instant role switching when crew casualties occur
-- Damage Control can make systems operational mid-combat
-- New gunner can take over functional-but-damaged turret
-- Environmental hazards visible (vacuum, fire, etc.)
+- **Crew casualties vs System damage** (separate mechanics)
+- Damage Control can clear environmental hazards mid-combat
+- New gunner can take over functional-but-environmentally-hazardous station
+- **Environmental hazards visible** (vacuum, fire, temperature, radiation)
+- Hull breaches and explosive decompression effects
 - Smooth UI transition during crisis
+- Physics-accurate space hazards
 
 ### 2. **Functional Aesthetics**
 - **No unnecessary decoration** - every element serves a purpose
