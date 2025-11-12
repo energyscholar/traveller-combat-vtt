@@ -13,6 +13,63 @@
   overflow-y: auto;
 }
 
+/* Tab Controls */
+.tab-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 15px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+  padding-bottom: 2px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #aaa;
+  font-size: 0.95em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tab-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.tab-button.active {
+  background: rgba(102, 126, 234, 0.15);
+  border-bottom-color: #667eea;
+  color: #667eea;
+  box-shadow: 0 0 10px rgba(102, 126, 234, 0.2);
+}
+
+/* Tab Content */
+.tab-content {
+  display: block;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.tab-content.hidden {
+  display: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .template-list {
   display: flex;
   flex-direction: column;
@@ -49,6 +106,106 @@
 .template-details {
   font-size: 0.85em;
   color: #aaa;
+}
+
+/* Ship Library Cards */
+#ship-library-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ship-card {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.ship-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: translateX(2px);
+}
+
+.ship-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.ship-card-name {
+  font-weight: bold;
+  font-size: 1.05em;
+  color: #fff;
+  flex: 1;
+}
+
+.ship-card-template {
+  font-size: 0.85em;
+  color: #aaa;
+  margin-bottom: 6px;
+}
+
+.ship-card-cost {
+  font-size: 0.9em;
+  color: #667eea;
+  font-family: 'Courier New', monospace;
+  margin-bottom: 8px;
+}
+
+.ship-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ship-card-actions button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.85em;
+  background: rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: bold;
+}
+
+.ship-card-actions button:hover {
+  background: rgba(102, 126, 234, 0.4);
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+}
+
+.ship-card-actions button.delete {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.4);
+}
+
+.ship-card-actions button.delete:hover {
+  background: rgba(244, 67, 54, 0.4);
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.3);
+}
+
+/* Empty State */
+.ship-library-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.ship-library-empty-icon {
+  font-size: 3em;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.ship-library-empty-text {
+  font-size: 0.95em;
+  line-height: 1.5;
 }
 
 /* Ship Schematic Display */

@@ -849,9 +849,201 @@ function clearComponentPanel() {
   selectedComponent = null;
 }
 
+// ======== TAB SWITCHING ========
+
+function switchTab(tabName) {
+  // Update tab button states
+  const tabButtons = document.querySelectorAll('.tab-button');
+  tabButtons.forEach(btn => {
+    if (btn.getAttribute('data-tab') === tabName) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // Show/hide tab content
+  const templatesTab = document.getElementById('templates-tab');
+  const myShipsTab = document.getElementById('my-ships-tab');
+
+  if (tabName === 'templates') {
+    templatesTab.classList.remove('hidden');
+    myShipsTab.classList.add('hidden');
+  } else if (tabName === 'my-ships') {
+    templatesTab.classList.add('hidden');
+    myShipsTab.classList.remove('hidden');
+    // Render ship library when switching to My Ships tab
+    renderShipLibrary();
+  }
+
+  console.log('[CUSTOMIZER] Switched to tab:', tabName);
+}
+
+// ======== SHIP LIBRARY RENDERING ========
+
+function renderShipLibrary() {
+  const container = document.getElementById('ship-library-container');
+
+  // Get all custom ships from localStorage
+  const ships = window.ShipLibrary ? window.ShipLibrary.getAllShips() : [];
+
+  if (ships.length === 0) {
+    // Show empty state
+    container.innerHTML = `
+      <div class="ship-library-empty">
+        <div class="ship-library-empty-icon">🚀</div>
+        <div class="ship-library-empty-text">
+          No custom ships yet.<br>
+          Design a ship and save it to see it here!
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // Render ship cards
+  container.innerHTML = ships.map(ship => {
+    const template = shipTemplates[ship.templateId];
+    const templateName = template ? template.name : ship.templateId;
+    const costMCr = (ship.totalCost / 1000000).toFixed(2);
+
+    return `
+      <div class="ship-card" data-ship-id="${ship.id}">
+        <div class="ship-card-header">
+          <div class="ship-card-name">${ship.name}</div>
+        </div>
+        <div class="ship-card-template">${templateName}</div>
+        <div class="ship-card-cost">MCr ${costMCr}</div>
+        <div class="ship-card-actions">
+          <button class="load" data-ship-id="${ship.id}">Load</button>
+          <button class="delete" data-ship-id="${ship.id}">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Add event listeners to Load and Delete buttons
+  container.querySelectorAll('button.load').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const shipId = btn.getAttribute('data-ship-id');
+      loadCustomShip(shipId);
+    });
+  });
+
+  container.querySelectorAll('button.delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const shipId = btn.getAttribute('data-ship-id');
+      deleteCustomShip(shipId);
+    });
+  });
+
+  console.log('[CUSTOMIZER] Rendered ship library:', ships.length, 'ships');
+}
+
+function loadCustomShip(shipId) {
+  const ship = window.ShipLibrary ? window.ShipLibrary.getShip(shipId) : null;
+  if (!ship) {
+    alert('❌ Ship not found in library');
+    return;
+  }
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = Object.keys(currentModifications).length > 0;
+
+  if (hasUnsavedChanges) {
+    // Show user choice dialog
+    const choice = confirm(
+      `⚠️ You have unsaved changes to the current ship.\n\n` +
+      `Click OK to DISCARD changes and load "${ship.name}"\n` +
+      `Click Cancel to go back and save your current work`
+    );
+
+    if (!choice) {
+      // User chose Cancel - return without loading
+      return;
+    }
+  }
+
+  // Load the ship
+  const template = shipTemplates[ship.templateId];
+  if (!template) {
+    alert(`❌ Template "${ship.templateId}" not found`);
+    return;
+  }
+
+  // Set current state
+  currentTemplate = ship.templateId;
+  currentModifications = JSON.parse(JSON.stringify(ship.mods)); // Deep copy
+  selectedComponent = null;
+
+  // Update UI
+  updateSchematicTitle(template);
+  renderShipSVG(template);
+  updateCostDisplay(template);
+  clearComponentPanel();
+
+  // Pre-fill ship name
+  document.getElementById('ship-name').value = ship.name;
+
+  // Switch back to Templates tab to show the loaded ship
+  switchTab('templates');
+
+  // Update template selection highlighting
+  const templateOptions = document.querySelectorAll('.template-option');
+  templateOptions.forEach(opt => {
+    if (opt.getAttribute('data-template') === ship.templateId) {
+      opt.classList.add('active');
+    } else {
+      opt.classList.remove('active');
+    }
+  });
+
+  console.log('[CUSTOMIZER] Loaded custom ship:', ship.name, ship.id);
+  alert(`✅ Loaded ship: ${ship.name}`);
+}
+
+function deleteCustomShip(shipId) {
+  const ship = window.ShipLibrary ? window.ShipLibrary.getShip(shipId) : null;
+  if (!ship) {
+    alert('❌ Ship not found in library');
+    return;
+  }
+
+  // Confirmation dialog
+  const confirmed = confirm(
+    `⚠️ Delete "${ship.name}"?\n\n` +
+    `This action cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  // Delete the ship
+  const success = window.ShipLibrary.deleteShip(shipId);
+
+  if (success) {
+    console.log('[CUSTOMIZER] Deleted ship:', ship.name, shipId);
+    alert(`✅ Deleted ship: ${ship.name}`);
+    // Re-render the library to reflect the deletion
+    renderShipLibrary();
+  } else {
+    alert('❌ Failed to delete ship');
+  }
+}
+
 // ======== EVENT LISTENERS ========
 
 function setupEventListeners() {
+  // Tab switching
+  const tabButtons = document.querySelectorAll('.tab-button');
+  tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const tabName = button.getAttribute('data-tab');
+      switchTab(tabName);
+    });
+  });
+
   // Template selection
   const templateOptions = document.querySelectorAll('.template-option');
   templateOptions.forEach(option => {
@@ -906,7 +1098,8 @@ function setupEventListeners() {
 
       console.log('[CUSTOMIZER] Ship saved:', savedShip);
 
-      // TODO: Refresh ship library UI when it's implemented
+      // Auto-switch to My Ships tab and refresh library
+      switchTab('my-ships');
     } catch (error) {
       console.error('[CUSTOMIZER] Error saving ship:', error);
       alert('❌ Error saving ship. Please try again.');

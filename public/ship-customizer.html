@@ -15,11 +15,18 @@
       <button id="back-to-menu" class="action-button" style="margin-top: 10px;">← Back to Main Menu</button>
     </div>
 
-    <div class="customizer-layout">
-      <!-- Left Sidebar: Ship Template Selector -->
-      <div class="ship-selector-sidebar card">
-        <h3>📋 Ship Templates</h3>
-        <div class="template-list">
+    <div class="customizer-layout" data-mode="design">
+      <!-- Left Sidebar: Ship Template Selector & Library -->
+      <div class="ship-selector-sidebar card" id="nav-sidebar">
+        <!-- Tab Controls -->
+        <div class="tab-controls">
+          <button class="tab-button active" data-tab="templates">📋 Templates</button>
+          <button class="tab-button" data-tab="my-ships">🚀 My Ships</button>
+        </div>
+
+        <!-- Tab Content: Templates -->
+        <div class="tab-content" id="templates-tab">
+          <div class="template-list">
           <div class="template-option active" data-template="scout">
             <div class="template-name">⚡ Scout</div>
             <div class="template-details">100t • 1 Turret</div>
@@ -55,6 +62,14 @@
           <div class="template-option" data-template="laboratory_ship">
             <div class="template-name">🔬 Laboratory Ship</div>
             <div class="template-details">400t • 2 Turrets</div>
+          </div>
+          </div>
+        </div>
+
+        <!-- Tab Content: My Ships -->
+        <div class="tab-content hidden" id="my-ships-tab">
+          <div id="ship-library-container">
+            <!-- Will be populated by JavaScript -->
           </div>
         </div>
       </div>
