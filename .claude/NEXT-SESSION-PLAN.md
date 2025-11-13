@@ -1,5 +1,7 @@
 # Next Session Plan - Stage 12 Continuation
 
+**⚡ AUTONOMOUS MODE: See `/START-HERE-AUTONOMOUS.md` in repo root for quickstart! ⚡**
+
 **Session Date**: TBD
 **Current Status**: Jump drive validation complete, V2 templates designed, strategic planning documented
 **Branch**: main (not merged yet)
