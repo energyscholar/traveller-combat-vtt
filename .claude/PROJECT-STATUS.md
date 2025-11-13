@@ -55,6 +55,28 @@ Build a **FUN, playable space combat VTT** with **ship design tools** for:
 - ✅ Community adoption (r/Traveller, forums)
 - ✅ Immersive UI (spaceship control panel theme)
 
+### CTO Mentorship Program
+**Special Note:** This project serves as data collection for an article on AI-assisted technical leadership development.
+
+**Requirement:** After **every stage completion**, a comprehensive CTO technical assessment must be generated and committed. This is critical for tracking skill progression and documenting the AI mentorship journey.
+
+**Assessment Documentation:**
+- Format: `.claude/CTO-ASSESSMENT-[DATE].md`
+- Tracking: `.claude/CTO-MENTORSHIP-TRACKING.md`
+- Template: `.claude/STAGE-COMPLETION-TEMPLATE.md`
+- Purpose: Article on "How Claude Code Mentored Me to Become a Fractional CTO"
+
+**Assessment Requirements:**
+- All 9 categories graded (Architecture, Code Quality, Security, Testing, Tech Stack, Scalability, Technical Debt, Dev Practices, Business Value)
+- Quantitative metrics recorded
+- Qualitative observations documented
+- Skills demonstrated identified
+- Growth opportunities noted
+- Comparison to previous stages
+- Recommendations for next stage
+
+**This is non-negotiable and must be completed before moving to next stage.**
+
 ---
 
 ## Stage Breakdown

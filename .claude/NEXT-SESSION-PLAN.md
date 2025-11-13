@@ -8,6 +8,23 @@
 
 ---
 
+## 🎓 CTO MENTORSHIP REQUIREMENT
+
+**CRITICAL:** After every stage completion, a comprehensive CTO technical assessment is **REQUIRED** before moving to the next stage.
+
+**Purpose:** Data collection for article on "How Claude Code Mentored Me to Become a Fractional CTO"
+
+**Assessment Deliverables:**
+- Document: `.claude/CTO-ASSESSMENT-[DATE].md`
+- Updated: `.claude/CTO-MENTORSHIP-TRACKING.md`
+- Template: `.claude/STAGE-COMPLETION-TEMPLATE.md`
+
+**This is non-negotiable and part of every stage completion checklist.**
+
+See `.claude/CTO-MENTORSHIP-TRACKING.md` for full methodology and tracking.
+
+---
+
 ## Priority 1: Autonomous Tasks (Claude Can Do Alone)
 
 These tasks require no user decisions and can be completed independently:
