@@ -587,14 +587,29 @@ Add any new files to appropriate category in index. Update header date and file 
 **Added:** 2025-11-13
 **Authority:** Project owner directive
 
-#### The 50% Rule for Low-Priority Tasks
+#### Dynamic Overhead Limit for Low-Priority Tasks
 
-**Maximum overhead allocation: 50% of primary work time**
+**UPDATED:** 2025-11-13 (refined from initial 50% rule)
+
+**Current Target: 30% of primary work time**
+**Allowed Range: 10% - 50%**
+**Adjustment: Based on value delivery, timing, and token usage**
 
 ```
-Primary work: 8h → Maximum overhead: 4h
-Primary work: 6h → Maximum overhead: 3h
-Primary work: 4h → Maximum overhead: 2h
+Target (30%):
+Primary work: 8h → Maximum overhead: 2.4h
+Primary work: 6h → Maximum overhead: 1.8h
+Primary work: 4h → Maximum overhead: 1.2h
+
+Maximum (50%):
+Primary work: 8h → Absolute max overhead: 4h
+Primary work: 6h → Absolute max overhead: 3h
+Primary work: 4h → Absolute max overhead: 2h
+
+Minimum (10%):
+Primary work: 8h → Minimum overhead: 0.8h
+Primary work: 6h → Minimum overhead: 0.6h
+Primary work: 4h → Minimum overhead: 0.4h
 ```
 
 **What counts as "overhead":**
@@ -610,26 +625,116 @@ Primary work: 4h → Maximum overhead: 2h
 - User is AFK during AB sessions (time not critical)
 - BUT token usage IS critical (burning at 5× Claude Pro rate)
 - Overhead tasks use tokens without delivering core value
-- 50% limit prevents token waste on low-priority work
+- Dynamic limit balances quality improvements vs token efficiency
 
-**When overhead exceeds 50%:**
+**When overhead exceeds current limit:**
 
 ```
 1. STOP current overhead task immediately
 2. Assess which overhead tasks delivered value
 3. Deprioritize or simplify low-value overhead
-4. Document in session report: "Overhead limit reached"
+4. Document in session report: "Overhead limit reached at X%"
 5. Continue with primary work only
 ```
 
+---
+
+#### Overhead Limit Adjustment Factors
+
+**Evaluate after each AB session to adjust target (10-50% range):**
+
+**Factor 1: Value Delivered**
+```
+High Value Overhead (increase limit toward 50%):
+- ✅ Critical documentation gaps filled
+- ✅ Major refactoring opportunities documented
+- ✅ CTO insights with actionable recommendations
+- ✅ Process improvements that save future time
+
+Low Value Overhead (decrease limit toward 10%):
+- ❌ Minor formatting tweaks
+- ❌ Redundant documentation
+- ❌ Speculative analysis without actionable output
+- ❌ Over-engineering of processes
+```
+
+**Factor 2: Session Timing**
+```
+User Returns Before Session Complete (decrease limit):
+- Session running when user returns → wasted user time
+- Indicates overhead taking too long
+- Reduce limit by 5-10%
+- Example: User returns at 8h, session still at 10h → too slow
+
+User Returns After Session Complete (maintain/increase):
+- Session finished before user returns → no time wasted
+- Overhead didn't impact user workflow
+- Can maintain or slightly increase limit
+- Example: Session done at 11h, user returns at 14h → good timing
+```
+
+**Factor 3: Token Management**
+```
+Token Burn Rate Assessment:
+- Currently burning at 5× Claude Pro rate
+- Need to optimize token usage
+- Overhead uses ~30% more tokens per hour than primary work
+
+Token Impact:
+- Session 3A: 11.5h × ~6K tokens/h = ~70K tokens
+- Overhead (4.5h): ~27K tokens used
+- If reduced overhead to 30%: Save ~10K tokens per session
+
+Decision Matrix:
+- Token usage HIGH (>80K/session): Target 10-20% overhead
+- Token usage MEDIUM (60-80K): Target 20-30% overhead
+- Token usage LOW (<60K): Can allow 30-40% overhead
+- Never exceed 50% regardless of tokens
+```
+
+**Adjustment Protocol:**
+
+After each session, evaluate:
+```
+1. Calculate actual overhead ratio
+2. Assess value delivered (high/medium/low)
+3. Check if user returned before session complete
+4. Estimate token usage impact
+5. Adjust target for NEXT session:
+
+   IF value=high AND timing=good AND tokens=ok:
+      → Increase limit by 5% (max 50%)
+
+   IF value=medium AND timing=ok AND tokens=ok:
+      → Maintain current limit
+
+   IF value=low OR timing=bad OR tokens=high:
+      → Decrease limit by 5-10% (min 10%)
+```
+
+**Track in .claude/OVERHEAD-LIMIT-TRACKING.md:**
+```markdown
+| Session | Primary | Overhead | Ratio | Value | Timing | Tokens | Next Target |
+|---------|---------|----------|-------|-------|--------|--------|-------------|
+| 3A      | 7.0h    | 4.5h     | 64%   | High  | Good   | ~70K   | 30%         |
+| 4       | TBD     | TBD      | TBD   | TBD   | TBD    | TBD    | 30%         |
+```
+
+---
+
 **Examples:**
 
-✅ **GOOD** (50% compliance):
+✅ **GOOD** (30% target compliance):
 - Primary: 8h ship validation modules
-- Overhead: 2h docs + 1h lint + 1h CTO analysis = 4h total
-- Ratio: 4h/8h = 50% ✅
+- Overhead: 2h docs + 0.4h lint = 2.4h total
+- Ratio: 2.4h/8h = 30% ✅ **TARGET MET**
 
-❌ **BAD** (exceeds 50%):
+⚠️ **ACCEPTABLE** (within 50% max):
+- Primary: 8h ship validation modules
+- Overhead: 3.5h total
+- Ratio: 3.5h/8h = 44% ⚠️ **OVER TARGET** but within max
+
+❌ **EXCESSIVE** (exceeds 50% max):
 - Primary: 4h schema creation
 - Overhead: 2h docs + 1h lint + 1h CTO + 1h indexing = 5h total
 - Ratio: 5h/4h = 125% ❌ **STOP**
