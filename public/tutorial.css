@@ -112,8 +112,8 @@
 /* ===== Animated Mouse Pointer ===== */
 .tutorial-pointer {
   position: fixed;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   pointer-events: none;
   z-index: 10000;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -125,29 +125,36 @@
   opacity: 1;
 }
 
+/* Yellow wedge/arrow cursor - centered */
 .tutorial-pointer::before {
   content: '';
   position: absolute;
-  width: 0;
-  height: 0;
-  border-left: 16px solid #fbbf24;
-  border-right: 16px solid transparent;
-  border-bottom: 24px solid transparent;
-  border-top: 24px solid #fbbf24;
-  transform: rotate(-45deg);
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  clip-path: polygon(
+    50% 0%,
+    100% 50%,
+    65% 50%,
+    65% 100%,
+    35% 100%,
+    35% 50%,
+    0% 50%
+  );
   left: 0;
   top: 0;
 }
 
+/* Pulsing ring indicator - centered on pointer */
 .tutorial-pointer::after {
   content: '';
   position: absolute;
-  width: 48px;
-  height: 48px;
-  border: 2px solid #fbbf24;
+  width: 50px;
+  height: 50px;
+  border: 3px solid #fbbf24;
   border-radius: 50%;
-  top: -8px;
-  left: -8px;
+  top: -11px;
+  left: -11px;
   animation: pointer-pulse 1.5s infinite;
 }
 
