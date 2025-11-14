@@ -88,17 +88,25 @@ class TutorialPlayer {
 
     // Move pointer if specified
     if (step.pointer) {
-      await this.waitForElement(step.pointer.target);
+      // Wait up to 2 seconds for element to appear
+      const element = await this.waitForElement(step.pointer.target, 2000);
 
-      await this.pointer.moveTo(
-        step.pointer.target,
-        step.pointer.duration || 500
-      );
+      // Only move pointer if element was found
+      if (element) {
+        await this.pointer.moveTo(
+          step.pointer.target,
+          step.pointer.duration || 500
+        );
 
-      // Show tooltip if specified
-      if (step.tooltip) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        this.tooltip.show(step.tooltip.element, step.tooltip.text);
+        // Show tooltip if specified
+        if (step.tooltip) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+          this.tooltip.show(step.tooltip.element, step.tooltip.text);
+        }
+      } else {
+        // Element not found - hide pointer and show warning in modal
+        this.pointer.hide();
+        console.warn(`Tutorial step ${index}: Target element not found. User may need to navigate first.`);
       }
     }
 
