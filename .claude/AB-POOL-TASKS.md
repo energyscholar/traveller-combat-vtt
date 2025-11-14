@@ -322,45 +322,47 @@ Strategic research and business development planning for Mongoose Publishing lic
 
 ---
 
-### 8. TIMESHEET-BRUCE Maintenance
+### 8. CTO-ASSESSMENT Daily Logging
 **Priority:** LOW
 **Estimate:** 0.5-1h per session (max 2% of AB budget ongoing)
 **Deferred From:** Session 6
 **Status:** 🟡 Deferred
 
 **Description:**
-Maintain ongoing timesheet tracking for Bruce's professional work hours:
-- Update timesheet with session hours
-- Track billable vs non-billable time
-- Document project progress for timesheet entries
-- Maintain accurate time records for portfolio and client work
-- Include session summaries in timesheet notes
+Create daily CTO-ASSESSMENT files to track professional development and provide evidence for the CTO mentoring article:
+- Daily assessment files: `.claude/CTO-ASSESSMENT-YYYY-MM-DD.md`
+- Track CTO skills development, technical decisions, project management
+- Document velocity metrics, overhead management, strategic thinking
+- Evidence-based tracking for compelling article narrative
+- Clear differentiation from one-time CTO-MENTORING files
 
 **Deliverables:**
-- Regular timesheet updates (after each session)
-- Accurate hour tracking
-- Session summaries for time entries
-- Professional time records for portfolio
+- Daily CTO-ASSESSMENT-YYYY-MM-DD.md files (after each session)
+- Skills rubric tracking (technical, leadership, strategic)
+- Velocity and overhead metrics
+- Portfolio-quality work evidence
+- Article-ready content accumulation
 
 **ROI Estimate:**
 - Time saved: 0h (administrative task)
-- Professional value: Medium (accurate time tracking)
-- Client value: High (transparent billing records)
-- Portfolio value: Medium (demonstrates project management)
+- Career value: Very High (article evidence, portfolio demonstration)
+- Article value: High (compelling narrative with real data)
+- Portfolio value: Very High (demonstrates CTO-level thinking)
 
 **Next Steps:**
-- Create timesheet update protocol
-- Define session-to-timesheet mapping
-- Document time entry format
-- Automate where possible
+- Create daily CTO-ASSESSMENT template
+- Define consistent assessment format
+- Link to velocity metrics and session reports
+- Accumulate evidence for article
 
 **Pull Condition:** After each session completion OR overhead < 20%
 
 **Budget Discipline:**
 - Maximum: 2% of AB budget per session
 - Target: 0.5-1h per 8-10h session
-- Frequency: After each session
-- Document type: Living (ongoing maintenance)
+- Frequency: After each session (daily)
+- Document type: Datestamped (one per day)
+- Naming: CTO-ASSESSMENT-YYYY-MM-DD.md
 
 ---
 
@@ -370,7 +372,7 @@ Maintain ongoing timesheet tracking for Bruce's professional work hours:
 - **CRITICAL:** 0 tasks
 - **HIGH:** 2 tasks (Stage Optimization, Small Craft)
 - **MEDIUM:** 3 tasks (Financialization, CTO Article, Mongoose Licensing)
-- **LOW:** 3 tasks (Initiative Research, Best Practices, TIMESHEET-BRUCE)
+- **LOW:** 3 tasks (Initiative Research, Best Practices, CTO-ASSESSMENT Logging)
 
 ### By Status
 - 🔴 **BLOCKED:** 1 task (Small Craft Templates)
@@ -378,10 +380,10 @@ Maintain ongoing timesheet tracking for Bruce's professional work hours:
 - 🟢 **READY:** 0 tasks (none pulled yet)
 
 ### Estimated Total Work
-- **Total Hours:** 19-27h (one-time) + 0.5-1h per session (ongoing TIMESHEET-BRUCE)
+- **Total Hours:** 19-27h (one-time) + 0.5-1h per session (ongoing CTO-ASSESSMENT)
 - **Per Session (10% max):** 0.8-1h per 8h session
 - **Sessions Required:** ~20-27 sessions to complete pool (at 10% per session)
-- **Ongoing Maintenance:** Max 3% per session (1% Mongoose + 2% TIMESHEET-BRUCE)
+- **Ongoing Maintenance:** Max 3% per session (1% Mongoose + 2% CTO-ASSESSMENT)
 
 ---
 
