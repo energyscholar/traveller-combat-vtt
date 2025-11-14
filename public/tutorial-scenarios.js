@@ -1,0 +1,253 @@
+// Tutorial Scenario Definitions - Session 8, Stage 14
+// Purpose: Define tutorial stories with dramatic narration
+
+const TUTORIAL_SCENARIOS = {
+  'first-blood': {
+    id: 'first-blood',
+    title: 'First Blood - Basic Combat',
+    description: 'Your first encounter with a pirate corsair. Learn the basics of space combat.',
+    duration: '5-7 minutes',
+    difficulty: 'beginner',
+    prerequisites: [],
+    learningObjectives: [
+      'Ship selection UI',
+      'Range selection mechanics',
+      'Initiative system',
+      'Firing weapons',
+      'Turn-based combat flow'
+    ],
+
+    steps: [
+      {
+        index: 0,
+        total: 6,
+        title: 'ACT 1: ENCOUNTER',
+        narration: `Captain, we've detected a pirate corsair at Short range!
+
+Your crew is green, but they're ready for their first fight.
+
+Let's select your ship and prepare for combat...`,
+        pointer: {
+          target: '[data-test-id="btn-space-battle"]',
+          duration: 800
+        },
+        tooltip: {
+          element: '[data-test-id="btn-space-battle"]',
+          text: `Click here to enter Space Battle mode`
+        },
+        action: {
+          type: 'click',
+          target: '[data-test-id="btn-space-battle"]',
+          delay: 3000
+        },
+        chatMessage: {
+          sender: '🎓 Instructor',
+          text: 'Welcome to your first space combat tutorial!',
+          delay: 500
+        },
+        wait: {
+          selector: '[data-test-id="ship-option-scout"]',
+          timeout: 2000
+        }
+      },
+
+      {
+        index: 1,
+        total: 6,
+        title: 'ACT 2: SHIP SELECTION',
+        narration: `Now, let's choose our ship. The Scout is perfect for beginners - it's fast, maneuverable, and has a deadly pulse laser.
+
+The Type-S Scout has:
+• Hull: 40 points
+• Armor: 4 points
+• Thrust: 2G acceleration
+• Weapons: Pulse Laser, Sandcaster, Missiles`,
+        pointer: {
+          target: '[data-test-id="ship-option-scout"]',
+          duration: 600
+        },
+        tooltip: {
+          element: '[data-test-id="ship-option-scout"]',
+          text: `<strong>Type-S Scout/Courier</strong><br>
+Fast and deadly. Perfect for learning!`
+        },
+        action: {
+          type: 'click',
+          target: '[data-test-id="ship-option-scout"]',
+          delay: 4000
+        },
+        chatMessage: {
+          sender: '🎓 Instructor',
+          text: 'The Scout is the perfect ship for learning the ropes.',
+          delay: 1000
+        }
+      },
+
+      {
+        index: 2,
+        total: 6,
+        title: 'ACT 3: RANGE SELECTION',
+        narration: `Starting range is crucial in space combat.
+
+Let's go with SHORT range - close enough to use our pulse laser effectively, but not too close for the enemy's beam weapons.
+
+At Short range, our pulse laser gets +0 DM. Perfect for beginners!`,
+        pointer: {
+          target: '[data-test-id="range-select"]',
+          duration: 600
+        },
+        tooltip: {
+          element: '[data-test-id="range-select"]',
+          text: `Range affects weapon accuracy and damage.<br>
+Short range: Good for lasers`
+        },
+        action: {
+          type: 'select',
+          target: '[data-test-id="range-select"]',
+          value: 'Short',
+          delay: 4000
+        },
+        chatMessage: {
+          sender: '🎓 Instructor',
+          text: 'Range choice is a key tactical decision in every battle.',
+          delay: 1500
+        }
+      },
+
+      {
+        index: 3,
+        total: 6,
+        title: 'ACT 4: READY FOR COMBAT',
+        narration: `Excellent choices, Captain!
+
+You've selected the Scout and set your starting range to Short.
+
+Now click READY to enter combat. Your opponent (the AI) will automatically select a ship and join you in battle.
+
+This is where the real fight begins!`,
+        pointer: {
+          target: '[data-test-id="ready-button"]',
+          duration: 600
+        },
+        tooltip: {
+          element: '[data-test-id="ready-button"]',
+          text: `Confirms your ship selection and enters combat`
+        },
+        action: {
+          type: 'click',
+          target: '[data-test-id="ready-button"]',
+          delay: 5000
+        },
+        chatMessage: {
+          sender: '🎓 Instructor',
+          text: 'Time to put your training to the test!',
+          delay: 2000
+        },
+        wait: {
+          selector: '[data-test-id="fire-button"]',
+          timeout: 3000
+        }
+      },
+
+      {
+        index: 4,
+        total: 6,
+        title: 'ACT 5: COMBAT HUD',
+        narration: `Welcome to the Combat HUD!
+
+Here you can see:
+• Your ship status (hull, armor)
+• Enemy ship status
+• Available weapons
+• Combat log
+• Action buttons
+
+The FIRE button fires your currently selected weapon. The END TURN button passes control to your opponent.
+
+Note: In solo mode against AI, the fire button may be disabled. This tutorial demonstrates the UI and controls.`,
+        pointer: {
+          target: '[data-test-id="fire-button"]',
+          duration: 800
+        },
+        tooltip: {
+          element: '[data-test-id="fire-button"]',
+          text: `<strong>FIRE Button</strong><br>
+Fires your selected weapon at the enemy.
+Each weapon can only fire once per turn.`
+        },
+        action: null, // No automatic action - just show UI
+        chatMessage: {
+          sender: '🎓 Instructor',
+          text: 'This is your command center. Study it carefully!',
+          delay: 1000
+        }
+      },
+
+      {
+        index: 5,
+        total: 6,
+        title: '🎉 TUTORIAL COMPLETE',
+        narration: `Congratulations, Captain!
+
+You've completed the "First Blood" tutorial. You've learned:
+
+✓ How to start a space battle
+✓ How to select your ship
+✓ How to set starting range
+✓ How to read the Combat HUD
+
+The actual combat mechanics (firing, damage, turns) work best in multiplayer mode with two human players or in automated test scenarios.
+
+Ready for more? Try exploring the ship templates or start a real battle!`,
+        pointer: null,
+        tooltip: null,
+        action: null,
+        chatMessage: {
+          sender: '🎉 Crew',
+          text: 'Well done, Captain! Ready for your first real battle!',
+          delay: 500
+        }
+      }
+    ]
+  },
+
+  'missile-mayhem': {
+    id: 'missile-mayhem',
+    title: 'Missile Mayhem - Advanced Weapons',
+    description: 'Learn missile combat and point defense systems.',
+    duration: '7-10 minutes',
+    difficulty: 'intermediate',
+    prerequisites: ['first-blood'],
+    learningObjectives: [
+      'Missile launching mechanics',
+      'Point defense systems',
+      'Ammo tracking',
+      'Multi-round combat'
+    ],
+    steps: [
+      {
+        index: 0,
+        total: 1,
+        title: 'COMING SOON',
+        narration: `This tutorial is not yet implemented.
+
+It will teach you:
+• How to launch missiles
+• How to use point defense
+• How to track ammunition
+• Advanced combat tactics
+
+For now, try the "First Blood" tutorial to learn the basics!`,
+        pointer: null,
+        tooltip: null,
+        action: null,
+        chatMessage: null
+      }
+    ]
+  }
+};
+
+// Export for use in other modules
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { TUTORIAL_SCENARIOS };
+}
