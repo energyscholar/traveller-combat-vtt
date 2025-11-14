@@ -415,3 +415,770 @@ TOTAL: 136/140 = 97% → SAFE ✅
 ---
 
 **This is the way forward. Execute accordingly.**
+
+---
+
+## 🔧 ROUTINE MAINTENANCE (MANDATORY)
+
+**Added:** 2025-11-13
+**Authority:** Project owner directive
+**Scope:** Every autonomous session
+
+### Standing Orders for All Autonomous Sessions
+
+**During EVERY autonomous session, allocate time for:**
+
+#### 1. Documentation Maintenance (15-30 min)
+
+```
+[ ] Update README.md with new features/changes
+[ ] Update .claude/MD-FILE-INDEX.md (add any new .md files created)
+[ ] Update API documentation
+[ ] Refresh getting-started guides
+[ ] Update architecture diagrams
+[ ] Fix outdated examples
+[ ] Add missing docstrings/comments
+```
+
+**Rationale:** Documentation drift is inevitable. Keep it current while context is fresh.
+
+**Time Investment:** Don't spend hours. Quick passes only. Mark `TODO: Expand` if deeper work needed.
+
+**MD Index Maintenance:** Quick verification (1-2 min):
+```bash
+# Check for new .md files since last index update
+find . -name "*.md" -not -path "*/node_modules/*" -newer .claude/MD-FILE-INDEX.md
+```
+Add any new files to appropriate category in index. Update header date and file count if changed.
+
+---
+
+#### 2. Best Practice Pass (20-40 min)
+
+```
+[ ] Scan for best practice violations
+[ ] Fix naming inconsistencies
+[ ] Extract magic numbers to constants
+[ ] Remove code duplication (DRY principle)
+[ ] Add missing error handling
+[ ] Improve function signatures
+[ ] Add type hints/JSDoc
+```
+
+**Only fix if LOW RISK:**
+- ✅ Renaming variables (if tests pass)
+- ✅ Extracting constants
+- ✅ Adding comments/docs
+- ✅ Simple refactoring with test coverage
+- ❌ Architectural changes (requires user approval)
+- ❌ Breaking API changes (defer to user)
+
+**Validation:** Run full test suite after each change. Revert if ANY test fails.
+
+---
+
+#### 3. Lint and Code Quality (10-20 min)
+
+```
+[ ] Run linter (npm run lint / flake8 / etc.)
+[ ] Fix all auto-fixable warnings
+[ ] Manually fix trivial warnings
+[ ] Document remaining warnings (if intentional)
+[ ] Run code formatter (prettier / black)
+[ ] Check for unused imports
+[ ] Remove console.log / debug statements
+```
+
+**Goal:** Zero lint warnings for new code, reduce warnings for existing code.
+
+**Exception:** If lint warnings are intentional/unavoidable, add `// eslint-disable` with comment explaining why.
+
+---
+
+#### 4. Crust Reduction (15-30 min)
+
+**"Crust" = Technical debt, cruft, accumulated mess**
+
+```
+[ ] Delete commented-out code
+[ ] Remove unused functions
+[ ] Clean up dead imports
+[ ] Consolidate duplicate logic
+[ ] Simplify overly complex functions
+[ ] Remove temporary debug code
+[ ] Delete obsolete TODO comments (if done)
+[ ] Archive old/unused files
+```
+
+**Rationale:** Crust accumulates fast. Small regular cleanups prevent major refactoring debt.
+
+**Safe Deletions:**
+- ✅ Commented code (can recover from git)
+- ✅ Unused functions (if tests confirm unused)
+- ✅ Debug logs/prints
+- ✅ Old experiment files
+- ❌ Anything user might want (ask first)
+
+---
+
+#### 5. Refactoring Opportunities (Document, Don't Execute)
+
+```
+[ ] Identify refactoring needs
+[ ] Document in .claude/REFACTORING-OPPORTUNITIES.md
+[ ] Estimate complexity and risk
+[ ] Prioritize by value/risk ratio
+[ ] Flag for user review
+```
+
+**DO NOT perform risky refactoring autonomously.**
+
+**Examples of SAFE refactoring (OK to do):**
+- Extract pure function from complex function
+- Rename variables for clarity (with tests)
+- Consolidate duplicate code (with tests)
+- Add helper utilities
+
+**Examples of RISKY refactoring (DOCUMENT ONLY):**
+- Change data structures
+- Modify APIs
+- Restructure modules
+- Change architecture patterns
+
+---
+
+#### 6. CTO Mentoring Analysis (During AB Sessions)
+
+```
+[ ] Review recent work through CTO lens
+[ ] Identify technical decisions made
+[ ] Evaluate architectural choices
+[ ] Document learning opportunities
+[ ] Create mentorship insights
+[ ] Update .claude/CTO-MENTORING-*.md
+```
+
+**Purpose:** Continuous technical leadership development through code review analysis.
+
+**Deliverable:** Brief CTO mentoring note (5-10 min writing, not deep analysis).
+
+---
+
+### Time Allocation for Routine Maintenance
+
+**Total Time:** 1.5-2.5 hours per autonomous session
+
+**Breakdown:**
+- Documentation: 15-30 min
+- Best practices: 20-40 min
+- Lint/quality: 10-20 min
+- Crust reduction: 15-30 min
+- Refactoring doc: 15-30 min
+- CTO analysis: 15-30 min
+
+**Philosophy:** "While I'm here, might as well clean up."
+
+**User Benefit:** User doesn't care if AB session is 10h or 12h. Use extra time for quality improvements.
+
+---
+
+### ⏱️ Overhead Monitoring and Control
+
+**Added:** 2025-11-13
+**Authority:** Project owner directive
+
+#### Dynamic Overhead Limit for Low-Priority Tasks
+
+**UPDATED:** 2025-11-13 (refined from initial 50% rule)
+
+**Current Target: 30% of primary work time**
+**Allowed Range: 10% - 50%**
+**Adjustment: Based on value delivery, timing, and token usage**
+
+```
+Target (30%):
+Primary work: 8h → Maximum overhead: 2.4h
+Primary work: 6h → Maximum overhead: 1.8h
+Primary work: 4h → Maximum overhead: 1.2h
+
+Maximum (50%):
+Primary work: 8h → Absolute max overhead: 4h
+Primary work: 6h → Absolute max overhead: 3h
+Primary work: 4h → Absolute max overhead: 2h
+
+Minimum (10%):
+Primary work: 8h → Minimum overhead: 0.8h
+Primary work: 6h → Minimum overhead: 0.6h
+Primary work: 4h → Minimum overhead: 0.4h
+```
+
+**What counts as "overhead":**
+- ✅ Routine maintenance (docs, lint, crust, etc.)
+- ✅ CTO analysis and synthesis
+- ✅ Best practices scans
+- ✅ Low-priority pool tasks (indexing, etc.)
+- ❌ Primary deliverables (NOT overhead)
+- ❌ Testing for primary work (NOT overhead)
+- ❌ Documentation for primary work (NOT overhead)
+
+**Rationale:**
+- User is AFK during AB sessions (time not critical)
+- BUT token usage IS critical (burning at 5× Claude Pro rate)
+- Overhead tasks use tokens without delivering core value
+- Dynamic limit balances quality improvements vs token efficiency
+
+**When overhead exceeds current limit:**
+
+```
+1. STOP current overhead task immediately
+2. Assess which overhead tasks delivered value
+3. Deprioritize or simplify low-value overhead
+4. Document in session report: "Overhead limit reached at X%"
+5. Continue with primary work only
+```
+
+---
+
+#### Overhead Limit Adjustment Factors
+
+**Evaluate after each AB session to adjust target (10-50% range):**
+
+**Factor 1: Value Delivered**
+```
+High Value Overhead (increase limit toward 50%):
+- ✅ Critical documentation gaps filled
+- ✅ Major refactoring opportunities documented
+- ✅ CTO insights with actionable recommendations
+- ✅ Process improvements that save future time
+
+Low Value Overhead (decrease limit toward 10%):
+- ❌ Minor formatting tweaks
+- ❌ Redundant documentation
+- ❌ Speculative analysis without actionable output
+- ❌ Over-engineering of processes
+```
+
+**Factor 2: Session Timing**
+```
+User Returns Before Session Complete (decrease limit):
+- Session running when user returns → wasted user time
+- Indicates overhead taking too long
+- Reduce limit by 5-10%
+- Example: User returns at 8h, session still at 10h → too slow
+
+User Returns After Session Complete (maintain/increase):
+- Session finished before user returns → no time wasted
+- Overhead didn't impact user workflow
+- Can maintain or slightly increase limit
+- Example: Session done at 11h, user returns at 14h → good timing
+```
+
+**Factor 3: Token Management**
+```
+Token Burn Rate Assessment:
+- Currently burning at 5× Claude Pro rate
+- Need to optimize token usage
+- Overhead uses ~30% more tokens per hour than primary work
+
+Token Impact:
+- Session 3A: 11.5h × ~6K tokens/h = ~70K tokens
+- Overhead (4.5h): ~27K tokens used
+- If reduced overhead to 30%: Save ~10K tokens per session
+
+Decision Matrix:
+- Token usage HIGH (>80K/session): Target 10-20% overhead
+- Token usage MEDIUM (60-80K): Target 20-30% overhead
+- Token usage LOW (<60K): Can allow 30-40% overhead
+- Never exceed 50% regardless of tokens
+```
+
+**Adjustment Protocol:**
+
+After each session, evaluate:
+```
+1. Calculate actual overhead ratio
+2. Assess value delivered (high/medium/low)
+3. Check if user returned before session complete
+4. Estimate token usage impact
+5. Adjust target for NEXT session:
+
+   IF value=high AND timing=good AND tokens=ok:
+      → Increase limit by 5% (max 50%)
+
+   IF value=medium AND timing=ok AND tokens=ok:
+      → Maintain current limit
+
+   IF value=low OR timing=bad OR tokens=high:
+      → Decrease limit by 5-10% (min 10%)
+```
+
+**Track in .claude/OVERHEAD-LIMIT-TRACKING.md:**
+```markdown
+| Session | Primary | Overhead | Ratio | Value | Timing | Tokens | Next Target |
+|---------|---------|----------|-------|-------|--------|--------|-------------|
+| 3A      | 7.0h    | 4.5h     | 64%   | High  | Good   | ~70K   | 30%         |
+| 4       | TBD     | TBD      | TBD   | TBD   | TBD    | TBD    | 30%         |
+```
+
+---
+
+**Examples:**
+
+✅ **GOOD** (30% target compliance):
+- Primary: 8h ship validation modules
+- Overhead: 2h docs + 0.4h lint = 2.4h total
+- Ratio: 2.4h/8h = 30% ✅ **TARGET MET**
+
+⚠️ **ACCEPTABLE** (within 50% max):
+- Primary: 8h ship validation modules
+- Overhead: 3.5h total
+- Ratio: 3.5h/8h = 44% ⚠️ **OVER TARGET** but within max
+
+❌ **EXCESSIVE** (exceeds 50% max):
+- Primary: 4h schema creation
+- Overhead: 2h docs + 1h lint + 1h CTO + 1h indexing = 5h total
+- Ratio: 5h/4h = 125% ❌ **STOP**
+
+**Tracking in Session Reports:**
+
+Always include overhead breakdown:
+```markdown
+## Time Allocation
+
+Primary Work: 8.0h
+- Ship templates: 3.5h
+- Validation modules: 4.5h
+
+Overhead Work: 3.5h (44% of primary - within 50% limit ✅)
+- Documentation: 1.5h
+- Lint/quality: 1.0h
+- CTO analysis: 1.0h
+
+Total Session: 11.5h
+```
+
+---
+
+### 📝 Directive Documentation Protocol
+
+**Added:** 2025-11-13
+**Meta Directive:** Document directives worth keeping
+
+**When user provides new directive:**
+
+1. **Evaluate directive value:**
+   - Is this one-time or recurring?
+   - Does it improve process/quality?
+   - Is it generalizable to other projects?
+   - Does it prevent future problems?
+
+2. **If worth keeping, document in playbook:**
+   - Add to appropriate section
+   - Include authority/date
+   - Provide examples
+   - Make actionable
+
+3. **Types of directives to document:**
+   - ✅ Process improvements (budding problems, overhead limits)
+   - ✅ Quality standards (data source hierarchy, test coverage)
+   - ✅ Risk management (deferral protocols, checkpoint criteria)
+   - ✅ Efficiency patterns (forward-pulling, routine maintenance)
+   - ❌ One-off task requests (don't bloat playbook)
+   - ❌ Project-specific details (belongs elsewhere)
+
+4. **Playbook maintenance:**
+   - Keep playbook current with proven directives
+   - Remove obsolete directives as process evolves
+   - Mark experimental directives with "TRIAL" tag
+   - Promote trial directives to standard after 3+ successful sessions
+
+**Example workflow:**
+
+```
+User: "Implement AB overhead monitoring. Limit low-priority tasks to 50%."
+→ Evaluate: Recurring, prevents token waste, generalizable ✅
+→ Document: Add "Overhead Monitoring" section to playbook
+→ Mark: Authority + date for traceability
+→ Apply: Immediate use in current and future sessions
+```
+
+---
+
+## ⚠️ RISK MANAGEMENT DURING SESSIONS
+
+### Immediate Risk Deferral Protocol
+
+**If at ANY point you detect unacceptable risk:**
+
+```
+1. STOP work on risky item immediately
+2. Document why it's risky
+3. Add to deferred items list
+4. Remove from current AB session plan
+5. Continue with other safe work
+6. Report deferral in completion report
+```
+
+**DO NOT:**
+- ❌ Try to "push through" risky work
+- ❌ Spend hours trying to de-risk
+- ❌ Make risky assumptions to proceed
+- ❌ Skip testing to make it work
+
+**DO:**
+- ✅ Document the risk clearly
+- ✅ Estimate what's needed to de-risk
+- ✅ Flag for user decision
+- ✅ Move to next safe item
+
+---
+
+### 🚨 RECOGNIZING BUDDING PROBLEMS (META-PATTERN TRAINING)
+
+**Purpose:** Train AI to recognize early warning signs BEFORE they become major issues.
+
+**Key Insight:** The small craft rabbithole showed a perfect pattern - validation failures were an early warning sign of systemic source quality issues. Deferring at 1.5h prevented 6h+ waste.
+
+**Early Warning Signs → Defer Immediately:**
+
+#### 1. Validation Failures (Multiple)
+```
+Pattern: 2+ validation errors on first attempt
+Warning: Likely systemic issue with approach/data
+Action: DEFER - investigate requirements, don't guess fixes
+Example: Small craft had 3 ships × 5 errors each = systemic
+```
+
+#### 2. Uncertainty About Source Material
+```
+Pattern: "I think this is correct" or "Based on online source..."
+Warning: Lacking authoritative reference
+Action: DEFER - identify official source needed
+Example: Traveller Wiki vs. Official Mongoose PDF
+```
+
+#### 3. Making Assumptions to Proceed
+```
+Pattern: "I'll assume X" or "Probably Y is correct"
+Warning: Building on uncertain foundation
+Action: DEFER - document assumption, flag for user
+Example: Assuming thrust TL requirements without verification
+```
+
+#### 4. Integration Points Unclear
+```
+Pattern: "Not sure how this connects to..." or "Will figure out later..."
+Warning: Architectural ambiguity
+Action: DEFER - clarify integration before building
+Example: New component doesn't fit existing validation pattern
+```
+
+#### 5. Expanding Scope Mid-Work
+```
+Pattern: "Also need to add..." or "Should probably include..."
+Warning: Scope creep in progress
+Action: DEFER expansion - complete original scope first
+Example: Ship templates → also need weapons → also need armor types...
+```
+
+#### 6. Repeated Small Fixes Not Working
+```
+Pattern: Fix attempt 1 → new error → Fix attempt 2 → new error...
+Warning: Wrong approach, not just wrong implementation
+Action: DEFER - step back, reassess approach
+Example: Fixing validation errors one-by-one vs. checking source quality
+```
+
+#### 7. Test Failures Cascading
+```
+Pattern: Fix one test → breaks two others → fix those → breaks three more...
+Warning: Architectural issue, not implementation bug
+Action: DEFER - likely need design change
+Example: Changing data structure breaks downstream code
+```
+
+#### 8. Documentation Ambiguous
+```
+Pattern: "Could mean either X or Y" or "Not clear from docs..."
+Warning: Requirements not well-defined
+Action: DEFER - get clarification before implementing
+Example: Rule interpretation with multiple valid readings
+```
+
+#### 9. Time Estimate 2× Over
+```
+Pattern: Estimated 1h, already at 2h, not halfway done
+Warning: Hidden complexity or wrong approach
+Action: DEFER - reassess complexity, may need different strategy
+Example: "Quick schema" becomes complex nested structure
+```
+
+#### 10. "This Should Be Easy But..."
+```
+Pattern: Expected trivial, encountering resistance
+Warning: Missing context or prerequisites
+Action: DEFER - investigate why it's not easy
+Example: "Just add a field" but data model doesn't support it
+```
+
+---
+
+### 🎯 DEFERRAL DECISION TREE
+
+```
+ENCOUNTERING ISSUE
+    ↓
+Is this a QUICK fix (< 15 min)?
+    ↓ YES                    ↓ NO
+Fix immediately          Is root cause clear?
+    ↓                        ↓ YES              ↓ NO
+Continue               Fix systematically    DEFER IMMEDIATELY
+                              ↓
+                       Will fix take > 1h?
+                            ↓ YES      ↓ NO
+                       DEFER          Fix + test
+                                          ↓
+                                    More issues?
+                                     ↓ YES  ↓ NO
+                              DEFER (pattern)  Continue
+```
+
+**Golden Rule:** **At first sign of "this is harder than expected" → DEFER**
+
+---
+
+### 📋 DEFERRAL TEMPLATE (STANDARD FORMAT)
+
+```markdown
+## DEFERRED: [Feature/Task Name]
+
+**Time Invested:** [X hours before deferral]
+
+**Warning Signs Detected:**
+- [Early warning sign 1]
+- [Early warning sign 2]
+- [Trigger that caused deferral]
+
+**Root Cause Analysis:**
+[Why this is harder than expected]
+
+**Risk if Continued:**
+[What would have happened if pushed through]
+
+**De-Risk Requirements:**
+- [Requirement 1 - be specific]
+- [Requirement 2]
+- [Alternative approaches if requirements can't be met]
+
+**Estimated Time if De-Risked:** [X hours]
+
+**Priority:** [High/Medium/Low]
+
+**User Decision Needed:** [Yes/No - what specifically?]
+
+**Saved Time by Deferring:** [Estimated hours saved]
+```
+
+---
+
+### 🧠 META-PATTERN RECOGNITION TRAINING
+
+**After EVERY deferral, document:**
+
+1. **What was the earliest warning sign?**
+   - When did I first feel uncertainty?
+   - What should have triggered deferral sooner?
+
+2. **What pattern does this match?**
+   - Is this validation failures (pattern #1)?
+   - Is this assumptions (pattern #3)?
+   - New pattern to add to list?
+
+3. **How much time saved by deferring?**
+   - Time invested before deferral: X
+   - Estimated time if continued: Y
+   - Savings: Y - X
+
+4. **Lesson learned:**
+   - Will recognize this pattern faster next time
+   - Add to early warning checklist
+
+**Goal:** Build pattern library so deferral happens at 15min, not 1.5h
+
+---
+
+### 📊 DEFERRAL METRICS (Track These)
+
+**Per Session:**
+- Number of deferrals: [count]
+- Average time before deferral: [X min]
+- Total time saved by deferring: [Y hours]
+- Pattern distribution: [which patterns triggered?]
+
+**Target Metrics:**
+- Deferral decision time: < 30 minutes (getting faster)
+- Time saved per deferral: > 2 hours (high value)
+- False deferrals (should have continued): < 10%
+
+**Success Indicator:** Deferring earlier and more confidently over time
+
+---
+
+**Added:** 2025-11-13 (Session 3A - Hour 6)
+**Authority:** User directive - "train YOU to defer as soon as you recognize the meta pattern"
+**Purpose:** Prevent rabbithole diving, save time, maintain focus on safe work
+**Review:** After every session - did we defer fast enough?
+
+**Example Deferral Note:**
+```markdown
+## DEFERRED: Small Craft Template Creation
+
+**Reason:** Validation failures indicate online sources conflict with Mongoose 2E rules. Thrust TL requirements, turret types, and armor types don't match validation modules.
+
+**Risk:** Creating templates from unreliable sources will propagate invalid data.
+
+**De-Risk Requirements:**
+- Official Mongoose Small Craft Catalogue PDF
+- Or: User approval of specific online source
+- Or: Manual verification against High Guard 2022 rulebook
+
+**Estimated Time if De-Risked:** 2-3 hours for 3 small craft
+
+**Priority:** Medium (nice to have, not blocking)
+
+**Decision:** User to acquire official source, then resume work.
+```
+
+---
+
+### Continuous Risk Assessment
+
+**Check risk level every 2-3 hours:**
+
+```
+Am I still working on safe, low-risk items?
+Have requirements become unclear?
+Am I making assumptions I shouldn't?
+Have I hit unexpected complexity?
+Do I need user input?
+```
+
+**If YES to any:** Defer and document.
+
+---
+
+## 📊 ROUTINE MAINTENANCE METRICS
+
+**Track in completion reports:**
+
+```markdown
+### Routine Maintenance Performed
+
+**Documentation Updates:**
+- README.md: Added 3 new sections
+- API docs: Updated 5 function signatures
+- Quick-start guide: Fixed 2 outdated commands
+
+**Best Practice Fixes:**
+- Extracted 8 magic numbers to constants
+- Renamed 12 variables for clarity
+- Added error handling to 4 functions
+
+**Lint/Quality:**
+- Fixed 23 auto-fixable warnings
+- Manually fixed 7 trivial warnings
+- Remaining warnings: 3 (documented as intentional)
+
+**Crust Reduction:**
+- Deleted 147 lines of commented code
+- Removed 5 unused functions
+- Cleaned 12 obsolete TODO comments
+
+**Refactoring Opportunities:**
+- Documented 3 medium-priority refactorings
+- Documented 1 high-priority architecture improvement
+
+**CTO Mentoring:**
+- Created analysis of validation module pattern
+- Documented source quality lesson learned
+
+**Time Investment:** 2.1 hours
+**Impact:** Improved maintainability, reduced technical debt
+```
+
+---
+
+## 🎯 QUALITY METRICS GOALS
+
+**Target for each autonomous session:**
+
+| Metric | Goal |
+|--------|------|
+| **New Tests** | 30-50 |
+| **Test Pass Rate** | 100% |
+| **Lint Warnings** | -10 to -30 (reduction) |
+| **Code Coverage** | +2% to +5% |
+| **Documentation Pages** | +1 to +3 |
+| **Crust Removed** | 100-300 LOC |
+| **Best Practice Fixes** | 5-15 |
+| **Refactoring Docs** | 2-5 opportunities |
+
+**Aggregate Effect:** After 10 AB sessions, codebase is significantly cleaner, better documented, and more maintainable.
+
+---
+
+## 📋 UPDATED SESSION CHECKLIST
+
+**Expanded completion checklist with routine maintenance:**
+
+### Code Quality
+- [ ] All requested work completed
+- [ ] Pulled-forward work completed
+- [ ] 30-50 new tests added
+- [ ] All tests passing (100%)
+- [ ] **Lint warnings reduced** ← NEW
+- [ ] **Best practice fixes applied** ← NEW
+- [ ] **Crust removed** ← NEW
+
+### Documentation
+- [ ] Completion report written
+- [ ] Edge case report updated
+- [ ] **README updated** ← NEW
+- [ ] **API docs current** ← NEW
+- [ ] **CTO mentoring analysis** ← NEW
+
+### Planning
+- [ ] Refactoring opportunities documented
+- [ ] Automation opportunities documented
+- [ ] **Risk deferrals documented** ← NEW
+- [ ] Next session recommendations
+
+### Git
+- [ ] Atomic commits with clear messages
+- [ ] Checkpoints tagged (if long session)
+- [ ] All work pushed to branch
+
+---
+
+## 💡 PHILOSOPHY: OPPORTUNISTIC QUALITY
+
+**Key Insight:** During autonomous sessions, Claude has "thinking time" that the user doesn't have during interactive coding.
+
+**Use this time for:**
+- Pattern recognition (finding repetition)
+- Quality improvements (fixing what you see)
+- Documentation (while context is fresh)
+- Planning (identifying future work)
+
+**Mindset Shift:**
+- ❌ "Complete task and stop"
+- ✅ "Complete task, improve what I touched, document what I learned"
+
+**Value Multiplier:** Every AB session leaves code better than it found it.
+
+---
+
+**Added:** 2025-11-13
+**Status:** ACTIVE - Apply to all autonomous sessions
+**Review:** After 5 sessions, measure impact on codebase quality
+**Export:** Include in project best practices guide for other projects
