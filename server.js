@@ -27,6 +27,9 @@ const { DiceRoller } = require('./lib/dice');
 const { MissileTracker } = require('./lib/weapons/missiles');
 const { useSandcaster, canUseSandcaster, interceptMissile } = require('./lib/weapons/sandcasters');
 
+// SESSION 6: Test API for Puppeteer/Puppetry automation
+const { registerTestAPI } = require('./lib/test-api');
+
 // Serve static files from public directory
 app.use(express.static('public'));
 // Serve lib directory for client-side modules (Stage 12.4)
@@ -2066,6 +2069,10 @@ app.get('/status', (req, res) => {
     uptime: process.uptime()
   });
 });
+
+// SESSION 6: Register Test API for Puppeteer/Puppetry automation
+// Only enabled when NODE_ENV=test or ENABLE_TEST_API=true
+registerTestAPI(app, io, activeCombats, connections);
 
 // Start server
 server.listen(config.server.port, () => {
