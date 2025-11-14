@@ -1,0 +1,408 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traveller-combat-vtt.example.com/schemas/character-export.schema.json",
+  "title": "Character Export",
+  "description": "Complete Traveller character including characteristics, skills, career history, equipment, and current state",
+  "type": "object",
+  "required": ["schemaVersion", "exportDate", "character"],
+
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for compatibility checking"
+    },
+
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of export"
+    },
+
+    "exportedBy": {
+      "type": "object",
+      "properties": {
+        "application": { "type": "string", "default": "Traveller Combat VTT" },
+        "version": { "type": "string" },
+        "user": { "type": "string" }
+      }
+    },
+
+    "character": {
+      "type": "object",
+      "required": ["id", "name", "characteristics", "skills"],
+      "properties": {
+
+        "id": {
+          "type": "string",
+          "description": "Unique character ID"
+        },
+
+        "name": {
+          "type": "string",
+          "description": "Character name"
+        },
+
+        "background": {
+          "type": "object",
+          "description": "Character background and identity",
+          "properties": {
+            "species": {
+              "type": "string",
+              "enum": ["human", "aslan", "droyne", "hiver", "k-kree", "vargr", "zhodani", "other"],
+              "default": "human"
+            },
+            "homeworld": { "type": "string" },
+            "age": { "type": "number", "minimum": 18 },
+            "gender": { "type": "string" },
+            "rank": { "type": "string" },
+            "title": { "type": "string" },
+            "nobleTitle": { "type": "string" },
+            "appearance": { "type": "string" },
+            "personality": { "type": "string" }
+          }
+        },
+
+        "characteristics": {
+          "type": "object",
+          "required": ["strength", "dexterity", "endurance", "intelligence", "education", "social"],
+          "description": "Primary characteristics (STR, DEX, END, INT, EDU, SOC)",
+          "properties": {
+            "strength": {
+              "type": "object",
+              "required": ["current", "base"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number", "description": "Derived DM from characteristic" }
+              }
+            },
+
+            "dexterity": {
+              "type": "object",
+              "required": ["current", "base"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number" }
+              }
+            },
+
+            "endurance": {
+              "type": "object",
+              "required": ["current", "base"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number" }
+              }
+            },
+
+            "intelligence": {
+              "type": "object",
+              "required": ["current", "base"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number" }
+              }
+            },
+
+            "education": {
+              "type": "object",
+              "required": ["current", "base"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number" }
+              }
+            },
+
+            "social": {
+              "type": "object",
+              "required": ["current", "base"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number" }
+              }
+            },
+
+            "psionicStrength": {
+              "type": "object",
+              "description": "PSI characteristic (if psionically trained)",
+              "properties": {
+                "current": { "type": "number", "minimum": 0, "maximum": 15 },
+                "base": { "type": "number", "minimum": 0, "maximum": 15 },
+                "dm": { "type": "number" }
+              }
+            }
+          }
+        },
+
+        "skills": {
+          "type": "array",
+          "description": "All character skills",
+          "items": {
+            "type": "object",
+            "required": ["name", "level"],
+            "properties": {
+              "name": { "type": "string", "description": "Skill name (e.g., 'Pilot', 'Gun Combat')" },
+              "specialty": { "type": "string", "description": "Skill specialty (e.g., 'Pilot (starship)', 'Gun Combat (slug)')" },
+              "level": { "type": "number", "minimum": 0, "maximum": 6, "description": "Skill level 0-6" },
+              "characteristic": {
+                "type": "string",
+                "enum": ["STR", "DEX", "END", "INT", "EDU", "SOC", "PSI"],
+                "description": "Associated characteristic"
+              }
+            }
+          }
+        },
+
+        "careers": {
+          "type": "array",
+          "description": "Career history",
+          "items": {
+            "type": "object",
+            "required": ["career", "terms"],
+            "properties": {
+              "career": { "type": "string", "description": "Career name (e.g., 'Navy', 'Scout', 'Merchant')" },
+              "assignment": { "type": "string", "description": "Assignment within career" },
+              "terms": { "type": "number", "minimum": 1, "description": "Number of 4-year terms served" },
+              "rank": { "type": "string" },
+              "rankNumber": { "type": "number" },
+              "events": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Significant events during career"
+              },
+              "skillsGained": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Skills gained from this career"
+              },
+              "benefitsReceived": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Mustering out benefits"
+              }
+            }
+          }
+        },
+
+        "equipment": {
+          "type": "object",
+          "description": "Character equipment and possessions",
+          "properties": {
+            "credits": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Current credits"
+            },
+
+            "armor": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "protection": { "type": "number" },
+                  "techLevel": { "type": "number" },
+                  "equipped": { "type": "boolean", "default": false }
+                }
+              }
+            },
+
+            "weapons": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "type": { "type": "string", "enum": ["melee", "ranged"] },
+                  "damage": { "type": "string" },
+                  "range": { "type": "string" },
+                  "techLevel": { "type": "number" },
+                  "equipped": { "type": "boolean", "default": false },
+                  "ammunition": {
+                    "type": "object",
+                    "properties": {
+                      "current": { "type": "number" },
+                      "maximum": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            },
+
+            "gear": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "quantity": { "type": "number", "minimum": 1, "default": 1 },
+                  "techLevel": { "type": "number" }
+                }
+              }
+            },
+
+            "augments": {
+              "type": "array",
+              "description": "Cybernetic and biological augmentations",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "type": { "type": "string", "enum": ["cybernetic", "biological", "psionic"] },
+                  "effects": { "type": "string" },
+                  "techLevel": { "type": "number" }
+                }
+              }
+            },
+
+            "ships": {
+              "type": "array",
+              "description": "Ships owned or shares owned",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "shipId": { "type": "string", "description": "Reference to ship instance" },
+                  "ownership": { "type": "string", "enum": ["full", "shares", "debt"] },
+                  "shares": { "type": "number", "description": "Number of shares owned" },
+                  "debtRemaining": { "type": "number", "description": "Remaining debt in credits" }
+                }
+              }
+            },
+
+            "property": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "location": { "type": "string" },
+                  "value": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+
+        "currentState": {
+          "type": "object",
+          "description": "Current health and condition",
+          "properties": {
+            "damage": {
+              "type": "object",
+              "description": "Current damage to characteristics",
+              "properties": {
+                "strength": { "type": "number", "minimum": 0, "default": 0 },
+                "dexterity": { "type": "number", "minimum": 0, "default": 0 },
+                "endurance": { "type": "number", "minimum": 0, "default": 0 }
+              }
+            },
+
+            "conditions": {
+              "type": "array",
+              "description": "Active conditions",
+              "items": {
+                "type": "string",
+                "enum": ["healthy", "wounded", "seriously_wounded", "unconscious", "dead", "fatigued", "exhausted", "poisoned", "diseased", "radiation_exposure"]
+              }
+            },
+
+            "radiation": {
+              "type": "object",
+              "properties": {
+                "rads": { "type": "number", "minimum": 0 },
+                "severity": { "type": "string", "enum": ["none", "low", "moderate", "high", "very_high", "extreme"] }
+              }
+            },
+
+            "encumbrance": {
+              "type": "object",
+              "properties": {
+                "carrying": { "type": "number", "description": "kg being carried" },
+                "maximum": { "type": "number", "description": "Maximum kg can carry" },
+                "encumbered": { "type": "boolean", "default": false }
+              }
+            }
+          }
+        },
+
+        "allies": {
+          "type": "array",
+          "description": "Contacts, allies, and enemies",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "relationship": {
+                "type": "string",
+                "enum": ["ally", "contact", "rival", "enemy"]
+              },
+              "influence": { "type": "number", "minimum": 1, "maximum": 6 },
+              "description": { "type": "string" }
+            }
+          }
+        },
+
+        "benefits": {
+          "type": "array",
+          "description": "Special benefits and advantages",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "source": { "type": "string", "description": "Career or event that granted benefit" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+
+        "psionics": {
+          "type": "object",
+          "description": "Psionic abilities (if any)",
+          "properties": {
+            "trained": { "type": "boolean", "default": false },
+            "talents": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "level": { "type": "number", "minimum": 0 },
+                  "description": { "type": "string" }
+                }
+              }
+            },
+            "institute": { "type": "string", "description": "Psionic training institute" }
+          }
+        },
+
+        "notes": {
+          "type": "string",
+          "description": "Character notes and backstory"
+        },
+
+        "portrait": {
+          "type": "string",
+          "description": "URL or base64 encoded portrait image"
+        },
+
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "campaign": { "type": "string" },
+            "player": { "type": "string" },
+            "creationDate": { "type": "string", "format": "date-time" },
+            "lastModified": { "type": "string", "format": "date-time" },
+            "version": { "type": "string", "description": "Character sheet version/revision" }
+          }
+        }
+      }
+    }
+  }
+}

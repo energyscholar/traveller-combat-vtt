@@ -1,0 +1,361 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traveller-combat-vtt.example.com/schemas/battle-state-export.schema.json",
+  "title": "Battle State Export",
+  "description": "Complete combat scenario state including all ships, environment, turn sequence, and history",
+  "type": "object",
+  "required": ["schemaVersion", "exportDate", "battle"],
+
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for compatibility checking"
+    },
+
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of export"
+    },
+
+    "exportedBy": {
+      "type": "object",
+      "properties": {
+        "application": { "type": "string", "default": "Traveller Combat VTT" },
+        "version": { "type": "string" },
+        "user": { "type": "string" }
+      }
+    },
+
+    "battle": {
+      "type": "object",
+      "required": ["id", "name", "ships", "turn", "environment"],
+      "properties": {
+
+        "id": {
+          "type": "string",
+          "description": "Unique battle instance ID"
+        },
+
+        "name": {
+          "type": "string",
+          "description": "Battle name/title (e.g., 'Battle of Regina', 'Pirate Ambush at Jump Point')"
+        },
+
+        "description": {
+          "type": "string",
+          "description": "Battle narrative description"
+        },
+
+        "scenario": {
+          "type": "object",
+          "description": "Scenario parameters and victory conditions",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["encounter", "ambush", "convoy_raid", "boarding_action", "retreat", "custom"],
+              "description": "Scenario type"
+            },
+
+            "victoryConditions": {
+              "type": "array",
+              "description": "Win conditions for each faction",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "faction": { "type": "string" },
+                  "condition": { "type": "string" },
+                  "achieved": { "type": "boolean", "default": false }
+                }
+              }
+            },
+
+            "setupNotes": { "type": "string" }
+          }
+        },
+
+        "factions": {
+          "type": "array",
+          "description": "Participating factions/sides",
+          "items": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "color": { "type": "string", "description": "Display color for this faction" },
+              "allegiance": { "type": "string", "description": "Political allegiance" },
+              "isPlayerFaction": { "type": "boolean", "default": false }
+            }
+          }
+        },
+
+        "ships": {
+          "type": "array",
+          "description": "All ships in battle (references to ship instances)",
+          "items": {
+            "type": "object",
+            "required": ["shipId", "faction"],
+            "properties": {
+              "shipId": { "type": "string", "description": "Ship instance ID" },
+              "faction": { "type": "string", "description": "Faction ID this ship belongs to" },
+              "shipData": {
+                "type": "object",
+                "description": "Embedded ship instance data (see ship-instance-export.schema.json)",
+                "$ref": "ship-instance-export.schema.json#/properties/ship"
+              }
+            }
+          }
+        },
+
+        "turn": {
+          "type": "object",
+          "required": ["current", "phase"],
+          "description": "Current turn and phase state",
+          "properties": {
+            "current": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Current turn number"
+            },
+
+            "phase": {
+              "type": "string",
+              "enum": ["movement", "combat", "end"],
+              "description": "Current phase of turn"
+            },
+
+            "initiative": {
+              "type": "array",
+              "description": "Initiative order for ships",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "shipId": { "type": "string" },
+                  "initiativeRoll": { "type": "number" },
+                  "hasActed": { "type": "boolean", "default": false }
+                }
+              }
+            },
+
+            "activeShip": {
+              "type": "string",
+              "description": "Ship ID currently taking action"
+            }
+          }
+        },
+
+        "environment": {
+          "type": "object",
+          "description": "Battle environment and conditions",
+          "properties": {
+            "location": {
+              "type": "object",
+              "properties": {
+                "system": { "type": "string", "description": "Star system" },
+                "planet": { "type": "string", "description": "Nearby planet" },
+                "orbitDistance": { "type": "string", "description": "Distance from planet (if in orbit)" },
+                "terrain": {
+                  "type": "string",
+                  "enum": ["deep_space", "orbit", "atmosphere", "asteroid_field", "jump_point", "gas_giant"],
+                  "default": "deep_space"
+                }
+              }
+            },
+
+            "conditions": {
+              "type": "object",
+              "properties": {
+                "visibility": {
+                  "type": "string",
+                  "enum": ["clear", "obscured", "limited"],
+                  "default": "clear"
+                },
+
+                "radiation": {
+                  "type": "string",
+                  "enum": ["none", "low", "moderate", "high", "extreme"],
+                  "default": "none"
+                },
+
+                "gravity": {
+                  "type": "number",
+                  "description": "Gravity in Gs (affects maneuverability in atmosphere)"
+                },
+
+                "atmosphericPressure": {
+                  "type": "string",
+                  "enum": ["vacuum", "trace", "thin", "standard", "dense", "very_dense"],
+                  "default": "vacuum"
+                },
+
+                "hazards": {
+                  "type": "array",
+                  "description": "Environmental hazards",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string" },
+                      "severity": { "type": "string", "enum": ["minor", "moderate", "major"] },
+                      "description": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            },
+
+            "mapData": {
+              "type": "object",
+              "description": "Battle map configuration",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["hex", "square", "free_form"],
+                  "default": "hex"
+                },
+                "width": { "type": "number", "description": "Map width in units" },
+                "height": { "type": "number", "description": "Map height in units" },
+                "scale": { "type": "string", "description": "Distance scale (e.g., '1 hex = 1000km')" },
+                "obstacles": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string" },
+                      "position": {
+                        "type": "object",
+                        "properties": {
+                          "x": { "type": "number" },
+                          "y": { "type": "number" }
+                        }
+                      },
+                      "size": { "type": "number" },
+                      "blocking": { "type": "boolean", "default": true }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "history": {
+          "type": "object",
+          "description": "Battle log and historical data",
+          "properties": {
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+
+            "outcome": {
+              "type": "string",
+              "enum": ["in_progress", "victory_faction_1", "victory_faction_2", "draw", "aborted"],
+              "default": "in_progress"
+            },
+
+            "log": {
+              "type": "array",
+              "description": "Turn-by-turn battle log",
+              "items": {
+                "type": "object",
+                "required": ["turn", "phase", "timestamp", "event"],
+                "properties": {
+                  "turn": { "type": "number" },
+                  "phase": { "type": "string" },
+                  "timestamp": { "type": "string", "format": "date-time" },
+                  "shipId": { "type": "string", "description": "Ship that performed action" },
+                  "event": {
+                    "type": "string",
+                    "description": "Event type (movement, attack, damage, etc.)"
+                  },
+                  "details": { "type": "object", "description": "Event-specific data" },
+                  "description": { "type": "string", "description": "Human-readable event description" }
+                }
+              }
+            },
+
+            "casualties": {
+              "type": "object",
+              "description": "Battle casualties by faction",
+              "properties": {
+                "factionCasualties": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "faction": { "type": "string" },
+                      "shipsDestroyed": { "type": "number", "default": 0 },
+                      "shipsDisabled": { "type": "number", "default": 0 },
+                      "crewKilled": { "type": "number", "default": 0 },
+                      "crewWounded": { "type": "number", "default": 0 }
+                    }
+                  }
+                }
+              }
+            },
+
+            "notes": {
+              "type": "string",
+              "description": "Battle narrative notes"
+            }
+          }
+        },
+
+        "rules": {
+          "type": "object",
+          "description": "Rule variant settings for this battle",
+          "properties": {
+            "edition": {
+              "type": "string",
+              "default": "Mongoose Traveller 2E"
+            },
+
+            "turnStructure": {
+              "type": "string",
+              "enum": ["simultaneous", "initiative", "alternating"],
+              "default": "initiative"
+            },
+
+            "damageSystem": {
+              "type": "string",
+              "enum": ["standard", "critical_hits", "detailed"],
+              "default": "standard"
+            },
+
+            "optionalRules": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "List of optional rules in effect"
+            },
+
+            "houseRules": {
+              "type": "string",
+              "description": "Custom house rules for this battle"
+            }
+          }
+        },
+
+        "metadata": {
+          "type": "object",
+          "description": "Campaign and session metadata",
+          "properties": {
+            "campaign": { "type": "string" },
+            "session": { "type": "string" },
+            "gameDate": { "type": "string", "description": "In-game date (Imperial Calendar)" },
+            "tags": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

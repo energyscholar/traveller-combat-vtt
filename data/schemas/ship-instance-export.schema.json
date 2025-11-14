@@ -1,0 +1,340 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traveller-combat-vtt.example.com/schemas/ship-instance-export.schema.json",
+  "title": "Ship Instance Export",
+  "description": "Complete ship instance including current battle state, damage, crew, and customizations. Based on ship template with runtime state.",
+  "type": "object",
+  "required": ["schemaVersion", "exportDate", "ship"],
+
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version for compatibility checking"
+    },
+
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of export"
+    },
+
+    "exportedBy": {
+      "type": "object",
+      "properties": {
+        "application": { "type": "string", "default": "Traveller Combat VTT" },
+        "version": { "type": "string" },
+        "user": { "type": "string" }
+      }
+    },
+
+    "ship": {
+      "type": "object",
+      "required": ["id", "template", "name", "currentState"],
+      "properties": {
+
+        "id": {
+          "type": "string",
+          "description": "Unique instance ID for this specific ship"
+        },
+
+        "template": {
+          "type": "object",
+          "required": ["id", "type"],
+          "description": "Reference to ship template this instance is based on",
+          "properties": {
+            "id": { "type": "string", "description": "Template ID (e.g., 'scout', 'free_trader')" },
+            "type": { "type": "string", "description": "Ship type/class (e.g., 'Type-S', 'Type-A2')" },
+            "source": { "type": "string", "description": "Template source file path" }
+          }
+        },
+
+        "name": {
+          "type": "string",
+          "description": "Ship's individual name (e.g., 'Beowulf', 'March Harrier')"
+        },
+
+        "designation": {
+          "type": "string",
+          "description": "Ship's formal designation (e.g., 'INS Beowulf', 'CSS March Harrier')"
+        },
+
+        "customization": {
+          "type": "object",
+          "description": "Modifications from base template",
+          "properties": {
+            "turretLoadouts": {
+              "type": "array",
+              "description": "Weapons installed in each turret",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "turretId": { "type": "string" },
+                  "weapons": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            },
+
+            "software": {
+              "type": "array",
+              "description": "Additional software beyond template",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "rating": { "type": "number" },
+                  "cost": { "type": "number" }
+                }
+              }
+            },
+
+            "cargo": {
+              "type": "object",
+              "description": "Current cargo manifest",
+              "properties": {
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string" },
+                      "tonnage": { "type": "number" },
+                      "value": { "type": "number" },
+                      "description": { "type": "string" }
+                    }
+                  }
+                },
+                "tonnageUsed": { "type": "number" },
+                "tonnageAvailable": { "type": "number" }
+              }
+            },
+
+            "modifications": {
+              "type": "array",
+              "description": "Other modifications or upgrades",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "description": { "type": "string" },
+                  "tonnage": { "type": "number" },
+                  "cost": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+
+        "currentState": {
+          "type": "object",
+          "required": ["structure", "position", "crew"],
+          "description": "Current battle and operational state",
+          "properties": {
+
+            "structure": {
+              "type": "object",
+              "required": ["hull", "armor"],
+              "description": "Damage and integrity",
+              "properties": {
+                "hull": {
+                  "type": "object",
+                  "required": ["current", "maximum"],
+                  "properties": {
+                    "current": { "type": "number", "minimum": 0 },
+                    "maximum": { "type": "number", "minimum": 1 },
+                    "destroyed": { "type": "boolean", "default": false }
+                  }
+                },
+
+                "armor": {
+                  "type": "object",
+                  "required": ["rating"],
+                  "properties": {
+                    "rating": { "type": "number", "minimum": 0 },
+                    "ablated": { "type": "number", "minimum": 0, "default": 0 }
+                  }
+                },
+
+                "componentDamage": {
+                  "type": "array",
+                  "description": "Damaged or destroyed components",
+                  "items": {
+                    "type": "object",
+                    "required": ["component", "severity"],
+                    "properties": {
+                      "component": {
+                        "type": "string",
+                        "enum": ["manoeuvre_drive", "jump_drive", "power_plant", "sensors", "bridge", "computer", "turret", "fuel_tank", "cargo_bay"]
+                      },
+                      "severity": {
+                        "type": "string",
+                        "enum": ["minor", "major", "destroyed"]
+                      },
+                      "effects": { "type": "string", "description": "Mechanical effects of damage" },
+                      "turretId": { "type": "string", "description": "If component='turret', which turret" }
+                    }
+                  }
+                }
+              }
+            },
+
+            "position": {
+              "type": "object",
+              "required": ["x", "y"],
+              "description": "Current position in battle space",
+              "properties": {
+                "x": { "type": "number", "description": "X coordinate in hexes or abstract units" },
+                "y": { "type": "number", "description": "Y coordinate in hexes or abstract units" },
+                "facing": { "type": "number", "minimum": 0, "maximum": 359, "description": "Facing in degrees (0-359)" },
+                "velocity": {
+                  "type": "object",
+                  "properties": {
+                    "x": { "type": "number" },
+                    "y": { "type": "number" },
+                    "magnitude": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            },
+
+            "crew": {
+              "type": "object",
+              "required": ["roster", "casualties"],
+              "description": "Current crew status",
+              "properties": {
+                "roster": {
+                  "type": "array",
+                  "description": "All crew members",
+                  "items": {
+                    "type": "object",
+                    "required": ["id", "name", "position"],
+                    "properties": {
+                      "id": { "type": "string" },
+                      "name": { "type": "string" },
+                      "position": {
+                        "type": "string",
+                        "enum": ["pilot", "astrogator", "engineer", "gunner", "medic", "steward", "marine", "passenger"]
+                      },
+                      "characterReference": { "type": "string", "description": "Reference to full character data if available" },
+                      "status": {
+                        "type": "string",
+                        "enum": ["active", "wounded", "incapacitated", "dead"],
+                        "default": "active"
+                      },
+                      "assignedStation": { "type": "string", "description": "Current duty station" }
+                    }
+                  }
+                },
+
+                "casualties": {
+                  "type": "object",
+                  "properties": {
+                    "wounded": { "type": "number", "minimum": 0, "default": 0 },
+                    "incapacitated": { "type": "number", "minimum": 0, "default": 0 },
+                    "dead": { "type": "number", "minimum": 0, "default": 0 }
+                  }
+                }
+              }
+            },
+
+            "power": {
+              "type": "object",
+              "description": "Current power allocation",
+              "properties": {
+                "available": { "type": "number", "minimum": 0 },
+                "allocated": {
+                  "type": "object",
+                  "properties": {
+                    "basic": { "type": "number" },
+                    "manoeuvre": { "type": "number" },
+                    "jump": { "type": "number" },
+                    "sensors": { "type": "number" },
+                    "weapons": { "type": "number" },
+                    "shields": { "type": "number", "default": 0 },
+                    "other": { "type": "number", "default": 0 }
+                  }
+                },
+                "powerShortfall": { "type": "boolean", "default": false }
+              }
+            },
+
+            "ammunition": {
+              "type": "array",
+              "description": "Current ammunition counts",
+              "items": {
+                "type": "object",
+                "required": ["weaponType", "remaining"],
+                "properties": {
+                  "weaponType": { "type": "string" },
+                  "turretId": { "type": "string" },
+                  "remaining": { "type": "number", "minimum": 0 },
+                  "maximum": { "type": "number", "minimum": 0 }
+                }
+              }
+            },
+
+            "fuel": {
+              "type": "object",
+              "required": ["current", "maximum"],
+              "properties": {
+                "current": { "type": "number", "minimum": 0 },
+                "maximum": { "type": "number" },
+                "jumpFuelReserve": { "type": "number", "minimum": 0, "description": "Fuel reserved for jump" }
+              }
+            },
+
+            "battleStatus": {
+              "type": "object",
+              "description": "Combat-specific status",
+              "properties": {
+                "initiative": { "type": "number" },
+                "actionsTaken": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "evasionActive": { "type": "boolean", "default": false },
+                "targetingLock": {
+                  "type": "array",
+                  "description": "Ships this ship is targeting",
+                  "items": { "type": "string" }
+                },
+                "targetedBy": {
+                  "type": "array",
+                  "description": "Ships targeting this ship",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+
+        "history": {
+          "type": "object",
+          "description": "Ship history and narrative data",
+          "properties": {
+            "owner": { "type": "string" },
+            "registration": { "type": "string" },
+            "homePort": { "type": "string" },
+            "launchDate": { "type": "string" },
+            "battles": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": { "type": "string" },
+                  "location": { "type": "string" },
+                  "opponent": { "type": "string" },
+                  "outcome": { "type": "string", "enum": ["victory", "defeat", "retreat", "draw"] }
+                }
+              }
+            },
+            "notes": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
