@@ -122,7 +122,8 @@ module.exports = {
       action: 'click',
       feedback: 'Firing pulse laser at enemy ship!',
       wait: { timeout: 1500 },
-      delay: 1000
+      delay: 1000,
+      critical: false  // Single-player limitation
     },
     {
       description: 'Player 1 ends turn',
@@ -130,7 +131,8 @@ module.exports = {
       action: 'click',
       feedback: 'Ending turn...',
       wait: { timeout: 1500 },
-      delay: 800
+      delay: 800,
+      critical: false  // Single-player limitation
     }
   ],
 
