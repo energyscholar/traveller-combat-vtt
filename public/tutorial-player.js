@@ -35,6 +35,15 @@ class TutorialPlayer {
     this.modal.onPause = () => this.pause();
     this.modal.onSkip = () => this.skip();
 
+    // Handle browser navigation (back/forward buttons)
+    this.navigationHandler = () => {
+      if (this.isPlaying) {
+        this.cleanup();
+      }
+    };
+    window.addEventListener('popstate', this.navigationHandler);
+    window.addEventListener('beforeunload', this.navigationHandler);
+
     // Show chat
     this.chat.show();
 
@@ -209,12 +218,11 @@ class TutorialPlayer {
   }
 
   /**
-   * Skip to end of tutorial
+   * Skip tutorial - clean exit to main screen
    */
   skip() {
-    if (confirm('Are you sure you want to skip this tutorial?')) {
-      this.complete();
-    }
+    this.cleanup();
+    window.location.href = '/';
   }
 
   /**
@@ -275,6 +283,15 @@ Ready for more? Try another tutorial or jump into a real battle!`
     this.pointer.destroy();
     this.tooltip.destroy();
     this.chat.destroy();
+
+    // Remove navigation handlers
+    if (this.navigationHandler) {
+      window.removeEventListener('popstate', this.navigationHandler);
+      window.removeEventListener('beforeunload', this.navigationHandler);
+    }
+
+    // Clear active tutorial reference
+    window.activeTutorial = null;
   }
 }
 
