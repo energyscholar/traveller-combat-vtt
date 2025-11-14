@@ -43,8 +43,15 @@ class TutorialModal {
     document.body.appendChild(this.modal);
 
     // Attach event listeners
-    this.modal.querySelector('[data-action="continue"]').addEventListener('click', () => {
-      if (this.onContinue) this.onContinue();
+    this.modal.querySelector('[data-action="continue"]').addEventListener('click', (event) => {
+      console.log('[TutorialModal] Continue button clicked!', {
+        disabled: event.target.disabled,
+        hasCallback: !!this.onContinue
+      });
+      if (this.onContinue) {
+        console.log('[TutorialModal] Calling onContinue callback');
+        this.onContinue();
+      }
     });
 
     this.modal.querySelector('[data-action="pause"]').addEventListener('click', () => {
@@ -81,7 +88,12 @@ class TutorialModal {
    * @param {Object} options - Display options
    */
   show(step, options = {}) {
-    if (!this.modal) this.create();
+    console.log('[TutorialModal] show() called for step:', step.index, step.title);
+
+    if (!this.modal) {
+      console.log('[TutorialModal] Modal does not exist, creating it');
+      this.create();
+    }
 
     this.currentStep = step;
 
@@ -105,6 +117,11 @@ class TutorialModal {
     setTimeout(() => {
       this.backdrop.classList.add('visible');
       this.modal.classList.add('visible');
+      console.log('[TutorialModal] Modal should now be visible:', {
+        backdropVisible: this.backdrop.classList.contains('visible'),
+        modalVisible: this.modal.classList.contains('visible'),
+        modalOpacity: window.getComputedStyle(this.modal).opacity
+      });
     }, 10);
   }
 
@@ -150,6 +167,38 @@ class TutorialModal {
 
     if (buttons.skip !== undefined) {
       skipBtn.style.display = buttons.skip ? 'block' : 'none';
+    }
+  }
+
+  /**
+   * Disable the Continue button
+   */
+  disableContinue() {
+    console.log('[TutorialModal] disableContinue() called');
+    const continueBtn = this.modal?.querySelector('[data-action="continue"]');
+    console.log('[TutorialModal] Continue button found:', !!continueBtn);
+    if (continueBtn) {
+      continueBtn.disabled = true;
+      continueBtn.style.opacity = '0.5';
+      continueBtn.style.cursor = 'not-allowed';
+      continueBtn.title = 'Complete the required action first';
+      console.log('[TutorialModal] Continue button DISABLED');
+    }
+  }
+
+  /**
+   * Enable the Continue button
+   */
+  enableContinue() {
+    console.log('[TutorialModal] enableContinue() called');
+    const continueBtn = this.modal?.querySelector('[data-action="continue"]');
+    console.log('[TutorialModal] Continue button found:', !!continueBtn);
+    if (continueBtn) {
+      continueBtn.disabled = false;
+      continueBtn.style.opacity = '1';
+      continueBtn.style.cursor = 'pointer';
+      continueBtn.title = '';
+      console.log('[TutorialModal] Continue button ENABLED');
     }
   }
 }

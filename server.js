@@ -790,7 +790,7 @@ io.on('connection', (socket) => {
     }
 
     // Log with special marker [PLAYER_FEEDBACK] for easy grep/parsing
-    serverLog.info(`[PLAYER_FEEDBACK] ${playerInfo}: ${safeFeedback}`, {
+    log.info(`[PLAYER_FEEDBACK] ${playerInfo}: ${safeFeedback}`, {
       timestamp: timestamp || new Date().toISOString(),
       socketId: socket.id,
       context: safeContext,

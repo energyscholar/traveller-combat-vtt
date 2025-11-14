@@ -5,14 +5,14 @@ const TUTORIAL_SCENARIOS = {
   'first-blood': {
     id: 'first-blood',
     title: 'First Blood - Basic Combat',
-    description: 'Your first encounter with a pirate corsair. Learn the basics of space combat.',
+    description: 'Your first encounter with a pirate corsair. Learn the basics of space combat in solo mode vs AI.',
     duration: '5-7 minutes',
     difficulty: 'beginner',
     prerequisites: [],
     learningObjectives: [
       'Ship selection UI',
       'Range selection mechanics',
-      'Initiative system',
+      'Solo mode (vs AI)',
       'Firing weapons',
       'Turn-based combat flow'
     ],
@@ -26,17 +26,17 @@ const TUTORIAL_SCENARIOS = {
 
 Your crew is green, but they're ready for their first fight.
 
-Let's select your ship and prepare for combat...
+Let's select your ship and prepare for combat against the AI...
 
-👉 STEP 1: Click "Space Battle (Multiplayer)" button below
+👉 STEP 1: Click "Solo Battle (vs AI)" button below
 👉 STEP 2: Then click "Continue" in this tutorial panel`,
         pointer: {
-          target: '[data-test-id="btn-space-battle"]',
+          target: '[data-test-id="btn-solo-battle"]',
           duration: 800
         },
         tooltip: {
-          element: '[data-test-id="btn-space-battle"]',
-          text: `Click this button to enter Space Battle mode when you're ready`
+          element: '[data-test-id="btn-solo-battle"]',
+          text: `Click this button to start a Solo Battle against the AI`
         },
         action: null,
         chatMessage: {
@@ -44,7 +44,7 @@ Let's select your ship and prepare for combat...
           text: 'Welcome to your first space combat tutorial!',
           delay: 500
         },
-        manualAction: 'Click the "Space Battle (Multiplayer)" button to continue'
+        manualAction: 'Click the "Solo Battle (vs AI)" button to continue'
       },
 
       {
@@ -115,7 +115,7 @@ Short range: Good for lasers`
 
 You've selected the Scout and set your starting range to Short.
 
-Now click READY to enter combat. Your opponent (the AI) will automatically select a ship and join you in battle.
+Now click READY to enter combat. In Solo Mode, the AI opponent will be automatically assigned and the battle will begin immediately!
 
 This is where the real fight begins!
 
@@ -126,7 +126,7 @@ This is where the real fight begins!
         },
         tooltip: {
           element: '[data-test-id="ready-button"]',
-          text: `Confirms your ship selection and enters combat`
+          text: `Confirms your ship selection and starts the AI battle`
         },
         action: null,
         chatMessage: {
@@ -150,9 +150,9 @@ Here you can see:
 • Combat log
 • Action buttons
 
-The FIRE button fires your currently selected weapon. The END TURN button passes control to your opponent.
+The FIRE button fires your currently selected weapon. The END TURN button passes control to the AI opponent.
 
-Note: In solo mode against AI, the fire button may be disabled. This tutorial demonstrates the UI and controls.
+You can now engage in actual combat! Try firing your weapons and see the AI fight back!
 
 👉 Take your time to review the interface. Click "Continue" when ready.`,
         pointer: {
@@ -187,7 +187,7 @@ You've completed the "First Blood" tutorial. You've learned:
 ✓ How to set starting range
 ✓ How to read the Combat HUD
 
-The actual combat mechanics (firing, damage, turns) work best in multiplayer mode with two human players or in automated test scenarios.
+The actual combat mechanics (firing, damage, turns) are now active - the AI will fight back!
 
 Ready for more? Try exploring the ship templates or start a real battle!
 

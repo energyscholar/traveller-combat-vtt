@@ -6,26 +6,31 @@ class AnimatedPointer {
     this.pointer = null;
     this.currentTarget = null;
     this.debug = debug;
+    console.log('[TutorialPointer] Constructor called, debug =', debug);
   }
 
   /**
    * Log debug information
    */
   log(...args) {
-    if (this.debug) {
-      console.log('[TutorialPointer]', ...args);
-    }
+    // ALWAYS log for debugging session
+    console.log('[TutorialPointer]', ...args);
   }
 
   /**
    * Create pointer DOM element
    */
   create() {
-    if (this.pointer) return;
+    if (this.pointer) {
+      this.log('create() called but pointer already exists');
+      return;
+    }
 
+    this.log('Creating pointer element');
     this.pointer = document.createElement('div');
     this.pointer.className = 'tutorial-pointer';
     document.body.appendChild(this.pointer);
+    this.log('Pointer element created and added to body');
   }
 
   /**
@@ -194,8 +199,15 @@ class AnimatedPointer {
    * Hide pointer
    */
   hide() {
+    this.log('hide() called, pointer exists:', !!this.pointer);
     if (this.pointer) {
       this.pointer.classList.remove('visible');
+      const style = window.getComputedStyle(this.pointer);
+      this.log('Pointer hidden. Current position:', {
+        left: this.pointer.style.left,
+        top: this.pointer.style.top,
+        opacity: style.opacity
+      });
     }
   }
 
@@ -203,8 +215,13 @@ class AnimatedPointer {
    * Show pointer
    */
   show() {
+    this.log('show() called, pointer exists:', !!this.pointer);
     if (!this.pointer) this.create();
     this.pointer.classList.add('visible');
+    this.log('Pointer shown at position:', {
+      left: this.pointer.style.left,
+      top: this.pointer.style.top
+    });
   }
 
   /**
