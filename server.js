@@ -46,6 +46,33 @@ const connections = new Map();
 const IDLE_TIMEOUT_MS = 30000; // 30 seconds
 const CONNECTION_CHECK_INTERVAL = 10000; // Check every 10 seconds
 
+// SESSION 7: Rate limiting (Stage 13.5)
+const RATE_LIMIT_WINDOW_MS = 1000; // 1 second window
+const RATE_LIMIT_MAX_ACTIONS = 2; // 2 actions per second
+const actionTimestamps = new Map(); // Track action timestamps per socket
+
+// Rate limiter
+function checkRateLimit(socketId) {
+  const now = Date.now();
+  const timestamps = actionTimestamps.get(socketId) || [];
+
+  // Remove timestamps outside the window
+  const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+
+  // Check if rate limit exceeded
+  if (recentTimestamps.length >= RATE_LIMIT_MAX_ACTIONS) {
+    performanceMetrics.actions.rateLimited++; // SESSION 7: Track rate-limited actions
+    return false; // Rate limit exceeded
+  }
+
+  // Add current timestamp
+  recentTimestamps.push(now);
+  actionTimestamps.set(socketId, recentTimestamps);
+  performanceMetrics.actions.total++; // SESSION 7: Track total actions
+
+  return true; // Action allowed
+}
+
 // Track connection activity
 function updateConnectionActivity(socketId) {
   const conn = connections.get(socketId);
@@ -119,6 +146,41 @@ function trimCombatHistory(combat) {
     combat.history = combat.history.slice(-COMBAT_HISTORY_LIMIT);
   }
 }
+
+// SESSION 7: Performance profiling (Stage 13.5)
+const performanceMetrics = {
+  connections: { current: 0, peak: 0, total: 0 },
+  combats: { current: 0, peak: 0, total: 0 },
+  actions: { total: 0, rateLimited: 0 },
+  memory: { current: 0, peak: 0 },
+  uptime: Date.now()
+};
+
+// Update performance metrics
+function updateMetrics() {
+  const mem = process.memoryUsage();
+  performanceMetrics.memory.current = Math.round(mem.heapUsed / 1024 / 1024); // MB
+  performanceMetrics.memory.peak = Math.max(performanceMetrics.memory.peak, performanceMetrics.memory.current);
+
+  performanceMetrics.connections.current = connections.size;
+  performanceMetrics.connections.peak = Math.max(performanceMetrics.connections.peak, connections.size);
+
+  performanceMetrics.combats.current = activeCombats.size;
+  performanceMetrics.combats.peak = Math.max(performanceMetrics.combats.peak, activeCombats.size);
+}
+
+// Log performance metrics periodically
+setInterval(() => {
+  updateMetrics();
+
+  log.info('📊 Performance Metrics:', {
+    connections: `${performanceMetrics.connections.current} (peak: ${performanceMetrics.connections.peak})`,
+    combats: `${performanceMetrics.combats.current} (peak: ${performanceMetrics.combats.peak})`,
+    actions: `${performanceMetrics.actions.total} (rate-limited: ${performanceMetrics.actions.rateLimited})`,
+    memory: `${performanceMetrics.memory.current}MB (peak: ${performanceMetrics.memory.peak}MB)`,
+    uptime: `${Math.round((Date.now() - performanceMetrics.uptime) / 1000 / 60)}min`
+  });
+}, 60000); // Log every minute
 
 // Stage 9: Create dummy opponent for single-player testing
 function createDummyPlayer(player1) {
@@ -596,6 +658,8 @@ io.on('connection', (socket) => {
     connected: Date.now(),
     lastActivity: Date.now() // SESSION 7: Track last activity for idle timeout
   });
+
+  performanceMetrics.connections.total++; // SESSION 7: Track total connections
 
   socketLog.info(` Player ${connectionId} connected (socket: ${socket.id})`);
   socketLog.info(` Player ${connectionId} assigned: ${assignedShip || 'spectator'}`);
@@ -1253,6 +1317,13 @@ io.on('connection', (socket) => {
 
   // Handle fire action
   socket.on('space:fire', (data) => {
+    // SESSION 7: Rate limiting
+    if (!checkRateLimit(socket.id)) {
+      socketLog.warn(`⛔ Player ${connectionId} rate limited (space:fire)`);
+      socket.emit('error', { message: 'Rate limit exceeded. Please slow down.' });
+      return;
+    }
+
     updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:FIRE] Player ${connectionId} firing`, data);
 
@@ -1580,6 +1651,13 @@ io.on('connection', (socket) => {
 
   // STAGE 11: Handle missile launch
   socket.on('space:launchMissile', (data) => {
+    // SESSION 7: Rate limiting
+    if (!checkRateLimit(socket.id)) {
+      socketLog.warn(`⛔ Player ${connectionId} rate limited (space:launchMissile)`);
+      socket.emit('error', { message: 'Rate limit exceeded. Please slow down.' });
+      return;
+    }
+
     updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:MISSILE] Player ${connectionId} launching missile`);
 
@@ -1807,6 +1885,13 @@ io.on('connection', (socket) => {
 
   // STAGE 11: Handle point defense against missiles
   socket.on('space:pointDefense', (data) => {
+    // SESSION 7: Rate limiting
+    if (!checkRateLimit(socket.id)) {
+      socketLog.warn(`⛔ Player ${connectionId} rate limited (space:pointDefense)`);
+      socket.emit('error', { message: 'Rate limit exceeded. Please slow down.' });
+      return;
+    }
+
     updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:POINT_DEFENSE] Player ${connectionId} using point defense against ${data.missileId}`);
 
@@ -1868,6 +1953,13 @@ io.on('connection', (socket) => {
 
   // STAGE 11: Handle sandcaster defense
   socket.on('space:useSandcaster', (data) => {
+    // SESSION 7: Rate limiting
+    if (!checkRateLimit(socket.id)) {
+      socketLog.warn(`⛔ Player ${connectionId} rate limited (space:useSandcaster)`);
+      socket.emit('error', { message: 'Rate limit exceeded. Please slow down.' });
+      return;
+    }
+
     updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:SANDCASTER] Player ${connectionId} using sandcaster`);
 
@@ -1936,6 +2028,13 @@ io.on('connection', (socket) => {
 
   // Handle end turn
   socket.on('space:endTurn', () => {
+    // SESSION 7: Rate limiting
+    if (!checkRateLimit(socket.id)) {
+      socketLog.warn(`⛔ Player ${connectionId} rate limited (space:endTurn)`);
+      socket.emit('error', { message: 'Rate limit exceeded. Please slow down.' });
+      return;
+    }
+
     updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:END_TURN] Player ${connectionId} ending turn`);
 
