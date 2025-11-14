@@ -1,6 +1,6 @@
 # Markdown File Index
 **Last Updated:** 2025-11-13
-**Total Files:** 100
+**Total Files:** 103
 
 ---
 
@@ -78,6 +78,11 @@ find . -name "*.md" -not -path "*/node_modules/*" | wc -l
 **Content:** GO/NO-GO criteria, checkpoint assessment templates
 
 ### Session Reports
+
+#### SESSION-4-PLAN.md
+**Purpose:** Session 4 planning with risk assessment and deliverables
+**Created:** 2025-11-13
+**Content:** Pre-session sweep (Stages 13-16), 5 primary deliverables, 9% risk assessment, export/import + Docker work
 
 #### SESSION-3A-COMPLETION-REPORT.md
 **Purpose:** Session 3A final assessment and metrics
@@ -357,7 +362,21 @@ find . -name "*.md" -not -path "*/node_modules/*" | wc -l
 
 ---
 
-## 📚 DOCUMENTATION (docs/ - 1 file)
+## 📚 DOCUMENTATION (docs/ - 3 files)
+
+### docs/export-import-api.md (★ HIGH VALUE ★)
+**Purpose:** Complete API documentation for export/import system
+**Content:** Ship instance, battle state, character export/import APIs, validation functions, utility functions, integration examples, VTT integration guidance
+**Size:** ~400 lines
+**Created:** Session 4
+**Value:** Essential reference for save/load system and VTT integration
+
+### docs/docker-deployment.md (★ HIGH VALUE ★)
+**Purpose:** Complete Docker deployment guide
+**Content:** Dockerfile architecture, docker-compose configuration, deployment guides (Azure, GCP, AWS, Kubernetes), health check endpoints, troubleshooting, security, performance optimization
+**Size:** ~500 lines
+**Created:** Session 4
+**Value:** Production deployment ready-reference
 
 ### docs/high-guard-reference.md (★ HIGH VALUE ★)
 **Purpose:** Complete High Guard 2022 table extraction

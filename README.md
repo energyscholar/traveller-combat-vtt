@@ -12,7 +12,7 @@ A web-based Virtual Tabletop (VTT) for **Mongoose Traveller 2nd Edition** space 
 # Install dependencies
 npm install
 
-# Run all tests (161 tests, 100% passing across 16 suites)
+# Run all tests (197 tests, 100% passing across 17 suites)
 npm test
 
 # View ship templates (static viewer)
@@ -23,6 +23,25 @@ open public/ship-templates.html
 npm start
 # Then open http://localhost:3000 in TWO browser tabs
 ```
+
+### 🐳 Docker Quick Start
+
+```bash
+# Using Docker (recommended for production)
+docker build -t traveller-vtt .
+docker run -d -p 3000:3000 traveller-vtt
+
+# Using docker-compose (dev mode with live reload)
+docker-compose up app-dev
+
+# Using docker-compose (production mode)
+docker-compose up -d app-prod
+
+# Health check
+curl http://localhost:3000/health
+```
+
+**See:** [docs/docker-deployment.md](docs/docker-deployment.md) for complete deployment guide including Azure, AWS, GCP, and Kubernetes.
 
 ---
 
@@ -70,7 +89,7 @@ The easiest way to test the game is to:
 **Current Stage:** 12.5/16 Complete (78%) ✅
 **Ship Templates:** ✅ **7 ships with full validation**
 **Test Coverage:** 100% (all critical paths)
-**Tests Passing:** 161/161 across 16 suites ✅
+**Tests Passing:** 197/197 across 17 suites ✅
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -80,12 +99,9 @@ The easiest way to test the game is to:
 | Production (Stages 13-15) | 📋 Planned | Performance testing, VTT integration, deployment |
 | Advanced (Stage 16+) | 📋 Planned | Ship builder, fleet battles, campaign mode |
 
-**Recent Work (Autonomous Session 3A):**
-- ✅ Complete High Guard 2022 reference tables extracted
-- ✅ Ship/battle/character export JSON schemas created
-- ✅ Data source quality guidelines documented
-- ✅ Comprehensive autonomous development playbook updated
-- 🔨 IN PROGRESS: Test expansion, CTO mentoring analysis
+**Recent Work:**
+- **Session 4:** Export/import system, Docker containerization, health endpoints, deployment docs
+- **Session 3A:** High Guard reference tables, export schemas, data quality guidelines, process maturity
 
 ---
 
@@ -110,10 +126,15 @@ The easiest way to test the game is to:
 - `lib/ship-bridge.js` - Bridge types by tonnage
 - `lib/ship-staterooms.js` - Crew requirements
 
-**Export Schemas:**
-- Ship instance export (battle damage, crew status, ammunition)
-- Battle state export (multi-ship scenarios, environment, turn sequence)
-- Character export (full Traveller 2E characters with skills, careers, equipment)
+**Export/Import System (Session 4):**
+- Complete save/load for ships, battles, and characters
+- JSON-based export format with schema versioning (v1.0)
+- Round-trip data preservation (export → import → no data loss)
+- VTT integration ready (Roll20, Foundry, Fantasy Grounds)
+- Validation functions with detailed error messages
+- Schema migration framework for future updates
+- API: `lib/export-import.js` with 36 comprehensive tests
+- **Docs:** [docs/export-import-api.md](docs/export-import-api.md)
 
 **Reference Documentation:**
 - Complete High Guard 2022 tables (drives, weapons, armor, computers 1-50, sensors)
