@@ -1,6 +1,10 @@
 # Stage 10: Critical Hit Effects & Severity
 
-**Est. 7,000 tokens | ~5 hours | ~700 LOC**
+**STATUS:** ✅ **COMPLETE** (Completed 2025-11-09)
+**Actual:** ~5 hours | ~700 LOC
+**Files:** `lib/critical-hits.js`, `lib/damage-effects.js`
+**Tests:** 13 unit tests + integration tests passing
+**Handoff:** `.claude/handoffs/HANDOFF-STAGE-10-UI-FIXES.md`
 
 ## Scope
 

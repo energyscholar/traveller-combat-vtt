@@ -243,6 +243,143 @@ TOTAL: 136/140 = 97% → SAFE ✅
 
 ---
 
+## ⏰ CHECKPOINT TIMER PROTOCOL
+
+**Added:** 2025-11-13 (Post-Session 4)
+**Authority:** User directive for Stage 10+ preparation
+**Mandatory For:** Sessions ≥6 hours estimated duration
+
+### Why Checkpoints Matter
+
+**Lesson from Session 4:** 9-hour session ran without mid-session checkpoint, missing opportunity for quality gate review at natural pause point.
+
+**Benefits of checkpoints:**
+- Prevents scope creep in long sessions
+- Ensures quality gates run mid-session
+- Provides natural pause for reflection and adjustment
+- Enables GO/NO-GO/PIVOT decisions based on progress
+- Documents session health at multiple points
+
+### Checkpoint Protocol
+
+**For sessions ≥6 hours estimated:**
+
+1. **Set Timer/Reminder at Session Start**
+   ```
+   - Calculate 6-hour mark from session start
+   - Set reminder/note to pause at 6h
+   - Document checkpoint time in session plan
+   ```
+
+2. **PAUSE Work at 6-Hour Mark**
+   ```
+   - Stop current task (finish current test/function if <15 min)
+   - Commit current work to branch
+   - Push to remote (backup)
+   - Take brief break (5-10 min)
+   ```
+
+3. **Run Checkpoint 1 Quality Gates**
+   ```
+   [ ] All tests passing (zero regressions)
+   [ ] Overhead budget check (should be ≤30% at midpoint)
+   [ ] Primary deliverables progress (≥50% complete expected)
+   [ ] No blocking issues discovered
+   [ ] Code quality maintained (no shortcuts taken)
+   [ ] Scope still aligned with plan (no creep)
+   ```
+
+4. **Make GO/NO-GO/PIVOT Decision**
+
+   **GO Decision (Continue):**
+   - All quality gates passing ✅
+   - Overhead ≤30% ✅
+   - Primary work ≥50% complete ✅
+   - On track to complete in planned time ✅
+   - Continue with remaining work
+
+   **NO-GO Decision (Complete Early):**
+   - Primary work 100% complete (ahead of schedule)
+   - Overhead approaching 30% limit
+   - Diminishing returns threshold reached
+   - Stop session, create completion report
+
+   **PIVOT Decision (Adjust Scope):**
+   - Primary work slower than expected
+   - Defer lower-priority deliverables
+   - Adjust overhead budget down
+   - Continue with reduced scope
+
+5. **Document Checkpoint**
+   ```
+   Create: .claude/SESSION-{N}-CHECKPOINT-1.md
+
+   Include:
+   - Time at checkpoint (e.g., "Hour 6 of 10")
+   - Quality gate results (all passing/issues found)
+   - Progress assessment (% complete on deliverables)
+   - Overhead tracking (% used, time remaining)
+   - Decision made (GO/NO-GO/PIVOT)
+   - Adjusted plan (if PIVOT)
+   - Risks identified (if any)
+   ```
+
+### Checkpoint Timing Guidelines
+
+| Session Length | Checkpoint 1 | Checkpoint 2 |
+|----------------|--------------|--------------|
+| 6-8 hours      | 6h           | N/A          |
+| 9-12 hours     | 6h           | 10h          |
+| 13-16 hours    | 6h           | 11h          |
+| 17-20 hours    | 6h           | 12h          |
+
+**Note:** Sessions >12h should have been split into multiple sessions per risk assessment. If running long session, checkpoints become mandatory.
+
+### Example Checkpoint Document
+
+```markdown
+# Session 5 - Checkpoint 1 (Hour 6)
+
+**Time:** 6.0h into 9h planned session
+**Date:** 2025-11-13
+
+## Quality Gates
+- ✅ All tests passing (185/185)
+- ✅ Overhead budget: 18% (1.1h / 6h)
+- ✅ Primary deliverables: 65% complete (ahead of schedule)
+- ✅ No blocking issues
+- ✅ Code quality maintained
+- ✅ Scope aligned with plan
+
+## Decision: GO
+
+**Rationale:** All gates passing, ahead of schedule, overhead well under budget
+
+**Adjusted Plan:** None needed, continue as planned
+
+**Remaining Work:**
+- Deliverable 3: 2h (in progress)
+- Deliverable 4: 1h (pending)
+- Routine maintenance: 0.5h (pending)
+
+**Estimated Completion:** 8.5h (0.5h ahead of 9h plan)
+```
+
+### Integration with Risk Assessment
+
+**Checkpoint protocol complements risk assessment:**
+
+| Risk Level | Session Length | Checkpoints Required |
+|------------|----------------|---------------------|
+| Very Low   | 6-8h           | 1 (at 6h)           |
+| Low        | 8-10h          | 1 (at 6h)           |
+| Moderate   | 10-12h         | 2 (at 6h, 10h)      |
+| High       | Not recommended| N/A (split sessions)|
+
+**If session exceeds planned length:** Add checkpoint every 4-6h until completion.
+
+---
+
 ## ✅ SESSION COMPLETION CHECKLIST
 
 **Every autonomous session MUST deliver:**
@@ -756,6 +893,121 @@ Overhead Work: 3.5h (44% of primary - within 50% limit ✅)
 
 Total Session: 11.5h
 ```
+
+---
+
+### ⏱️ TIME ESTIMATION BUFFER GUIDELINES
+
+**Added:** 2025-11-13 (Post-Session 4 analysis)
+**Purpose:** Improve session planning accuracy based on historical data
+
+#### Observed Estimation Patterns (Sessions 3A-4)
+
+**Documentation Tasks: +20-50% buffer recommended**
+- **Pattern:** Documentation consistently takes longer than estimated
+- **Session 4 Example:** API docs + deployment guide planned 1.0h → actual 1.5h (+50%)
+- **Reason:** Writing comprehensive docs requires:
+  - Multiple examples
+  - Error handling documentation
+  - Integration guidance
+  - Troubleshooting sections
+- **Recommendation:** Add 30% buffer to documentation estimates
+
+**New System Implementation: +15% buffer**
+- **Pattern:** New systems take slightly longer than estimated
+- **Session 4 Example:** Export/import system planned 3.5h → actual 4.0h (+15%)
+- **Reason:** Edge cases, error handling, validation logic
+- **Recommendation:** Add 15% buffer to new system estimates
+
+**Routine Maintenance: Use baseline estimates**
+- **Pattern:** Maintenance tasks are usually accurate
+- **Session 4 Example:** README, MD index, quality check = planned and actual match
+- **Reason:** Well-understood, repeatable tasks
+- **Recommendation:** No buffer needed, use historical averages
+
+#### Time Estimation Reference Table
+
+| Task Type | Baseline | Buffer | Total Planning |
+|-----------|----------|--------|----------------|
+| Documentation (new) | 1.0h | +30% | 1.3h |
+| Documentation (update) | 0.5h | +10% | 0.55h |
+| New system implementation | 3.0h | +15% | 3.5h |
+| Module extraction/refactoring | 2.0h | +20% | 2.4h |
+| Test writing | 1.0h | +10% | 1.1h |
+| Routine maintenance | 0.5h | 0% | 0.5h |
+| Code quality check | 0.2h | 0% | 0.2h |
+| Session planning | 0.5h | 0% | 0.5h |
+| Risk assessment | 0.3h | 0% | 0.3h |
+
+#### Session-Level Buffer Strategy
+
+**Conservative Planning (Recommended):**
+```
+Primary work estimate: 6.5h
+Apply category-specific buffers
+Total primary: 7.5h
+Overhead (30%): 2.3h
+Total session: 9.8h
+
+Plan as: 10h session with 7.5h primary work
+```
+
+**Aggressive Planning (Higher risk):**
+```
+Primary work estimate: 7.0h
+Skip buffers (assume perfect execution)
+Total primary: 7.0h
+Overhead (30%): 2.1h
+Total session: 9.1h
+
+Risk: 30% chance of running over by 1-2h
+```
+
+#### When to Use Buffers
+
+**Always add buffers for:**
+- First-time implementations
+- Documentation-heavy sessions
+- Complex refactoring
+- Integration with multiple systems
+- High-uncertainty work
+
+**Skip buffers for:**
+- Routine maintenance
+- Repeatable tasks
+- Quick fixes
+- Well-understood patterns
+
+#### Historical Accuracy Data
+
+| Session | Planned | Actual | Variance |
+|---------|---------|--------|----------|
+| 3A      | 10h     | 11.5h  | +15%     |
+| 4       | 9h      | 9h     | 0%       |
+
+**Session 4 Success Factors:**
+- Applied buffers to documentation (+50% planned)
+- Applied buffer to export/import (+15% planned)
+- No buffer on maintenance (accurate baseline)
+- Result: On-time completion
+
+**Lesson:** Selective buffering based on task type works better than flat percentage across all tasks.
+
+#### Integration with Risk Assessment
+
+**Risk level affects buffer size:**
+
+| Risk Level | Base Buffer | Rationale |
+|------------|-------------|-----------|
+| Very Low   | +10%        | Minor unknowns |
+| Low        | +15%        | Some complexity |
+| Moderate   | +20%        | Significant unknowns |
+| High       | +30-50%     | Major complexity/uncertainty |
+
+**Example:**
+- Low-risk new module: 3h × 1.15 = 3.5h
+- Moderate-risk refactoring: 4h × 1.20 = 4.8h
+- High-risk integration: 2h × 1.50 = 3.0h
 
 ---
 
