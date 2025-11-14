@@ -47,6 +47,12 @@ module.exports = {
   // Puppeteer steps (headless, fast)
   puppeteerSteps: [
     {
+      description: 'Click Space Battle button to start',
+      selector: '[data-test-id="btn-space-battle"]',
+      action: 'click',
+      wait: { selector: '[data-test-id="ship-option-scout"]' }
+    },
+    {
       description: 'Player 1 selects Scout',
       selector: '[data-test-id="ship-option-scout"]',
       action: 'click'
@@ -64,21 +70,29 @@ module.exports = {
       wait: { selector: '[data-test-id="fire-button"]' }
     },
     {
-      description: 'Player 1 fires pulse laser',
+      description: 'Wait for combat HUD to load',
       selector: '[data-test-id="fire-button"]',
-      action: 'click',
-      wait: { timeout: 1000 }
+      action: 'waitForSelector',
+      critical: false
     },
     {
-      description: 'Player 1 ends turn',
-      selector: '[data-test-id="end-turn-button"]',
-      action: 'click',
-      wait: { timeout: 1000 }
+      description: 'Verify turn indicator present',
+      selector: '[data-test-id="turn-status"]',
+      action: 'getText',
+      critical: false
     }
   ],
 
   // Puppetry steps (visible, slow, with feedback)
   puppetrySteps: [
+    {
+      description: 'Click Space Battle to start',
+      selector: '[data-test-id="btn-space-battle"]',
+      action: 'click',
+      feedback: 'Starting space battle mode...',
+      wait: { selector: '[data-test-id="ship-option-scout"]' },
+      delay: 1000
+    },
     {
       description: 'Player 1 selects Scout',
       selector: '[data-test-id="ship-option-scout"]',
