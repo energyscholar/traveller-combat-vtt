@@ -1,0 +1,108 @@
+# Traveller Combat VTT - Docker Compose Configuration
+# Supports both development and production modes
+
+version: '3.8'
+
+services:
+  # ==================================================================
+  # Development Service
+  # ==================================================================
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traveller-vtt-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    volumes:
+      # Mount source code for live reload
+      - ./:/app
+      - /app/node_modules  # Don't overwrite node_modules
+    command: ["node", "server.js"]
+    networks:
+      - traveller-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # ==================================================================
+  # Production Service
+  # ==================================================================
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traveller-vtt-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Add production environment variables here
+      # - LOG_LEVEL=info
+      # - MAX_CONNECTIONS=1000
+    networks:
+      - traveller-network
+    restart: always
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    # Resource limits (adjust based on deployment environment)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+networks:
+  traveller-network:
+    driver: bridge
+
+# ==================================================================
+# Usage Instructions
+# ==================================================================
+#
+# Development Mode:
+#   docker-compose up app-dev
+#   - Live code reload enabled
+#   - Source code mounted as volume
+#   - Development environment variables
+#
+# Production Mode:
+#   docker-compose up app-prod
+#   - Optimized build
+#   - No source code mounting
+#   - Production environment variables
+#   - Resource limits applied
+#
+# Build and Start:
+#   docker-compose build app-dev  # or app-prod
+#   docker-compose up -d app-dev  # -d for detached mode
+#
+# View Logs:
+#   docker-compose logs -f app-dev
+#
+# Stop Services:
+#   docker-compose down
+#
+# Restart Services:
+#   docker-compose restart app-dev
+#
+# Execute Commands in Container:
+#   docker-compose exec app-dev sh
+#   docker-compose exec app-dev npm test
+#
+# ==================================================================
