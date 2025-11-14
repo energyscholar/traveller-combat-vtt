@@ -42,8 +42,83 @@ app.use(express.json());
 let connectionCount = 0;
 const connections = new Map();
 
+// SESSION 7: Connection management and idle timeout (Stage 13.5)
+const IDLE_TIMEOUT_MS = 30000; // 30 seconds
+const CONNECTION_CHECK_INTERVAL = 10000; // Check every 10 seconds
+
+// Track connection activity
+function updateConnectionActivity(socketId) {
+  const conn = connections.get(socketId);
+  if (conn) {
+    conn.lastActivity = Date.now();
+  }
+}
+
+// Periodic check for idle connections
+setInterval(() => {
+  const now = Date.now();
+  let disconnectedCount = 0;
+
+  for (const [socketId, conn] of connections.entries()) {
+    const idleTime = now - conn.lastActivity;
+
+    if (idleTime > IDLE_TIMEOUT_MS) {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket && socket.connected) {
+        socketLog.warn(`⏱️  Player ${conn.id} idle for ${Math.round(idleTime / 1000)}s, disconnecting`);
+        socket.disconnect(true);
+        disconnectedCount++;
+      }
+    }
+  }
+
+  if (disconnectedCount > 0) {
+    socketLog.info(`🧹 Cleaned up ${disconnectedCount} idle connections`);
+  }
+}, CONNECTION_CHECK_INTERVAL);
+
 // Stage 8.8: Track active space combat sessions
 const activeCombats = new Map();
+
+// SESSION 7: Combat state optimization (Stage 13.5)
+const COMBAT_INACTIVE_TIMEOUT_MS = 300000; // 5 minutes
+const COMBAT_HISTORY_LIMIT = 10; // Keep last 10 rounds of history
+const COMBAT_CHECK_INTERVAL = 60000; // Check every minute
+
+// Prune inactive combats
+setInterval(() => {
+  const now = Date.now();
+  let prunedCount = 0;
+
+  for (const [combatId, combat] of activeCombats.entries()) {
+    const inactiveTime = now - (combat.lastActivity || combat.startTime || now);
+
+    if (inactiveTime > COMBAT_INACTIVE_TIMEOUT_MS) {
+      activeCombats.delete(combatId);
+      prunedCount++;
+      combatLog.info(`🧹 Pruned inactive combat: ${combatId} (idle for ${Math.round(inactiveTime / 1000 / 60)}min)`);
+    }
+  }
+
+  if (prunedCount > 0) {
+    combatLog.info(`🧹 Cleaned up ${prunedCount} inactive combats. ${activeCombats.size} active combats remaining.`);
+  }
+}, COMBAT_CHECK_INTERVAL);
+
+// Update combat activity timestamp
+function updateCombatActivity(combatId) {
+  const combat = activeCombats.get(combatId);
+  if (combat) {
+    combat.lastActivity = Date.now();
+  }
+}
+
+// Trim combat history to last N rounds
+function trimCombatHistory(combat) {
+  if (combat.history && combat.history.length > COMBAT_HISTORY_LIMIT) {
+    combat.history = combat.history.slice(-COMBAT_HISTORY_LIMIT);
+  }
+}
 
 // Stage 9: Create dummy opponent for single-player testing
 function createDummyPlayer(player1) {
@@ -518,7 +593,8 @@ io.on('connection', (socket) => {
   connections.set(socket.id, {
     id: connectionId,
     ship: assignedShip,
-    connected: Date.now()
+    connected: Date.now(),
+    lastActivity: Date.now() // SESSION 7: Track last activity for idle timeout
   });
 
   socketLog.info(` Player ${connectionId} connected (socket: ${socket.id})`);
@@ -1046,16 +1122,19 @@ io.on('connection', (socket) => {
   // Note: socket.spaceSelection is initialized earlier with auto-assigned values
 
   socket.on('space:shipSelected', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(` Player ${connectionId} selected ship: ${data.ship}`);
     socket.spaceSelection.ship = data.ship;
   });
 
   socket.on('space:rangeSelected', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(` Player ${connectionId} selected range: ${data.range}`);
     socket.spaceSelection.range = data.range;
   });
 
   socket.on('space:playerReady', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(` Player ${connectionId} ready with ${data.ship} at ${data.range}`);
 
     socket.spaceSelection.ship = data.ship;
@@ -1151,7 +1230,10 @@ io.on('connection', (socket) => {
           round: 1,
           activePlayer: player1.id,
           turnComplete: { [player1.id]: false, [player2.id]: false },
-          missileTracker: missileTracker  // STAGE 11: Track missiles for this combat
+          missileTracker: missileTracker,  // STAGE 11: Track missiles for this combat
+          startTime: Date.now(),  // SESSION 7: Track combat start time
+          lastActivity: Date.now(),  // SESSION 7: Track last activity
+          history: []  // SESSION 7: Combat history (trimmed to last 10 rounds)
         });
         combatLog.info(` Combat state initialized: ${combatId}`);
 
@@ -1171,6 +1253,7 @@ io.on('connection', (socket) => {
 
   // Handle fire action
   socket.on('space:fire', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:FIRE] Player ${connectionId} firing`, data);
 
     // Find combat for this player
@@ -1187,6 +1270,7 @@ io.on('connection', (socket) => {
         defenderPlayer = c.player2;
         attackerSocket = socket;
         defenderSocket = io.sockets.sockets.get(c.player2.id);
+        updateCombatActivity(combatId); // SESSION 7: Track combat activity
         break;
       } else if (c.player2.id === socket.id) {
         combat = c;
@@ -1194,6 +1278,7 @@ io.on('connection', (socket) => {
         defenderPlayer = c.player1;
         attackerSocket = socket;
         defenderSocket = io.sockets.sockets.get(c.player1.id);
+        updateCombatActivity(combatId); // SESSION 7: Track combat activity
         break;
       }
     }
@@ -1495,6 +1580,7 @@ io.on('connection', (socket) => {
 
   // STAGE 11: Handle missile launch
   socket.on('space:launchMissile', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:MISSILE] Player ${connectionId} launching missile`);
 
     // Find combat for this player
@@ -1721,6 +1807,7 @@ io.on('connection', (socket) => {
 
   // STAGE 11: Handle point defense against missiles
   socket.on('space:pointDefense', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:POINT_DEFENSE] Player ${connectionId} using point defense against ${data.missileId}`);
 
     // Find combat for this player
@@ -1781,6 +1868,7 @@ io.on('connection', (socket) => {
 
   // STAGE 11: Handle sandcaster defense
   socket.on('space:useSandcaster', (data) => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:SANDCASTER] Player ${connectionId} using sandcaster`);
 
     // Find combat for this player
@@ -1848,6 +1936,7 @@ io.on('connection', (socket) => {
 
   // Handle end turn
   socket.on('space:endTurn', () => {
+    updateConnectionActivity(socket.id); // SESSION 7: Track activity
     combatLog.info(`[SPACE:END_TURN] Player ${connectionId} ending turn`);
 
     // Find combat for this player
