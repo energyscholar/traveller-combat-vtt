@@ -65,6 +65,27 @@
     // Initialize routing
     const appMode = initializeApp();
 
+    // Update mode-specific UI text
+    if (appMode === 'solo') {
+      const modeTitle = document.getElementById('mode-title');
+      const modeDescription = document.getElementById('mode-description');
+      if (modeTitle) {
+        modeTitle.textContent = '🤖 SOLO MODE (vs AI):';
+      }
+      if (modeDescription) {
+        modeDescription.textContent = 'Battle against an AI opponent. Perfect for testing strategies and learning the game!';
+      }
+    } else if (appMode === 'battle') {
+      const modeTitle = document.getElementById('mode-title');
+      const modeDescription = document.getElementById('mode-description');
+      if (modeTitle) {
+        modeTitle.textContent = '🎮 MULTIPLAYER MODE:';
+      }
+      if (modeDescription) {
+        modeDescription.textContent = 'Open this URL in TWO browser tabs to play against yourself, or share with a friend!';
+      }
+    }
+
     // Only initialize combat system if in battle or solo mode
     if (appMode !== 'battle' && appMode !== 'solo') {
       // Don't initialize Socket.io or combat system for other modes
