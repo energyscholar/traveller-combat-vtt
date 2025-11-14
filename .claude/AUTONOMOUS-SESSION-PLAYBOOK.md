@@ -432,6 +432,7 @@ TOTAL: 136/140 = 97% → SAFE ✅
 
 ```
 [ ] Update README.md with new features/changes
+[ ] Update .claude/MD-FILE-INDEX.md (add any new .md files created)
 [ ] Update API documentation
 [ ] Refresh getting-started guides
 [ ] Update architecture diagrams
@@ -442,6 +443,13 @@ TOTAL: 136/140 = 97% → SAFE ✅
 **Rationale:** Documentation drift is inevitable. Keep it current while context is fresh.
 
 **Time Investment:** Don't spend hours. Quick passes only. Mark `TODO: Expand` if deeper work needed.
+
+**MD Index Maintenance:** Quick verification (1-2 min):
+```bash
+# Check for new .md files since last index update
+find . -name "*.md" -not -path "*/node_modules/*" -newer .claude/MD-FILE-INDEX.md
+```
+Add any new files to appropriate category in index. Update header date and file count if changed.
 
 ---
 
@@ -571,6 +579,123 @@ TOTAL: 136/140 = 97% → SAFE ✅
 **Philosophy:** "While I'm here, might as well clean up."
 
 **User Benefit:** User doesn't care if AB session is 10h or 12h. Use extra time for quality improvements.
+
+---
+
+### ⏱️ Overhead Monitoring and Control
+
+**Added:** 2025-11-13
+**Authority:** Project owner directive
+
+#### The 50% Rule for Low-Priority Tasks
+
+**Maximum overhead allocation: 50% of primary work time**
+
+```
+Primary work: 8h → Maximum overhead: 4h
+Primary work: 6h → Maximum overhead: 3h
+Primary work: 4h → Maximum overhead: 2h
+```
+
+**What counts as "overhead":**
+- ✅ Routine maintenance (docs, lint, crust, etc.)
+- ✅ CTO analysis and synthesis
+- ✅ Best practices scans
+- ✅ Low-priority pool tasks (indexing, etc.)
+- ❌ Primary deliverables (NOT overhead)
+- ❌ Testing for primary work (NOT overhead)
+- ❌ Documentation for primary work (NOT overhead)
+
+**Rationale:**
+- User is AFK during AB sessions (time not critical)
+- BUT token usage IS critical (burning at 5× Claude Pro rate)
+- Overhead tasks use tokens without delivering core value
+- 50% limit prevents token waste on low-priority work
+
+**When overhead exceeds 50%:**
+
+```
+1. STOP current overhead task immediately
+2. Assess which overhead tasks delivered value
+3. Deprioritize or simplify low-value overhead
+4. Document in session report: "Overhead limit reached"
+5. Continue with primary work only
+```
+
+**Examples:**
+
+✅ **GOOD** (50% compliance):
+- Primary: 8h ship validation modules
+- Overhead: 2h docs + 1h lint + 1h CTO analysis = 4h total
+- Ratio: 4h/8h = 50% ✅
+
+❌ **BAD** (exceeds 50%):
+- Primary: 4h schema creation
+- Overhead: 2h docs + 1h lint + 1h CTO + 1h indexing = 5h total
+- Ratio: 5h/4h = 125% ❌ **STOP**
+
+**Tracking in Session Reports:**
+
+Always include overhead breakdown:
+```markdown
+## Time Allocation
+
+Primary Work: 8.0h
+- Ship templates: 3.5h
+- Validation modules: 4.5h
+
+Overhead Work: 3.5h (44% of primary - within 50% limit ✅)
+- Documentation: 1.5h
+- Lint/quality: 1.0h
+- CTO analysis: 1.0h
+
+Total Session: 11.5h
+```
+
+---
+
+### 📝 Directive Documentation Protocol
+
+**Added:** 2025-11-13
+**Meta Directive:** Document directives worth keeping
+
+**When user provides new directive:**
+
+1. **Evaluate directive value:**
+   - Is this one-time or recurring?
+   - Does it improve process/quality?
+   - Is it generalizable to other projects?
+   - Does it prevent future problems?
+
+2. **If worth keeping, document in playbook:**
+   - Add to appropriate section
+   - Include authority/date
+   - Provide examples
+   - Make actionable
+
+3. **Types of directives to document:**
+   - ✅ Process improvements (budding problems, overhead limits)
+   - ✅ Quality standards (data source hierarchy, test coverage)
+   - ✅ Risk management (deferral protocols, checkpoint criteria)
+   - ✅ Efficiency patterns (forward-pulling, routine maintenance)
+   - ❌ One-off task requests (don't bloat playbook)
+   - ❌ Project-specific details (belongs elsewhere)
+
+4. **Playbook maintenance:**
+   - Keep playbook current with proven directives
+   - Remove obsolete directives as process evolves
+   - Mark experimental directives with "TRIAL" tag
+   - Promote trial directives to standard after 3+ successful sessions
+
+**Example workflow:**
+
+```
+User: "Implement AB overhead monitoring. Limit low-priority tasks to 50%."
+→ Evaluate: Recurring, prevents token waste, generalizable ✅
+→ Document: Add "Overhead Monitoring" section to playbook
+→ Mark: Authority + date for traceability
+→ Apply: Immediate use in current and future sessions
+```
 
 ---
 
