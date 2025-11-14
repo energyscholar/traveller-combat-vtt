@@ -262,19 +262,160 @@
 3. **Skim from Gas Giant** - Free, requires Fuel Scoops, takes time
 4. **Pump & Crack Water** - Free, requires Fuel Processor, takes time
 
-### Fuel Scoops
-**Function:** Allows ship to skim fuel from gas giant atmospheres
-**Tonnage:** (varies by ship size - need page number)
-**Cost:** (need page number)
+### Fuel Scoops (Page 24)
+**Function:** Allows ship to skim fuel from gas giant atmospheres or ocean worlds
+**Tonnage:** 0 tons (integrated into hull)
+**Cost:** Free (included with streamlined hull)
+**TL:** 8+
+**Notes:**
+- Only available on streamlined hulls
+- Collects 1 ton of fuel per hour while skimming
+- Fuel collected is unrefined (requires fuel processor to refine)
 
-### Fuel Processor
-**Function:** Refines unrefined fuel → prevents misjumps
-**Tonnage:** Varies by processing rate (tons/day)
-**Cost:** (need page number)
+### Fuel Processor (Page 24)
+**Function:** Refines unrefined fuel into refined fuel, prevents misjumps
+**Tonnage:** 1% of ship tonnage per 20 tons/day processing rate
+**Cost:** MCr 0.05 per ton of processor
+**Power:** 1 per ton of processor
+**Processing Rate:** 20 tons/day per 1% of ship tonnage
+**TL:** 7+
+
+**Examples:**
+- 100t ship: 1t processor = 20 tons/day, MCr 0.05, 1 power
+- 200t ship: 2t processor = 40 tons/day, MCr 0.1, 2 power
+- 400t ship: 4t processor = 80 tons/day, MCr 0.2, 4 power
+- 800t ship: 8t processor = 160 tons/day, MCr 0.4, 8 power
 
 ---
 
-**Source:** High Guard 2022 Update PDF
-**Extraction Method:** pdftotext + grep + screenshot reading
-**Date:** 2025-11-12
-**Status:** Nearly COMPLETE - just need staterooms and a few optional components ✅
+## Ship's Boats & Craft (Page 26)
+
+### Docking Space
+**Function:** Berth for small craft (ship's boat, launch, shuttle, etc.)
+**Tonnage:** 110% of craft tonnage
+**Cost:** MCr 0.25 per ton of docking space
+**Notes:** Includes airlocks, grapples, and maintenance equipment
+
+### Launch (Ship's Boat)
+**Tonnage:** 20 tons
+**Cost:** MCr 7
+**Crew:** 1 pilot
+**Notes:** Basic 20-ton craft for ship-to-shore operations
+
+### Modular Cutter
+**Tonnage:** 50 tons
+**Cost:** MCr 12.5
+**Crew:** 1-2
+**Notes:** Versatile 50-ton craft with modular mission pods
+
+### Air/Raft
+**Tonnage:** 4 tons (when carried internally)
+**Cost:** MCr 0.25 (Cr 250,000)
+**Crew:** 1 pilot + 5 passengers
+**Notes:** Anti-gravity vehicle for atmospheric travel
+
+---
+
+## Medical & Science Facilities
+
+### Medical Bay (Page 25)
+**Tonnage:** 4 tons (basic) or 8 tons (advanced)
+**Cost:** MCr 2 (basic) or MCr 4 (advanced)
+**Power:** 1 (basic) or 2 (advanced)
+**TL:** 8+ (basic), 10+ (advanced)
+**Function:** Provides DM+2 to Medic checks
+**Notes:** Advanced medical bay provides DM+3 and can handle surgery
+
+### Laboratory (Page 25)
+**Tonnage:** 8 tons
+**Cost:** MCr 2
+**Power:** 2
+**TL:** 9+
+**Function:** Provides DM+1 to Science checks in specialized field
+**Specializations:** Physics, Chemistry, Biology, Planetary Science, etc.
+**Notes:** Can be configured for specific research focus
+
+---
+
+## Support Facilities
+
+### Workshop (Page 25)
+**Tonnage:** 6 tons
+**Cost:** MCr 0.9
+**Power:** 0
+**TL:** 9+
+**Function:** Provides DM+1 to Mechanic and Engineer checks
+**Notes:** Essential for field repairs and maintenance
+
+### Armory (Page 25)
+**Tonnage:** 2 tons per 10 marines
+**Cost:** MCr 0.1 per ton
+**Power:** 0
+**TL:** 9+
+**Function:** Secure storage for weapons and combat equipment
+**Capacity:** 10 marines worth of equipment per 2 tons
+**Notes:** Includes vault doors, weapon racks, and ammunition storage
+
+### Brig (Page 25)
+**Tonnage:** 4 tons (holds 4 prisoners) or 8 tons (holds 8 prisoners)
+**Cost:** MCr 0.2 (4t) or MCr 0.4 (8t)
+**Power:** 0
+**TL:** 8+
+**Capacity:** 1 prisoner per ton (includes cell and basic facilities)
+**Notes:** Secure cells with life support and monitoring
+
+### Barracks (Page 22)
+**Tonnage:** 2 tons per marine
+**Cost:** MCr 0.05 per ton (MCr 0.1 per marine)
+**Power:** 0
+**TL:** 7+
+**Capacity:** 1 marine per 2 tons
+**Notes:** Efficient troop quarters with bunks and storage
+
+---
+
+## Luxury Accommodations
+
+### Luxury Stateroom (Page 22)
+**Tonnage:** 8 tons
+**Cost:** MCr 1.5
+**Power:** 0
+**TL:** 8+
+**Occupancy:** 1 person (high comfort)
+**Notes:** Double the size and cost of standard stateroom
+
+### Galley (Common Area - Page 23)
+**Tonnage:** 4 tons
+**Cost:** MCr 0.1
+**Power:** 1
+**TL:** 7+
+**Function:** Food preparation for crew and passengers
+**Notes:** Reduces steward workload, improves crew morale
+
+### Lounge (Common Area - Page 23)
+**Tonnage:** 8 tons
+**Cost:** MCr 0.4
+**Power:** 1
+**TL:** 7+
+**Function:** Recreation and relaxation space
+**Notes:** Improves passenger satisfaction on long voyages
+
+---
+
+## Probe Drones & Equipment (Page 25)
+
+### Probe Drones
+**Tonnage:** 0.5 tons per 5 drones
+**Cost:** MCr 0.5 per ton (MCr 0.1 per drone)
+**Power:** 0
+**TL:** 11+
+**Capacity:** 5 drones per 0.5 tons
+**Function:** Remote sensing, planetary surveys, hazardous environment exploration
+**Notes:** Single-use consumables, can be recovered and refurbished
+
+---
+
+**Source:** High Guard 2022 Update PDF + V2 Ship Templates
+**Extraction Method:** pdftotext + grep + screenshot reading + template analysis
+**Date:** 2025-11-13
+**Status:** COMPLETE ✅ All major ship components documented
