@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, type ReactNode } from 'react';
+import { createContext, useState, useContext, useCallback, type ReactNode } from 'react';
 import type { GameState, LogEntry } from '../types/game-state';
 
 interface GameContextType {
@@ -49,11 +49,11 @@ const initialGameState: GameState = {
 export function GameProvider({ children }: { children: ReactNode }) {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
-  const updateGameState = (updates: Partial<GameState>) => {
+  const updateGameState = useCallback((updates: Partial<GameState>) => {
     setGameState(prev => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const addLogEntry = (message: string, type: LogEntry['type'] = 'info') => {
+  const addLogEntry = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     const entry: LogEntry = {
       timestamp: Date.now(),
       message,
@@ -63,11 +63,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       ...prev,
       combatLog: [...prev.combatLog, entry],
     }));
-  };
+  }, []);
 
-  const resetGameState = () => {
+  const resetGameState = useCallback(() => {
     setGameState(initialGameState);
-  };
+  }, []);
 
   const value: GameContextType = {
     gameState,
