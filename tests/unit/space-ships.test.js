@@ -3,11 +3,19 @@
 
 const {
   calculateStatDM,
-  SPACE_SHIPS,
+  getShipRegistry,
   createStandardCrew,
   validateShipName,
   calculateCritThresholds
 } = require('../../lib/combat');
+
+// Initialize ship registry
+const registry = getShipRegistry();
+
+// Helper to create ship instance for testing (provides crew/stance/criticals)
+function getTestShip(shipId) {
+  return registry.createShipInstance(shipId);
+}
 
 console.log('========================================');
 console.log('STAGE 8.1: SPACE SHIPS & CHARACTER STATS');
@@ -116,7 +124,7 @@ test('Stats validation (1-15 range)', () => {
 console.log('\n--- SHIP MODEL (12 tests) ---\n');
 
 test('Scout ship has required fields', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = registry.getShip('scout');
 
   assertTrue(scout.id, 'Should have id');
   assertTrue(scout.type, 'Should have type');
@@ -128,14 +136,14 @@ test('Scout ship has required fields', () => {
 });
 
 test('Scout has turrets array', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = registry.getShip('scout');
 
   assertTrue(Array.isArray(scout.turrets), 'Should have turrets array');
   assertTrue(scout.turrets.length > 0, 'Should have at least one turret');
 });
 
 test('Scout has crew assignment slots', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = getTestShip('scout');
 
   assertTrue(scout.crew, 'Should have crew object');
   assertTrue(scout.crew.pilot !== undefined, 'Should have pilot slot');
@@ -147,7 +155,7 @@ test('Scout has crew assignment slots', () => {
 });
 
 test('Scout has stance', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = getTestShip('scout');
 
   assertTrue(scout.stance, 'Should have stance');
   assertTrue(['hostile', 'friendly', 'neutral', 'disabled', 'destroyed'].includes(scout.stance),
@@ -155,14 +163,14 @@ test('Scout has stance', () => {
 });
 
 test('Scout has criticals array', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = getTestShip('scout');
 
   assertTrue(Array.isArray(scout.criticals), 'Should have criticals array');
   assertEqual(scout.criticals.length, 0, 'Should start with no crits');
 });
 
 test('Scout has crit thresholds pre-calculated', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = registry.getShip('scout');
 
   assertTrue(Array.isArray(scout.critThresholds), 'Should have critThresholds array');
   assertTrue(scout.critThresholds.length > 0, 'Should have at least one threshold');
@@ -172,17 +180,17 @@ test('Scout has crit thresholds pre-calculated', () => {
   assertEqual(scout.critThresholds[0], expected90, `First threshold should be 90% of hull`);
 });
 
-test('Scout definition: hull=20, armour=4, thrust=2', () => {
-  const scout = SPACE_SHIPS.scout;
+test('Scout definition: hull=40, armour=4, thrust=2', () => {
+  const scout = registry.getShip('scout');
 
-  assertEqual(scout.maxHull, 20, 'Scout should have 20 hull');
-  assertEqual(scout.hull, 20, 'Scout should start at full hull');
+  assertEqual(scout.maxHull, 40, 'Scout should have 40 hull');
+  assertEqual(scout.hull, 40, 'Scout should start at full hull');
   assertEqual(scout.armour, 4, 'Scout should have 4 armour');
   assertEqual(scout.thrust, 2, 'Scout should have 2 thrust');
 });
 
 test('Scout has 1 triple turret with pulse_laser', () => {
-  const scout = SPACE_SHIPS.scout;
+  const scout = registry.getShip('scout');
 
   assertEqual(scout.turrets.length, 1, 'Scout should have 1 turret');
   assertEqual(scout.turrets[0].type, 'triple', 'Turret should be triple');
@@ -191,17 +199,17 @@ test('Scout has 1 triple turret with pulse_laser', () => {
   assertTrue(scout.turrets[0].weapons.includes('missile_rack'), 'Should have missile_rack (stubbed)');
 });
 
-test('Free Trader definition: hull=30, armour=2, thrust=1', () => {
-  const trader = SPACE_SHIPS.free_trader;
+test('Free Trader definition: hull=80, armour=2, thrust=1', () => {
+  const trader = registry.getShip('free_trader');
 
-  assertEqual(trader.maxHull, 30, 'Free Trader should have 30 hull');
-  assertEqual(trader.hull, 30, 'Free Trader should start at full hull');
+  assertEqual(trader.maxHull, 80, 'Free Trader should have 80 hull');
+  assertEqual(trader.hull, 80, 'Free Trader should start at full hull');
   assertEqual(trader.armour, 2, 'Free Trader should have 2 armour');
   assertEqual(trader.thrust, 1, 'Free Trader should have 1 thrust');
 });
 
 test('Free Trader has 2 single turrets with beam_laser', () => {
-  const trader = SPACE_SHIPS.free_trader;
+  const trader = registry.getShip('free_trader');
 
   assertEqual(trader.turrets.length, 2, 'Free Trader should have 2 turrets');
   assertEqual(trader.turrets[0].type, 'single', 'Turret should be single');
@@ -211,15 +219,15 @@ test('Free Trader has 2 single turrets with beam_laser', () => {
 });
 
 test('Ship type validation', () => {
-  assertTrue(SPACE_SHIPS.scout, 'Scout should exist');
-  assertTrue(SPACE_SHIPS.free_trader, 'Free Trader should exist');
+  assertTrue(registry.getShip('scout'), 'Scout should exist');
+  assertTrue(registry.getShip('free_trader'), 'Free Trader should exist');
 });
 
 test('calculateCritThresholds generates correct array', () => {
-  const thresholds = calculateCritThresholds(20);
+  const thresholds = calculateCritThresholds(40);
 
-  // For 20 hull: [18, 16, 14, 12, 10, 8, 6, 4, 2]
-  assertArrayEqual(thresholds, [18, 16, 14, 12, 10, 8, 6, 4, 2],
+  // For 40 hull: [36, 32, 28, 24, 20, 16, 12, 8, 4]
+  assertArrayEqual(thresholds, [36, 32, 28, 24, 20, 16, 12, 8, 4],
     'Should generate 10% thresholds');
 });
 
