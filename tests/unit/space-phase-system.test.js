@@ -5,14 +5,13 @@
 const {
   calculateInitiative,
   allocateThrust,
-  canActInPhase,
-  canFireWeapon,
-  canUsePointDefense,
-  resetRoundFlags,
   getCurrentPhase,
   advancePhase,
-  getInitiativeOrder
-} = require('../../lib/combat');
+  getCurrentRound,
+  getInitiativeOrder,
+  getRemainingThrust,
+  resetPhaseState
+} = require('../../lib/phase-system');
 
 console.log('========================================');
 console.log('SPACE COMBAT PHASE SYSTEM TESTS');
@@ -214,6 +213,9 @@ test('Order: Large fleet (10 ships)', () => {
 // ============================================================
 console.log('\n--- USE CASE 3: Phase Sequencing (10 tests) ---\n');
 
+// Reset global phase state before phase tests
+resetPhaseState();
+
 test('Phase: Initial phase is Manoeuvre', () => {
   const phase = getCurrentPhase();
   assertEqual(phase, 'manoeuvre', 'Round should start with Manoeuvre phase');
@@ -261,6 +263,7 @@ test('Phase: Cannot skip phases', () => {
 });
 
 test('Phase: Multiple rounds cycle correctly', () => {
+  resetPhaseState(); // Ensure clean starting state
   // Advance through 3 full rounds
   for (let round = 0; round < 3; round++) {
     assertEqual(getCurrentPhase(), 'manoeuvre');
@@ -365,8 +368,8 @@ test('Thrust: High-thrust ship (6 thrust)', () => {
 console.log('\n========================================');
 console.log('PHASE SYSTEM TEST RESULTS');
 console.log('========================================');
-console.log(`PASSED: ${passCount}/50`);
-console.log(`FAILED: ${failCount}/50`);
+console.log(`PASSED: ${passCount}/40`);
+console.log(`FAILED: ${failCount}/40`);
 
 if (failCount === 0) {
   console.log('\n✅ ALL TESTS PASSED');

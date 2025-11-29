@@ -9,8 +9,11 @@ const {
   canRepairSystem,
   resetRoundFlags,
   isShipDestroyed,
-  isSystemDisabled
-} = require('../../lib/combat');
+  isSystemDisabled,
+  getAttackDM,
+  getEffectiveThrust,
+  repairSystem
+} = require('../../lib/phase-system');
 
 console.log('========================================');
 console.log('ROLE GATING & EDGE CASES TESTS');

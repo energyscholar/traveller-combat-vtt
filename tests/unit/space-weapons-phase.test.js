@@ -9,7 +9,7 @@ const {
   usePointDefense,
   resetTurretFlags,
   getTurretStatus
-} = require('../../lib/combat');
+} = require('../../lib/phase-system');
 
 console.log('========================================');
 console.log('WEAPON SYSTEMS & POINT DEFENSE TESTS');
