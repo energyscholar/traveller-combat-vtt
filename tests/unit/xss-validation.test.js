@@ -226,8 +226,8 @@ test('Strip parentheses and brackets', () => {
 
 test('Handle multiple consecutive spaces', () => {
   const result = validateShipName('Scout    Ship');
-  // Current implementation preserves spaces, then trims edges
-  assertEqual(result, 'Scout    Ship');
+  // Multiple consecutive spaces should be collapsed to single space
+  assertEqual(result, 'Scout Ship');
 });
 
 test('Handle numbers in names', () => {
