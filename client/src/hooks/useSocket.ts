@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useGame } from '../context/GameContext';
+import { clientLogger } from '../utils/clientLogger';
 
 export function useSocket() {
   const { updateGameState, addLogEntry } = useGame();
@@ -15,6 +16,10 @@ export function useSocket() {
     socket.on('connect', () => {
       console.log('[Socket] Connected:', socket.id);
       updateGameState({ connected: true, socketId: socket.id });
+
+      // Initialize client logger with socket connection
+      clientLogger.init(socket);
+      clientLogger.info('Socket connected', { socketId: socket.id });
     });
 
     socket.on('disconnect', () => {
