@@ -3,6 +3,7 @@ import { useSocket } from '../hooks/useSocket';
 import CombatLog from './CombatLog';
 import HexGrid, { type Ship } from './HexGrid';
 import TurnIndicator from './TurnIndicator';
+import WeaponSelector from './WeaponSelector';
 import { hexDistance, rangeFromDistance, type HexPosition } from '../utils/hexGrid';
 
 export default function CombatScreen() {
@@ -74,6 +75,9 @@ export default function CombatScreen() {
           onHexClick={handleHexClick}
         />
       </div>
+
+      {/* Weapon Selector */}
+      <WeaponSelector />
 
       {/* Combat Actions */}
       <div style={{marginBottom: '20px'}}>
