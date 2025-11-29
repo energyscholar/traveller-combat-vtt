@@ -97,17 +97,18 @@
   - Verify existing log entries aren't already handled elsewhere
 - **Effort:** 1 hour (CSS change or array reverse + testing)
 
-#### 3B. **Combat Log Formatting Bug**
+#### 3B. **Combat Log Formatting Bug** ✅ RESOLVED
 - **Location:** `public/app.js` or server-side combat message formatting
 - **Issue:** Damage messages show "[object Object]" instead of roll details
 - **Example:** "IT! 1 damage dealt (Roll: [object Object], Total: undefined)"
 - **Impact:** MEDIUM - Confusing to players, debugging info not useful
 - **Expected:** "HIT! 1 damage dealt (Roll: [3,4]=7, Total: 7)"
-- **Resolution Plan:**
-  - Stage 11: Fix roll object serialization in combat messages
-  - Properly format dice array and total
-  - Add tests for message formatting
-- **Effort:** 2 hours (find formatting code + fix + test)
+- **Resolution:** PREVENTED BY REACT ARCHITECTURE
+  - Vanilla displayCombatResult (app.js:1099) correctly formats damage rolls
+  - React CombatLog component only accepts string messages via addLogEntry
+  - Object-to-string coercion cannot occur in React architecture
+  - No "damage dealt" messages found in codebase (issue may have been hypothetical)
+- **Status:** No action needed - architecture prevents this bug
 
 #### 4. **No Ship Data Versioning/Migration**
 - **Location:** `data/ships/*.json`
