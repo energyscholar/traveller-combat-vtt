@@ -161,15 +161,37 @@ export function useSocket() {
 
     socket.on('moveResult', (data) => {
       console.log('[Socket] Movement completed:', data);
+      const details = data.distance && data.newRange
+        ? `Moved ${Math.floor(data.distance)} hexes. New range: ${data.newRange}`
+        : undefined;
       addLogEntry(
         `${data.ship?.toUpperCase()} Moved`,
         'info'
       );
+      if (details) {
+        addLogEntry(details, 'system');
+      }
     });
 
     socket.on('moveError', (data) => {
       console.error('[Socket] Movement error:', data);
       addLogEntry(data.message || 'Movement failed', 'error');
+    });
+
+    // Ship state updates (hull + position changes)
+    socket.on('shipStateUpdate', (data) => {
+      console.log('[Socket] Ship state update:', data);
+
+      // Update ship positions on grid
+      if (data.ships && (data.ships.scout?.position || data.ships.corsair?.position)) {
+        updateGameState(prev => ({
+          shipPositions: {
+            ...prev.shipPositions,
+            ...(data.ships.scout?.position && { scout: data.ships.scout.position }),
+            ...(data.ships.corsair?.position && { corsair: data.ships.corsair.position }),
+          },
+        }));
+      }
     });
 
     // Cleanup on unmount
@@ -197,6 +219,7 @@ export function useSocket() {
       socket.off('repairError');
       socket.off('moveResult');
       socket.off('moveError');
+      socket.off('shipStateUpdate');
       socket.disconnect();
     };
   }, [updateGameState, addLogEntry]);

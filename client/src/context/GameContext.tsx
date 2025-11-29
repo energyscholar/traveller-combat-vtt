@@ -3,7 +3,7 @@ import type { GameState, LogEntry } from '../types/game-state';
 
 interface GameContextType {
   gameState: GameState;
-  updateGameState: (updates: Partial<GameState>) => void;
+  updateGameState: (updates: Partial<GameState> | ((prev: GameState) => Partial<GameState>)) => void;
   addLogEntry: (message: string, type?: LogEntry['type']) => void;
   resetGameState: () => void;
 }
@@ -56,8 +56,12 @@ const initialGameState: GameState = {
 export function GameProvider({ children }: { children: ReactNode }) {
   const [gameState, setGameState] = useState<GameState>(initialGameState);
 
-  const updateGameState = useCallback((updates: Partial<GameState>) => {
-    setGameState(prev => ({ ...prev, ...updates }));
+  const updateGameState = useCallback((updates: Partial<GameState> | ((prev: GameState) => Partial<GameState>)) => {
+    if (typeof updates === 'function') {
+      setGameState(prev => ({ ...prev, ...updates(prev) }));
+    } else {
+      setGameState(prev => ({ ...prev, ...updates }));
+    }
   }, []);
 
   const addLogEntry = useCallback((message: string, type: LogEntry['type'] = 'info') => {
