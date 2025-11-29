@@ -2,6 +2,7 @@ import { useGame } from '../context/GameContext';
 import { useSocket } from '../hooks/useSocket';
 import CombatLog from './CombatLog';
 import HexGrid, { type Ship } from './HexGrid';
+import TurnIndicator from './TurnIndicator';
 import { hexDistance, rangeFromDistance, type HexPosition } from '../utils/hexGrid';
 
 export default function CombatScreen() {
@@ -59,9 +60,11 @@ export default function CombatScreen() {
         <p>Player: {gameState.playerNumber}</p>
         <p>Ship: {gameState.playerShip}</p>
         <p>Mode: {gameState.mode}</p>
-        <p>Turn: {gameState.currentTurn}</p>
         <p>Range: {range} ({Math.floor(distance)} hexes)</p>
       </div>
+
+      {/* Turn Indicator */}
+      <TurnIndicator />
 
       {/* Hex Grid */}
       <div style={{marginBottom: '20px'}}>
