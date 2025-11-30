@@ -307,6 +307,23 @@ case 'astrogator':
 
 ---
 
+## TODO: Future - Refueling System
+
+**Not in this autorun - tracked for Stage 8+**
+
+Refueling options needed:
+1. **Starport Purchase** - Buy refined fuel at starport (Cr500/ton)
+2. **Wilderness Refueling** - Scoop water from ocean/ice (free, unrefined)
+3. **Gas Giant Skimming** - Scoop hydrogen from gas giant (free, unrefined)
+
+Unrefined fuel rules:
+- Works but with penalty until processed
+- Risk of misjump (DM-2 to jump check)
+- Can be refined by ship's fuel processor (if equipped)
+- Processing time: 1 ton per hour typically
+
+---
+
 ## Success Criteria
 
 - [ ] Engineer can see damaged systems

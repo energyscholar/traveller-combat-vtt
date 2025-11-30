@@ -268,6 +268,7 @@
         <div class="gm-controls">
           <button id="btn-gm-advance-time" class="btn">Advance Time</button>
           <button id="btn-gm-add-contact" class="btn">Add Contact</button>
+          <button id="btn-gm-damage" class="btn btn-warning">System Damage</button>
           <button id="btn-gm-initiative" class="btn btn-warning">Call Initiative</button>
           <button id="btn-gm-combat" class="btn btn-danger">Start Combat</button>
         </div>
@@ -481,6 +482,50 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Cancel</button>
       <button class="btn btn-primary" id="btn-save-contact">Add Contact</button>
+    </div>
+  </template>
+
+  <!-- Apply System Damage Modal Template (GM) -->
+  <template id="template-apply-damage">
+    <div class="modal-header">
+      <h2>Apply System Damage</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="damage-system">System:</label>
+        <select id="damage-system">
+          <option value="mDrive">M-Drive</option>
+          <option value="powerPlant">Power Plant</option>
+          <option value="jDrive">J-Drive</option>
+          <option value="sensors">Sensors</option>
+          <option value="computer">Computer</option>
+          <option value="armour">Armour</option>
+          <option value="weapon">Weapons</option>
+          <option value="fuel">Fuel</option>
+          <option value="cargo">Cargo</option>
+          <option value="crew">Crew</option>
+          <option value="hull">Hull</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="damage-severity">Severity (1-6):</label>
+        <input type="number" id="damage-severity" min="1" max="6" value="1">
+        <div class="form-help">
+          1-2: Minor damage, 3-4: Major damage, 5-6: Critical/Disabled
+        </div>
+      </div>
+      <div class="damage-effects-preview">
+        <h4>Effects Preview</h4>
+        <div id="damage-preview-content">
+          Select a system to see effects
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal>Cancel</button>
+      <button class="btn btn-warning" id="btn-apply-damage">Apply Damage</button>
+      <button class="btn btn-success" id="btn-clear-damage">Clear All Damage</button>
     </div>
   </template>
 

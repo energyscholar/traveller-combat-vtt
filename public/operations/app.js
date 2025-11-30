@@ -171,6 +171,10 @@ function initSocket() {
     state.selectedRole = data.role;
     showScreen('bridge');
     renderBridge();
+    // Request system status for engineer panel
+    requestSystemStatus();
+    // Request jump status for astrogator panel
+    requestJumpStatus();
   });
 
   state.socket.on('ops:crewOnBridge', (data) => {
@@ -238,6 +242,89 @@ function initSocket() {
     state.contacts = data.contacts;
     renderContacts();
     showNotification(`Sensor scan complete: ${data.contacts.length} contacts`, 'info');
+  });
+
+  // Ship Systems events
+  state.socket.on('ops:systemStatus', (data) => {
+    state.systemStatus = data.systemStatus;
+    state.damagedSystems = data.damagedSystems;
+    if (state.role === 'engineer' || state.role === 'damage_control') {
+      renderRoleDetailPanel(state.role);
+    }
+  });
+
+  state.socket.on('ops:systemDamaged', (data) => {
+    state.systemStatus = data.systemStatus;
+    state.damagedSystems = Object.keys(data.systemStatus).filter(s =>
+      data.systemStatus[s]?.totalSeverity > 0
+    );
+    showNotification(`System damage: ${formatSystemName(data.location)} (Severity ${data.severity})`, 'warning');
+    if (state.role === 'engineer' || state.role === 'damage_control') {
+      renderRoleDetailPanel(state.role);
+    }
+  });
+
+  state.socket.on('ops:repairAttempted', (data) => {
+    state.systemStatus = data.systemStatus;
+    state.damagedSystems = Object.keys(data.systemStatus).filter(s =>
+      data.systemStatus[s]?.totalSeverity > 0
+    );
+    const notifType = data.success ? 'success' : 'warning';
+    showNotification(data.message, notifType);
+    if (state.role === 'engineer' || state.role === 'damage_control') {
+      renderRoleDetailPanel(state.role);
+    }
+  });
+
+  state.socket.on('ops:systemDamageCleared', (data) => {
+    state.systemStatus = data.systemStatus;
+    state.damagedSystems = Object.keys(data.systemStatus).filter(s =>
+      data.systemStatus[s]?.totalSeverity > 0
+    );
+    showNotification(`Damage cleared: ${data.location === 'all' ? 'all systems' : formatSystemName(data.location)}`, 'success');
+    if (state.role === 'engineer' || state.role === 'damage_control') {
+      renderRoleDetailPanel(state.role);
+    }
+  });
+
+  // Jump events
+  state.socket.on('ops:jumpStatus', (data) => {
+    state.jumpStatus = data;
+    if (state.role === 'astrogator' || state.role === 'pilot') {
+      renderRoleDetailPanel(state.role);
+    }
+  });
+
+  state.socket.on('ops:jumpInitiated', (data) => {
+    state.jumpStatus = {
+      inJump: true,
+      jumpStartDate: data.jumpStartDate,
+      jumpEndDate: data.jumpEndDate,
+      destination: data.destination,
+      jumpDistance: data.distance,
+      hoursRemaining: 168,
+      canExit: false
+    };
+    // Update ship fuel
+    if (state.ship?.current_state) {
+      state.ship.current_state.fuel = data.fuelRemaining;
+    }
+    showNotification(`Jump initiated to ${data.destination}. ETA: ${data.jumpEndDate}`, 'info');
+    renderRoleDetailPanel(state.role);
+    renderShipStatus();
+  });
+
+  state.socket.on('ops:jumpCompleted', (data) => {
+    state.jumpStatus = { inJump: false };
+    state.campaign.current_system = data.arrivedAt;
+    showNotification(`Arrived at ${data.arrivedAt}`, 'success');
+    renderRoleDetailPanel(state.role);
+    renderBridge();
+  });
+
+  state.socket.on('ops:locationChanged', (data) => {
+    state.campaign.current_system = data.newLocation;
+    renderBridge();
   });
 
   // Error handling
@@ -719,6 +806,14 @@ function initGMControls() {
       });
     }
   });
+
+  // System damage button (if exists)
+  const damageBtn = document.getElementById('btn-gm-damage');
+  if (damageBtn) {
+    damageBtn.addEventListener('click', () => {
+      showModal('template-apply-damage');
+    });
+  }
 }
 
 function renderBridge() {
@@ -853,35 +948,36 @@ function getRoleDetailContent(role, shipState, template) {
       const maxPower = template.powerPlant || 100;
       const currentPower = shipState.power ?? maxPower;
       const powerPercent = Math.round((currentPower / maxPower) * 100);
+      const systemStatus = state.systemStatus || {};
+      const damagedSystems = state.damagedSystems || [];
       return `
         <div class="detail-section">
-          <h4>Power Grid</h4>
-          <div class="detail-stats">
-            <div class="stat-row">
-              <span>Power Plant:</span>
-              <span class="stat-value">${powerPercent}%</span>
-            </div>
-            <div class="stat-row">
-              <span>Status:</span>
-              <span class="stat-value ${shipState.powerPlantStatus === 'damaged' ? 'text-warning' : ''}">${shipState.powerPlantStatus || 'Operational'}</span>
-            </div>
+          <h4>System Status</h4>
+          <div class="system-status-grid">
+            ${renderSystemStatusItem('M-Drive', systemStatus.mDrive)}
+            ${renderSystemStatusItem('Power Plant', systemStatus.powerPlant)}
+            ${renderSystemStatusItem('J-Drive', systemStatus.jDrive)}
+            ${renderSystemStatusItem('Sensors', systemStatus.sensors)}
+            ${renderSystemStatusItem('Computer', systemStatus.computer)}
+            ${renderSystemStatusItem('Armour', systemStatus.armour)}
           </div>
         </div>
+        ${damagedSystems.length > 0 ? `
         <div class="detail-section">
-          <h4>Drive Systems</h4>
-          <div class="detail-stats">
-            <div class="stat-row">
-              <span>M-Drive:</span>
-              <span class="stat-value">${shipState.mDriveStatus || 'Operational'}</span>
-            </div>
-            <div class="stat-row">
-              <span>J-Drive:</span>
-              <span class="stat-value">${shipState.jDriveStatus || 'Operational'}</span>
-            </div>
+          <h4>Repair Actions</h4>
+          <div class="repair-controls">
+            <select id="repair-target" class="repair-select">
+              ${damagedSystems.map(s => `<option value="${s}">${formatSystemName(s)}</option>`).join('')}
+            </select>
+            <button onclick="attemptRepair()" class="btn btn-small">Attempt Repair</button>
+          </div>
+          <div class="repair-info">
+            <small>Engineer check (8+) with DM = -Severity</small>
           </div>
         </div>
+        ` : ''}
         <div class="detail-section">
-          <h4>Fuel</h4>
+          <h4>Fuel Status</h4>
           <div class="detail-stats">
             <div class="stat-row">
               <span>Fuel:</span>
@@ -990,6 +1086,39 @@ function getRoleDetailContent(role, shipState, template) {
       `;
 
     case 'astrogator':
+      const jumpStatus = state.jumpStatus || {};
+      const jumpRating = template.jumpRating || 2;
+      const fuelAvailable = shipState.fuel ?? template.fuel ?? 40;
+
+      if (jumpStatus.inJump) {
+        return `
+          <div class="detail-section jump-in-progress">
+            <h4>IN JUMP SPACE</h4>
+            <div class="jump-status-display">
+              <div class="stat-row">
+                <span>Destination:</span>
+                <span class="stat-value">${jumpStatus.destination}</span>
+              </div>
+              <div class="stat-row">
+                <span>Jump Distance:</span>
+                <span class="stat-value">J-${jumpStatus.jumpDistance}</span>
+              </div>
+              <div class="stat-row">
+                <span>ETA:</span>
+                <span class="stat-value">${jumpStatus.jumpEndDate}</span>
+              </div>
+              <div class="stat-row">
+                <span>Time Remaining:</span>
+                <span class="stat-value">${jumpStatus.hoursRemaining} hours</span>
+              </div>
+            </div>
+            ${jumpStatus.canExit ? `
+              <button onclick="completeJump()" class="btn btn-primary">Exit Jump Space</button>
+            ` : ''}
+          </div>
+        `;
+      }
+
       return `
         <div class="detail-section">
           <h4>Navigation</h4>
@@ -1000,21 +1129,37 @@ function getRoleDetailContent(role, shipState, template) {
             </div>
             <div class="stat-row">
               <span>Jump Drive:</span>
-              <span class="stat-value">${shipState.jDriveStatus || 'Operational'}</span>
+              <span class="stat-value">${state.systemStatus?.jDrive?.disabled ? 'DAMAGED' : 'Operational'}</span>
             </div>
             <div class="stat-row">
               <span>Jump Rating:</span>
-              <span class="stat-value">J-${template.jumpRating || 2}</span>
+              <span class="stat-value">J-${jumpRating}</span>
+            </div>
+            <div class="stat-row">
+              <span>Fuel Available:</span>
+              <span class="stat-value">${fuelAvailable} tons</span>
             </div>
           </div>
         </div>
         <div class="detail-section">
-          <h4>Course</h4>
-          <div class="detail-stats">
-            <div class="stat-row">
-              <span>Plotted Jump:</span>
-              <span class="stat-value">${shipState.plottedJump || 'None'}</span>
+          <h4>Plot Jump</h4>
+          <div class="jump-controls">
+            <div class="form-group">
+              <label for="jump-destination">Destination:</label>
+              <input type="text" id="jump-destination" placeholder="System name" class="jump-input">
             </div>
+            <div class="form-group">
+              <label for="jump-distance">Distance:</label>
+              <select id="jump-distance" class="jump-select" onchange="updateFuelEstimate()">
+                ${[...Array(jumpRating)].map((_, i) => `
+                  <option value="${i+1}">Jump-${i+1} (${i+1} parsec${i > 0 ? 's' : ''})</option>
+                `).join('')}
+              </select>
+            </div>
+            <div class="fuel-estimate">
+              Fuel required: <span id="fuel-estimate">--</span> tons
+            </div>
+            <button onclick="initiateJump()" class="btn btn-primary">Initiate Jump</button>
           </div>
         </div>
       `;
@@ -1186,6 +1331,109 @@ function formatRangeBand(band) {
   return labels[band] || band;
 }
 
+// ==================== Ship Systems ====================
+
+function formatSystemName(system) {
+  const names = {
+    mDrive: 'M-Drive',
+    jDrive: 'J-Drive',
+    powerPlant: 'Power Plant',
+    sensors: 'Sensors',
+    computer: 'Computer',
+    armour: 'Armour',
+    weapon: 'Weapons',
+    fuel: 'Fuel',
+    cargo: 'Cargo',
+    crew: 'Crew',
+    hull: 'Hull'
+  };
+  return names[system] || system;
+}
+
+function renderSystemStatusItem(name, status) {
+  if (!status) {
+    return `
+      <div class="system-status-item operational">
+        <span class="system-name">${name}</span>
+        <span class="system-state">Operational</span>
+      </div>
+    `;
+  }
+
+  const severity = status.totalSeverity || 0;
+  const statusClass = severity === 0 ? 'operational' : severity <= 2 ? 'damaged' : 'critical';
+  const statusText = severity === 0 ? 'Operational' :
+                     status.disabled ? 'DISABLED' :
+                     status.message || `Damaged (Sev ${severity})`;
+
+  return `
+    <div class="system-status-item ${statusClass}">
+      <span class="system-name">${name}</span>
+      <span class="system-state">${statusText}</span>
+      ${severity > 0 ? `<span class="system-severity">Sev ${severity}</span>` : ''}
+    </div>
+  `;
+}
+
+function attemptRepair() {
+  const target = document.getElementById('repair-target')?.value;
+  if (!target) {
+    showNotification('No system selected', 'error');
+    return;
+  }
+
+  // Get engineer skill from character (default 0)
+  const engineerSkill = state.character?.skills?.engineer || 0;
+
+  state.socket.emit('ops:repairSystem', {
+    location: target,
+    engineerSkill
+  });
+}
+
+function requestSystemStatus() {
+  if (state.socket && state.shipId) {
+    state.socket.emit('ops:getSystemStatus');
+  }
+}
+
+// ==================== Jump Travel ====================
+
+function requestJumpStatus() {
+  if (state.socket && state.shipId) {
+    state.socket.emit('ops:getJumpStatus');
+  }
+}
+
+function updateFuelEstimate() {
+  const distance = parseInt(document.getElementById('jump-distance')?.value) || 1;
+  const hullTonnage = state.ship?.template_data?.tonnage || 100;
+  const fuelNeeded = Math.round(hullTonnage * distance * 0.1);
+  const estimateEl = document.getElementById('fuel-estimate');
+  if (estimateEl) {
+    estimateEl.textContent = fuelNeeded;
+  }
+}
+
+function initiateJump() {
+  const destination = document.getElementById('jump-destination')?.value?.trim();
+  const distance = parseInt(document.getElementById('jump-distance')?.value) || 1;
+
+  if (!destination) {
+    showNotification('Please enter a destination', 'error');
+    return;
+  }
+
+  state.socket.emit('ops:initiateJump', {
+    destination,
+    distance
+  });
+}
+
+function completeJump() {
+  state.socket.emit('ops:completeJump');
+}
+
 function renderShipLog() {
   const container = document.getElementById('ship-log');
 
@@ -1310,11 +1558,40 @@ function showModal(templateId) {
     });
   }
 
+  if (templateId === 'template-apply-damage') {
+    // Apply damage button
+    document.getElementById('btn-apply-damage').addEventListener('click', () => {
+      const system = document.getElementById('damage-system').value;
+      const severity = parseInt(document.getElementById('damage-severity').value) || 1;
+      applySystemDamage(system, severity);
+      closeModal();
+    });
+
+    // Clear all damage button
+    document.getElementById('btn-clear-damage').addEventListener('click', () => {
+      if (confirm('Clear all damage from this ship?')) {
+        state.socket.emit('ops:clearSystemDamage', {
+          shipId: state.shipId,
+          location: 'all'
+        });
+        closeModal();
+      }
+    });
+  }
+
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
 function addContact(contactData) {
   state.socket.emit('ops:addContact', contactData);
+}
+
+function applySystemDamage(system, severity) {
+  state.socket.emit('ops:applySystemDamage', {
+    shipId: state.shipId,
+    location: system,
+    severity
+  });
 }
 
 function advanceTime(hours, minutes) {
