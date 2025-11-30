@@ -667,6 +667,9 @@ function renderBridge() {
   // Date/time
   document.getElementById('bridge-date').textContent = state.campaign?.current_date || '???';
 
+  // Ship status bar
+  renderShipStatus();
+
   // Role panel
   const roleConfig = getRoleConfig(state.selectedRole);
   document.getElementById('role-panel-title').textContent = roleConfig.name;
@@ -688,6 +691,34 @@ function renderBridge() {
   if (state.isGM) {
     document.getElementById('gm-overlay').classList.remove('hidden');
   }
+}
+
+function renderShipStatus() {
+  const shipState = state.ship?.current_state || {};
+  const template = state.ship?.template_data || {};
+
+  // Hull
+  const maxHull = template.hull || 100;
+  const currentHull = shipState.hull ?? maxHull;
+  const hullPercent = Math.round((currentHull / maxHull) * 100);
+  document.getElementById('hull-bar').style.width = `${hullPercent}%`;
+  document.getElementById('hull-value').textContent = `${hullPercent}%`;
+
+  // Fuel
+  const maxFuel = template.fuel || 40;
+  const currentFuel = shipState.fuel ?? maxFuel;
+  const fuelPercent = Math.round((currentFuel / maxFuel) * 100);
+  document.getElementById('fuel-bar').style.width = `${fuelPercent}%`;
+  document.getElementById('fuel-value').textContent = `${currentFuel}/${maxFuel}`;
+
+  // Power
+  const powerPercent = shipState.powerPercent ?? 100;
+  document.getElementById('power-bar').style.width = `${powerPercent}%`;
+  document.getElementById('power-value').textContent = `${powerPercent}%`;
+
+  // Location
+  const location = state.campaign?.current_system || 'Unknown';
+  document.getElementById('location-value').textContent = location;
 }
 
 function renderRoleActions(roleConfig) {

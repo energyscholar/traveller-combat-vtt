@@ -532,6 +532,77 @@ input[type="checkbox"] {
   background: currentColor;
 }
 
+/* Ship Status Bar */
+.ship-status-bar {
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  max-width: 200px;
+}
+
+.status-item.location-item {
+  flex: none;
+  max-width: none;
+  margin-left: auto;
+}
+
+.status-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 45px;
+}
+
+.status-bar-container {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.status-bar {
+  height: 100%;
+  transition: width 0.3s ease, background 0.3s ease;
+  border-radius: var(--radius-sm);
+}
+
+.status-bar.hull-bar {
+  background: linear-gradient(90deg, var(--alert-red), var(--alert-yellow), var(--alert-normal));
+  background-size: 300% 100%;
+  background-position: 100% 0;
+}
+
+.status-bar.fuel-bar {
+  background: var(--accent-cyan);
+}
+
+.status-bar.power-bar {
+  background: var(--alert-yellow);
+}
+
+.status-value {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  min-width: 50px;
+  text-align: right;
+}
+
+.status-value.location-value {
+  color: var(--text-primary);
+  font-family: var(--font-primary);
+}
+
 /* Bridge Main Layout */
 .bridge-main {
   flex: 1;
