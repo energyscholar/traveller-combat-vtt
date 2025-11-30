@@ -490,6 +490,23 @@ input[type="checkbox"] {
   color: var(--text-secondary);
 }
 
+.guest-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.guest-badge {
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-sm);
+  color: var(--accent-orange);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .alert-status {
   display: flex;
   align-items: center;
@@ -737,6 +754,95 @@ input[type="checkbox"] {
   border-top: 1px solid var(--border-color);
 }
 
+/* Role Detail Panel Content */
+.detail-section {
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.detail-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.detail-section h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+}
+
+.detail-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stat-row span:first-child {
+  color: var(--text-secondary);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.stat-value.text-warning {
+  color: var(--accent-orange);
+}
+
+.weapons-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.weapon-item {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-dark);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.weapon-name {
+  font-weight: 500;
+}
+
+.weapon-status {
+  color: var(--accent-green);
+}
+
+.damage-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.damage-item {
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(255, 193, 7, 0.1);
+  border-left: 2px solid var(--accent-orange);
+  font-size: 12px;
+}
+
+.placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
 #btn-toggle-detail {
   margin: var(--space-sm);
   text-align: center;
@@ -846,6 +952,166 @@ input[type="checkbox"] {
   justify-content: center;
   gap: var(--space-md);
   flex-wrap: wrap;
+}
+
+/* Time Advance Modal */
+.time-quick-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.time-quick-buttons .btn {
+  padding: var(--space-md);
+  font-size: 14px;
+}
+
+.time-custom {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-md);
+}
+
+.time-custom h4 {
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.time-custom-inputs {
+  display: flex;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-md);
+}
+
+.form-group.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.form-group.inline input {
+  width: 80px;
+  text-align: center;
+}
+
+.form-group.inline label {
+  margin-bottom: 0;
+  color: var(--text-secondary);
+}
+
+/* Contact Modal */
+.contact-quick-add {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.contact-quick-add .btn {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 13px;
+}
+
+.contact-form .form-row {
+  display: flex;
+  gap: var(--space-md);
+}
+
+.contact-form .form-row .form-group {
+  flex: 1;
+}
+
+/* Sensor Panel Contacts */
+.sensor-contacts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-dark);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.contact-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.contact-item.contact-close {
+  border-left-color: var(--accent-red);
+}
+
+.contact-item.contact-medium {
+  border-left-color: var(--accent-orange);
+}
+
+.contact-item.contact-long {
+  border-left-color: var(--accent-green);
+}
+
+.contact-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-details {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.contact-range {
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.contact-range .range-band {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* GM contact controls */
+.contact-gm-controls {
+  display: flex;
+  gap: var(--space-xs);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.contact-item:hover .contact-gm-controls {
+  opacity: 1;
+}
+
+.contact-gm-controls .btn {
+  padding: 2px 6px;
+  font-size: 10px;
 }
 
 /* ==================== Modals ==================== */

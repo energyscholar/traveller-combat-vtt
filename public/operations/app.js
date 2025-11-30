@@ -25,6 +25,7 @@ const state = {
   ships: [],
   selectedShipId: null,
   selectedRole: null,
+  selectedRoleInstance: 1,
 
   // Bridge state
   contacts: [],
@@ -208,6 +209,35 @@ function initSocket() {
   state.socket.on('ops:shipDeleted', (data) => {
     state.ships = state.ships.filter(s => s.id !== data.shipId);
     renderGMSetup();
+  });
+
+  // Contact events
+  state.socket.on('ops:contacts', (data) => {
+    state.contacts = data.contacts;
+    renderContacts();
+  });
+
+  state.socket.on('ops:contactAdded', (data) => {
+    state.contacts.push(data.contact);
+    renderContacts();
+    showNotification(`Contact added: ${data.contact.name || data.contact.type}`, 'info');
+  });
+
+  state.socket.on('ops:contactUpdated', (data) => {
+    const idx = state.contacts.findIndex(c => c.id === data.contact.id);
+    if (idx >= 0) state.contacts[idx] = data.contact;
+    renderContacts();
+  });
+
+  state.socket.on('ops:contactDeleted', (data) => {
+    state.contacts = state.contacts.filter(c => c.id !== data.contactId);
+    renderContacts();
+  });
+
+  state.socket.on('ops:scanResult', (data) => {
+    state.contacts = data.contacts;
+    renderContacts();
+    showNotification(`Sensor scan complete: ${data.contacts.length} contacts`, 'info');
   });
 
   // Error handling
@@ -551,7 +581,7 @@ function renderPlayerSetup() {
 
 function renderRoleSelection() {
   const container = document.getElementById('role-select-list');
-  const roles = [
+  const baseRoles = [
     { id: 'pilot', name: 'Pilot', desc: 'Navigation, maneuvering, docking' },
     { id: 'captain', name: 'Captain', desc: 'Command, tactics, leadership' },
     { id: 'astrogator', name: 'Astrogator', desc: 'Jump plotting, navigation' },
@@ -565,19 +595,55 @@ function renderRoleSelection() {
     { id: 'cargo_master', name: 'Cargo', desc: 'Cargo operations' }
   ];
 
+  // Get crew requirements from ship template (if available)
+  const crewReqs = state.ship?.template_data?.crew?.minimum || {};
+
+  // Expand roles based on crew requirements
+  const roles = [];
+  for (const r of baseRoles) {
+    const count = crewReqs[r.id] || 1;
+    if (count > 1) {
+      // Multiple instances of this role
+      for (let i = 1; i <= count; i++) {
+        roles.push({
+          id: r.id,
+          instance: i,
+          fullId: `${r.id}:${i}`,
+          name: `${r.name} ${i}`,
+          desc: r.desc
+        });
+      }
+    } else {
+      roles.push({
+        id: r.id,
+        instance: 1,
+        fullId: r.id,
+        name: r.name,
+        desc: r.desc
+      });
+    }
+  }
+
   // Get taken roles (from other players on same ship)
+  // Format: role or role:instance
   const takenRoles = state.players
     .filter(p => p.ship_id === state.selectedShipId && p.id !== state.player?.id)
-    .map(p => ({ role: p.role, name: p.slot_name }));
+    .map(p => ({
+      role: p.role,
+      roleInstance: p.role_instance || 1,
+      fullId: p.role_instance > 1 ? `${p.role}:${p.role_instance}` : p.role,
+      name: p.slot_name
+    }));
 
   container.innerHTML = roles.map(r => {
-    const takenBy = takenRoles.find(t => t.role === r.id);
-    const isSelected = state.selectedRole === r.id;
+    const takenBy = takenRoles.find(t => t.fullId === r.fullId);
+    const isSelected = state.selectedRole === r.id &&
+                       (state.selectedRoleInstance || 1) === r.instance;
     const isTaken = takenBy && !isSelected;
 
     return `
       <div class="role-option ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''}"
-           data-role-id="${r.id}" ${isTaken ? 'disabled' : ''}>
+           data-role-id="${r.id}" data-role-instance="${r.instance}" ${isTaken ? 'disabled' : ''}>
         <div class="role-name">${r.name}</div>
         <div class="role-desc">${r.desc}</div>
         ${takenBy ? `<div class="role-taken-by">Taken by ${escapeHtml(takenBy.name)}</div>` : ''}
@@ -589,9 +655,11 @@ function renderRoleSelection() {
   container.querySelectorAll('.role-option:not(.taken)').forEach(opt => {
     opt.addEventListener('click', () => {
       state.selectedRole = opt.dataset.roleId;
+      state.selectedRoleInstance = parseInt(opt.dataset.roleInstance) || 1;
       state.socket.emit('ops:assignRole', {
         playerId: state.player.id,
-        role: state.selectedRole
+        role: state.selectedRole,
+        roleInstance: state.selectedRoleInstance
       });
     });
   });
@@ -631,18 +699,11 @@ function initBridgeScreen() {
 
 function initGMControls() {
   document.getElementById('btn-gm-advance-time').addEventListener('click', () => {
-    const time = prompt('Advance time by (e.g., "1 hour", "30 minutes"):');
-    if (time) {
-      state.socket.emit('ops:advanceTime', {
-        campaignId: state.campaign.id,
-        amount: time
-      });
-    }
+    showModal('template-time-advance');
   });
 
   document.getElementById('btn-gm-add-contact').addEventListener('click', () => {
-    // TODO: Add contact modal
-    showNotification('Add contact coming soon', 'info');
+    showModal('template-add-contact');
   });
 
   document.getElementById('btn-gm-initiative').addEventListener('click', () => {
@@ -666,6 +727,14 @@ function renderBridge() {
 
   // Date/time
   document.getElementById('bridge-date').textContent = state.campaign?.current_date || '???';
+
+  // Guest indicator
+  const guestIndicator = document.getElementById('guest-indicator');
+  if (state.isGuest) {
+    guestIndicator.classList.remove('hidden');
+  } else {
+    guestIndicator.classList.add('hidden');
+  }
 
   // Ship status bar
   renderShipStatus();
@@ -733,6 +802,258 @@ function renderRoleActions(roleConfig) {
       handleRoleAction(btn.dataset.action);
     });
   });
+
+  // Render role-specific detail panel
+  renderRoleDetailPanel(state.selectedRole);
+}
+
+function renderRoleDetailPanel(role) {
+  const container = document.getElementById('role-detail-view');
+  const shipState = state.ship?.current_state || {};
+  const template = state.ship?.template_data || {};
+
+  // Role-specific content
+  const detailContent = getRoleDetailContent(role, shipState, template);
+  container.innerHTML = detailContent;
+}
+
+function getRoleDetailContent(role, shipState, template) {
+  switch (role) {
+    case 'pilot':
+      return `
+        <div class="detail-section">
+          <h4>Thrust Status</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Thrust Rating:</span>
+              <span class="stat-value">${template.thrust || 2}G</span>
+            </div>
+            <div class="stat-row">
+              <span>Current Vector:</span>
+              <span class="stat-value">${shipState.vector || 'Stationary'}</span>
+            </div>
+            <div class="stat-row">
+              <span>Maneuver Drive:</span>
+              <span class="stat-value ${shipState.mDriveStatus === 'damaged' ? 'text-warning' : ''}">${shipState.mDriveStatus || 'Operational'}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Docking Status</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Status:</span>
+              <span class="stat-value">${shipState.docked ? 'Docked' : 'Free Flight'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'engineer':
+      const maxPower = template.powerPlant || 100;
+      const currentPower = shipState.power ?? maxPower;
+      const powerPercent = Math.round((currentPower / maxPower) * 100);
+      return `
+        <div class="detail-section">
+          <h4>Power Grid</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Power Plant:</span>
+              <span class="stat-value">${powerPercent}%</span>
+            </div>
+            <div class="stat-row">
+              <span>Status:</span>
+              <span class="stat-value ${shipState.powerPlantStatus === 'damaged' ? 'text-warning' : ''}">${shipState.powerPlantStatus || 'Operational'}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Drive Systems</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>M-Drive:</span>
+              <span class="stat-value">${shipState.mDriveStatus || 'Operational'}</span>
+            </div>
+            <div class="stat-row">
+              <span>J-Drive:</span>
+              <span class="stat-value">${shipState.jDriveStatus || 'Operational'}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Fuel</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Fuel:</span>
+              <span class="stat-value">${shipState.fuel ?? template.fuel ?? 40}/${template.fuel || 40} tons</span>
+            </div>
+            <div class="stat-row">
+              <span>Jump Range:</span>
+              <span class="stat-value">${template.jumpRating || 2} parsecs</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'gunner':
+      const weapons = template.weapons || [];
+      const ammo = shipState.ammo || {};
+      return `
+        <div class="detail-section">
+          <h4>Weapons Status</h4>
+          <div class="weapons-list">
+            ${weapons.length > 0 ? weapons.map((w, i) => `
+              <div class="weapon-item">
+                <span class="weapon-name">${w.name || w.id || 'Weapon ' + (i + 1)}</span>
+                <span class="weapon-status">${shipState.weaponStatus?.[i] || 'Ready'}</span>
+              </div>
+            `).join('') : '<div class="placeholder">No weapons configured</div>'}
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Ammunition</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Missiles:</span>
+              <span class="stat-value">${ammo.missiles ?? 12}</span>
+            </div>
+            <div class="stat-row">
+              <span>Sandcaster:</span>
+              <span class="stat-value">${ammo.sandcaster ?? 20}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'captain':
+      return `
+        <div class="detail-section">
+          <h4>Ship Overview</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Ship Class:</span>
+              <span class="stat-value">${template.class || state.ship?.name || 'Unknown'}</span>
+            </div>
+            <div class="stat-row">
+              <span>Tonnage:</span>
+              <span class="stat-value">${template.tonnage || '?'} dT</span>
+            </div>
+            <div class="stat-row">
+              <span>Alert Status:</span>
+              <span class="stat-value">${shipState.alertStatus || 'NORMAL'}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Crew Status</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Online:</span>
+              <span class="stat-value">${state.crewOnline?.length || 0}</span>
+            </div>
+            <div class="stat-row">
+              <span>NPC Crew:</span>
+              <span class="stat-value">${state.ship?.npcCrew?.length || 0}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'sensor_operator':
+      return `
+        <div class="detail-section">
+          <h4>Sensor Status</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Mode:</span>
+              <span class="stat-value">${shipState.sensorMode || 'Passive'}</span>
+            </div>
+            <div class="stat-row">
+              <span>Range:</span>
+              <span class="stat-value">${shipState.sensorRange || 'Standard'}</span>
+            </div>
+            <div class="stat-row">
+              <span>Contacts:</span>
+              <span class="stat-value">${state.contacts?.length || 0}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>EW Status</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Jamming:</span>
+              <span class="stat-value">${shipState.jamming ? 'Active' : 'Inactive'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'astrogator':
+      return `
+        <div class="detail-section">
+          <h4>Navigation</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Current System:</span>
+              <span class="stat-value">${state.campaign?.current_system || 'Unknown'}</span>
+            </div>
+            <div class="stat-row">
+              <span>Jump Drive:</span>
+              <span class="stat-value">${shipState.jDriveStatus || 'Operational'}</span>
+            </div>
+            <div class="stat-row">
+              <span>Jump Rating:</span>
+              <span class="stat-value">J-${template.jumpRating || 2}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Course</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Plotted Jump:</span>
+              <span class="stat-value">${shipState.plottedJump || 'None'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+    case 'damage_control':
+      return `
+        <div class="detail-section">
+          <h4>Hull Integrity</h4>
+          <div class="detail-stats">
+            <div class="stat-row">
+              <span>Hull:</span>
+              <span class="stat-value">${shipState.hull ?? template.hull ?? 100}/${template.hull || 100}</span>
+            </div>
+            <div class="stat-row">
+              <span>Armor:</span>
+              <span class="stat-value">${template.armor || 0}</span>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <h4>Damage Report</h4>
+          <div class="damage-list">
+            ${(shipState.criticals || []).length > 0 ?
+              shipState.criticals.map(c => `<div class="damage-item text-warning">${c}</div>`).join('') :
+              '<div class="placeholder">No damage reported</div>'
+            }
+          </div>
+        </div>
+      `;
+
+    default:
+      // Generic detail view for other roles
+      return `
+        <div class="detail-section">
+          <h4>${formatRoleName(role)} Station</h4>
+          <div class="placeholder">Station details available during operations.</div>
+        </div>
+      `;
+  }
 }
 
 function handleRoleAction(action) {
@@ -794,28 +1115,75 @@ function renderContacts() {
     return;
   }
 
-  container.innerHTML = state.contacts.map(c => `
-    <div class="contact-item" data-contact-id="${c.id}">
-      <span class="contact-icon">${getContactIcon(c.type)}</span>
-      <div class="contact-info">
-        <div class="contact-name">${escapeHtml(c.name || 'Unknown')}</div>
-        <div class="contact-details">Bearing: ${c.bearing}° · ${c.transponder || 'No transponder'}</div>
+  container.innerHTML = state.contacts.map(c => {
+    const rangeClass = getRangeClass(c.range_band);
+    const gmControls = state.isGM ? `
+      <div class="contact-gm-controls">
+        <button class="btn btn-icon btn-delete-contact" data-id="${c.id}" title="Delete">✕</button>
       </div>
-      <div class="contact-range">
-        <div>${formatRange(c.range)}</div>
-        <div>${c.rangeBand || ''}</div>
+    ` : '';
+
+    return `
+      <div class="contact-item ${rangeClass}" data-contact-id="${c.id}">
+        <span class="contact-icon">${getContactIcon(c.type)}</span>
+        <div class="contact-info">
+          <div class="contact-name">${escapeHtml(c.name || c.type)}</div>
+          <div class="contact-details">Bearing: ${c.bearing}° · ${c.transponder || 'No transponder'}</div>
+        </div>
+        <div class="contact-range">
+          <div>${formatRange(c.range_km)}</div>
+          <div class="range-band">${formatRangeBand(c.range_band)}</div>
+        </div>
+        ${gmControls}
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   // Add click handlers for contact selection
   container.querySelectorAll('.contact-item').forEach(item => {
-    item.addEventListener('click', () => {
-      state.socket.emit('ops:selectContact', {
-        contactId: item.dataset.contactId
-      });
+    item.addEventListener('click', (e) => {
+      // Don't select if clicking delete button
+      if (e.target.classList.contains('btn-delete-contact')) return;
+      // TODO: Show contact details
     });
   });
+
+  // GM delete handlers
+  if (state.isGM) {
+    container.querySelectorAll('.btn-delete-contact').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const contactId = btn.dataset.id;
+        state.socket.emit('ops:deleteContact', { contactId });
+      });
+    });
+  }
+}
+
+function getRangeClass(rangeBand) {
+  switch (rangeBand) {
+    case 'adjacent':
+    case 'close':
+    case 'short':
+      return 'contact-close';
+    case 'medium':
+      return 'contact-medium';
+    default:
+      return 'contact-long';
+  }
+}
+
+function formatRangeBand(band) {
+  const labels = {
+    adjacent: 'Adjacent',
+    close: 'Close',
+    short: 'Short',
+    medium: 'Medium',
+    long: 'Long',
+    veryLong: 'V.Long',
+    distant: 'Distant'
+  };
+  return labels[band] || band;
 }
 
 function renderShipLog() {
@@ -888,7 +1256,73 @@ function showModal(templateId) {
     });
   }
 
+  if (templateId === 'template-time-advance') {
+    // Quick time buttons
+    modal.querySelectorAll('.time-quick').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hours = parseInt(btn.dataset.hours) || 0;
+        const minutes = parseInt(btn.dataset.minutes) || 0;
+        advanceTime(hours, minutes);
+        closeModal();
+      });
+    });
+
+    // Custom time button
+    document.getElementById('btn-custom-time').addEventListener('click', () => {
+      const hours = parseInt(document.getElementById('custom-hours').value) || 0;
+      const minutes = parseInt(document.getElementById('custom-minutes').value) || 0;
+      if (hours > 0 || minutes > 0) {
+        advanceTime(hours, minutes);
+        closeModal();
+      }
+    });
+  }
+
+  if (templateId === 'template-add-contact') {
+    // Quick add buttons set type and submit
+    modal.querySelectorAll('.contact-quick').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        document.getElementById('contact-type').value = type;
+        // Auto-submit with defaults
+        addContact({
+          type,
+          bearing: 0,
+          range_km: 10000,
+          signature: 'normal'
+        });
+        closeModal();
+      });
+    });
+
+    // Full form submit
+    document.getElementById('btn-save-contact').addEventListener('click', () => {
+      addContact({
+        name: document.getElementById('contact-name').value.trim() || null,
+        type: document.getElementById('contact-type').value,
+        bearing: parseInt(document.getElementById('contact-bearing').value) || 0,
+        range_km: parseInt(document.getElementById('contact-range').value) || 0,
+        transponder: document.getElementById('contact-transponder').value.trim() || null,
+        signature: document.getElementById('contact-signature').value,
+        gm_notes: document.getElementById('contact-notes').value.trim() || null
+      });
+      closeModal();
+    });
+  }
+
   document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+function addContact(contactData) {
+  state.socket.emit('ops:addContact', contactData);
+}
+
+function advanceTime(hours, minutes) {
+  state.socket.emit('ops:advanceTime', {
+    campaignId: state.campaign.id,
+    hours,
+    minutes
+  });
 }
 
 function closeModal() {

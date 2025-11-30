@@ -41,7 +41,8 @@ const unitTests = [
   'tests/unit/space-weapons-phase.test.js',  // Phase system - Weapons, point defense (30 tests)
   'tests/unit/space-role-gating.test.js',  // Phase system - Role gating, edge cases (35 tests)
   // DEFERRED: ship-validation-edge-cases.test.js (test framework integration needed)
-  'tests/operations-handlers.test.js'  // Operations handler smoke tests (27 tests)
+  'tests/operations-handlers.test.js',  // Operations handler smoke tests (27 tests)
+  'tests/contacts.test.js'  // Contacts CRUD and visibility tests
 ];
 
 // Integration tests

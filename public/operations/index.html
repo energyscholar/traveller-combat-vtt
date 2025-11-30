@@ -172,6 +172,9 @@
           <h1 id="bridge-ship-name">Ship Name</h1>
           <span id="bridge-date" class="date-display">1105-001 12:00</span>
         </div>
+        <div id="guest-indicator" class="guest-indicator hidden">
+          <span class="guest-badge">GUEST</span>
+        </div>
         <div id="alert-status" class="alert-status normal">
           <span class="alert-indicator"></span>
           <span class="alert-text">NORMAL</span>
@@ -378,6 +381,106 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Cancel</button>
       <button class="btn btn-primary" id="btn-confirm-create-campaign">Create Campaign</button>
+    </div>
+  </template>
+
+  <!-- Time Advance Modal Template -->
+  <template id="template-time-advance">
+    <div class="modal-header">
+      <h2>Advance Time</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="time-quick-buttons">
+        <button class="btn btn-secondary time-quick" data-minutes="10">+10 min</button>
+        <button class="btn btn-secondary time-quick" data-minutes="30">+30 min</button>
+        <button class="btn btn-secondary time-quick" data-hours="1">+1 hour</button>
+        <button class="btn btn-secondary time-quick" data-hours="4">+4 hours</button>
+        <button class="btn btn-secondary time-quick" data-hours="8">+8 hours</button>
+        <button class="btn btn-secondary time-quick" data-hours="24">+1 day</button>
+      </div>
+      <div class="time-custom">
+        <h4>Custom Time</h4>
+        <div class="time-custom-inputs">
+          <div class="form-group inline">
+            <input type="number" id="custom-hours" min="0" max="999" value="0">
+            <label>hours</label>
+          </div>
+          <div class="form-group inline">
+            <input type="number" id="custom-minutes" min="0" max="59" value="0">
+            <label>minutes</label>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btn-custom-time">Advance</button>
+      </div>
+    </div>
+  </template>
+
+  <!-- Add Contact Modal Template -->
+  <template id="template-add-contact">
+    <div class="modal-header">
+      <h2>Add Contact</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="contact-quick-add">
+        <button class="btn btn-secondary contact-quick" data-type="ship">Ship</button>
+        <button class="btn btn-secondary contact-quick" data-type="station">Station</button>
+        <button class="btn btn-secondary contact-quick" data-type="debris">Debris</button>
+        <button class="btn btn-secondary contact-quick" data-type="asteroid">Asteroid</button>
+        <button class="btn btn-secondary contact-quick" data-type="beacon">Beacon</button>
+        <button class="btn btn-secondary contact-quick" data-type="unknown">Unknown</button>
+      </div>
+      <div class="contact-form">
+        <div class="form-group">
+          <label for="contact-name">Name (optional):</label>
+          <input type="text" id="contact-name" placeholder="e.g., Patrol Cutter">
+        </div>
+        <div class="form-group">
+          <label for="contact-type">Type:</label>
+          <select id="contact-type">
+            <option value="unknown">Unknown</option>
+            <option value="ship">Ship</option>
+            <option value="station">Station</option>
+            <option value="debris">Debris</option>
+            <option value="asteroid">Asteroid</option>
+            <option value="beacon">Beacon</option>
+            <option value="missile">Missile</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contact-bearing">Bearing (°):</label>
+            <input type="number" id="contact-bearing" min="0" max="359" value="0">
+          </div>
+          <div class="form-group">
+            <label for="contact-range">Range (km):</label>
+            <input type="number" id="contact-range" min="0" value="10000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="contact-transponder">Transponder:</label>
+          <input type="text" id="contact-transponder" placeholder="e.g., ISS Far Horizon">
+        </div>
+        <div class="form-group">
+          <label for="contact-signature">Signature:</label>
+          <select id="contact-signature">
+            <option value="minimal">Minimal</option>
+            <option value="reduced">Reduced</option>
+            <option value="normal" selected>Normal</option>
+            <option value="increased">Increased</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="contact-notes">GM Notes:</label>
+          <textarea id="contact-notes" rows="2" placeholder="Private notes..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" id="btn-save-contact">Add Contact</button>
     </div>
   </template>
 
