@@ -1602,32 +1602,6 @@ function renderContacts() {
   }
 }
 
-function getRangeClass(rangeBand) {
-  switch (rangeBand) {
-    case 'adjacent':
-    case 'close':
-    case 'short':
-      return 'contact-close';
-    case 'medium':
-      return 'contact-medium';
-    default:
-      return 'contact-long';
-  }
-}
-
-function formatRangeBand(band) {
-  const labels = {
-    adjacent: 'Adjacent',
-    close: 'Close',
-    short: 'Short',
-    medium: 'Medium',
-    long: 'Long',
-    veryLong: 'V.Long',
-    distant: 'Distant'
-  };
-  return labels[band] || band;
-}
-
 // ==================== Ship Systems ====================
 
 function attemptRepair() {
@@ -2494,13 +2468,6 @@ function showShipStatusModal() {
   }
 
   document.getElementById('ship-status-content').innerHTML = content;
-}
-
-// UI-7: Get status color class based on percentage
-function getStatusColor(percent) {
-  if (percent >= 75) return 'status-green';
-  if (percent >= 25) return 'status-yellow';
-  return 'status-red';
 }
 
 // Format weapon ID to readable name
