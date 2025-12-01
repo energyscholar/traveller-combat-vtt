@@ -61,6 +61,9 @@ const { registerHandlers } = require('./lib/socket-handlers');
 // MVC: State modules (extracted from server.js)
 const state = require('./lib/state');
 
+// MVC: Services (extracted from server.js)
+const services = require('./lib/services');
+
 // Serve static files from public directory
 app.use(express.static('public'));
 // Serve lib directory for client-side modules (Stage 12.4)
@@ -72,43 +75,15 @@ app.use(express.json());
 // Track connections and ship assignments (from lib/state)
 const connections = state.getConnections();
 
-// SESSION 7: Connection management and idle timeout (Stage 13.5)
-const IDLE_TIMEOUT_MS = 30000; // 30 seconds
-const CONNECTION_CHECK_INTERVAL = 10000; // Check every 10 seconds
+// SESSION 7: Connection management and idle timeout (from lib/services)
+const IDLE_TIMEOUT_MS = services.IDLE_TIMEOUT_MS;
+const CONNECTION_CHECK_INTERVAL = services.CONNECTION_CHECK_INTERVAL;
 
-// SESSION 7: Rate limiting (Stage 13.5)
-const RATE_LIMIT_WINDOW_MS = 1000; // 1 second window
-const RATE_LIMIT_MAX_ACTIONS = 2; // 2 actions per second
+// SESSION 7: Rate limiting (from lib/services)
+const { checkRateLimit } = services;
 
-// Rate limiter
-function checkRateLimit(socketId) {
-  const now = Date.now();
-  const timestamps = state.getSocketTimestamps(socketId);
-
-  // Remove timestamps outside the window
-  const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
-
-  // Check if rate limit exceeded
-  if (recentTimestamps.length >= RATE_LIMIT_MAX_ACTIONS) {
-    performanceMetrics.actions.rateLimited++; // SESSION 7: Track rate-limited actions
-    return false; // Rate limit exceeded
-  }
-
-  // Add current timestamp
-  recentTimestamps.push(now);
-  state.setSocketTimestamps(socketId, recentTimestamps);
-  performanceMetrics.actions.total++; // SESSION 7: Track total actions
-
-  return true; // Action allowed
-}
-
-// Track connection activity
-function updateConnectionActivity(socketId) {
-  const conn = connections.get(socketId);
-  if (conn) {
-    conn.lastActivity = Date.now();
-  }
-}
+// Track connection activity (from lib/services)
+const { updateConnectionActivity } = services;
 
 // Periodic check for idle connections
 setInterval(() => {
@@ -164,39 +139,13 @@ setInterval(() => {
 // Combat activity and history management now in lib/state/combat-state.js
 // Use: state.updateCombatActivity(combatId) and state.trimCombatHistory(combat)
 
-// SESSION 7: Performance profiling (Stage 13.5)
-const performanceMetrics = {
-  connections: { current: 0, peak: 0, total: 0 },
-  combats: { current: 0, peak: 0, total: 0 },
-  actions: { total: 0, rateLimited: 0 },
-  memory: { current: 0, peak: 0 },
-  uptime: Date.now()
-};
-
-// Update performance metrics
-function updateMetrics() {
-  const mem = process.memoryUsage();
-  performanceMetrics.memory.current = Math.round(mem.heapUsed / 1024 / 1024); // MB
-  performanceMetrics.memory.peak = Math.max(performanceMetrics.memory.peak, performanceMetrics.memory.current);
-
-  performanceMetrics.connections.current = connections.size;
-  performanceMetrics.connections.peak = Math.max(performanceMetrics.connections.peak, connections.size);
-
-  performanceMetrics.combats.current = activeCombats.size;
-  performanceMetrics.combats.peak = Math.max(performanceMetrics.combats.peak, activeCombats.size);
-}
+// SESSION 7: Performance profiling (from lib/services)
+const { performanceMetrics } = services;
 
 // Log performance metrics periodically
 setInterval(() => {
-  updateMetrics();
-
-  log.info('📊 Performance Metrics:', {
-    connections: `${performanceMetrics.connections.current} (peak: ${performanceMetrics.connections.peak})`,
-    combats: `${performanceMetrics.combats.current} (peak: ${performanceMetrics.combats.peak})`,
-    actions: `${performanceMetrics.actions.total} (rate-limited: ${performanceMetrics.actions.rateLimited})`,
-    memory: `${performanceMetrics.memory.current}MB (peak: ${performanceMetrics.memory.peak}MB)`,
-    uptime: `${Math.round((Date.now() - performanceMetrics.uptime) / 1000 / 60)}min`
-  });
+  services.updateMetrics(connections.size, activeCombats.size);
+  log.info('📊 Performance Metrics:', services.getFormattedMetrics());
 }, 60000); // Log every minute
 
 // Stage 9: Create dummy opponent for single-player testing
