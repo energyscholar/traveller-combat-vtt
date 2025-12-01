@@ -22,9 +22,30 @@ const { server: log, socket: socketLog, game: gameLog, combat: combatLog } = req
 
 const app = express();
 const server = require('http').createServer(app);
+
+// CORS configuration - lockdown for production
+// Set ALLOWED_ORIGINS env var for production (comma-separated list)
+// Example: ALLOWED_ORIGINS=https://your-app.com,https://www.your-app.com
+const getAllowedOrigins = () => {
+  if (process.env.ALLOWED_ORIGINS) {
+    return process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+  }
+  // Development defaults - allow localhost variations
+  return ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'];
+};
+
 const io = require('socket.io')(server, {
   cors: {
-    origin: "*",
+    origin: (origin, callback) => {
+      const allowedOrigins = getAllowedOrigins();
+      // Allow requests with no origin (mobile apps, curl, etc.) in development
+      if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+      } else {
+        log.warn(`CORS blocked origin: ${origin}`);
+        callback(new Error('CORS: Origin not allowed'));
+      }
+    },
     methods: ["GET", "POST"]
   }
 });
@@ -83,8 +104,11 @@ const { checkRateLimit } = services;
 // Track connection activity (from lib/services)
 const { updateConnectionActivity } = services;
 
+// Track intervals for graceful shutdown
+const intervals = [];
+
 // Periodic check for idle connections
-setInterval(() => {
+intervals.push(setInterval(() => {
   const now = Date.now();
   let disconnectedCount = 0;
 
@@ -104,7 +128,7 @@ setInterval(() => {
   if (disconnectedCount > 0) {
     socketLog.info(`🧹 Cleaned up ${disconnectedCount} idle connections`);
   }
-}, CONNECTION_CHECK_INTERVAL);
+}, CONNECTION_CHECK_INTERVAL));
 
 // Stage 8.8: Track active space combat sessions (from lib/state)
 const activeCombats = state.getActiveCombats();
@@ -115,7 +139,7 @@ const COMBAT_HISTORY_LIMIT = state.COMBAT_HISTORY_LIMIT;
 const COMBAT_CHECK_INTERVAL = 60000; // Check every minute
 
 // Prune inactive combats
-setInterval(() => {
+intervals.push(setInterval(() => {
   const now = Date.now();
   let prunedCount = 0;
 
@@ -132,7 +156,7 @@ setInterval(() => {
   if (prunedCount > 0) {
     combatLog.info(`🧹 Cleaned up ${prunedCount} inactive combats. ${activeCombats.size} active combats remaining.`);
   }
-}, COMBAT_CHECK_INTERVAL);
+}, COMBAT_CHECK_INTERVAL));
 
 // Combat activity and history management now in lib/state/combat-state.js
 // Use: state.updateCombatActivity(combatId) and state.trimCombatHistory(combat)
@@ -141,10 +165,10 @@ setInterval(() => {
 const { performanceMetrics } = services;
 
 // Log performance metrics periodically
-setInterval(() => {
+intervals.push(setInterval(() => {
   services.updateMetrics(connections.size, activeCombats.size);
   log.info('📊 Performance Metrics:', services.getFormattedMetrics());
-}, 60000); // Log every minute
+}, 60000)); // Log every minute
 
 // Stage 9: AI opponent helpers now in lib/combat/ai/helpers.js
 // Imported: createDummyPlayer, isDummyAI, emitToPlayer
@@ -363,10 +387,31 @@ server.listen(config.server.port, () => {
   log.info('========================================');
 });
 
-process.on('SIGTERM', () => {
-  log.info('Shutting down gracefully...');
+// Graceful shutdown handler
+const gracefulShutdown = (signal) => {
+  log.info(`${signal} received, shutting down gracefully...`);
+
+  // Clear all intervals
+  intervals.forEach(interval => clearInterval(interval));
+  log.info(`Cleared ${intervals.length} intervals`);
+
+  // Close Socket.IO connections
+  io.close(() => {
+    log.info('Socket.IO connections closed');
+  });
+
+  // Close HTTP server
   server.close(() => {
-    log.info('Server closed');
+    log.info('HTTP server closed');
     process.exit(0);
   });
-});
+
+  // Force close after 10 seconds if graceful shutdown fails
+  setTimeout(() => {
+    log.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

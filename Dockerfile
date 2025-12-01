@@ -4,7 +4,10 @@
 # ==================================================================
 # Stage 1: Dependencies (Build Stage)
 # ==================================================================
-FROM node:18-alpine AS dependencies
+FROM node:20-alpine AS dependencies
+
+# Install build dependencies for native modules (better-sqlite3)
+RUN apk add --no-cache python3 make g++
 
 # Set working directory
 WORKDIR /app
@@ -14,13 +17,13 @@ COPY package*.json ./
 
 # Install dependencies (production only)
 # Use npm ci for reproducible builds
-RUN npm ci --only=production && \
+RUN npm ci --omit=dev && \
     npm cache clean --force
 
 # ==================================================================
 # Stage 2: Application (Runtime Stage)
 # ==================================================================
-FROM node:18-alpine AS runtime
+FROM node:20-alpine AS runtime
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init

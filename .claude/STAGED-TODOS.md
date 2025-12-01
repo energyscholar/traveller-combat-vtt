@@ -121,6 +121,6 @@
 - `tests/operations-handlers.test.js` (safety net for refactor)
 
 ### Files to Delete (bugs fixed):
-- `.claude/TODO-solo-mode-escape.md` (DONE - commit 88bab66)
-- `.claude/TODO-solo-ai-not-attacking.md` (FIXED)
-- `.claude/TODO-solo-missile-freeze.md` (FIXED)
+- ~~`.claude/TODO-solo-mode-escape.md`~~ (DELETED - Autorun 4)
+- ~~`.claude/TODO-solo-ai-not-attacking.md`~~ (DELETED - Autorun 4)
+- ~~`.claude/TODO-solo-missile-freeze.md`~~ (DELETED - Autorun 4)
