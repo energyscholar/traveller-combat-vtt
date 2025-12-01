@@ -64,6 +64,9 @@ const state = require('./lib/state');
 // MVC: Services (extracted from server.js)
 const services = require('./lib/services');
 
+// MVC: AI helpers (extracted from server.js)
+const { createDummyPlayer, isDummyAI, emitToPlayer } = require('./lib/combat/ai/helpers');
+
 // Serve static files from public directory
 app.use(express.static('public'));
 // Serve lib directory for client-side modules (Stage 12.4)
@@ -148,40 +151,8 @@ setInterval(() => {
   log.info('📊 Performance Metrics:', services.getFormattedMetrics());
 }, 60000); // Log every minute
 
-// Stage 9: Create dummy opponent for single-player testing
-function createDummyPlayer(player1) {
-  // Choose opposite ship from player 1 (Scout vs Free Trader)
-  const oppositeShip = player1.spaceSelection.ship === 'scout' ? 'free_trader' : 'scout';
-
-  return {
-    id: 'dummy_ai',
-    spaceSelection: {
-      ship: oppositeShip,
-      range: player1.spaceSelection.range,
-      ready: true
-    }
-  };
-}
-
-// Helper function to check if a player is the AI opponent
-function isDummyAI(playerId) {
-  return playerId === 'dummy_ai';
-}
-
-// Helper function to safely emit to a player (skips dummy AI)
-function emitToPlayer(io, playerId, eventName, data) {
-  if (isDummyAI(playerId)) {
-    // Don't emit to dummy AI - it has no socket
-    return false;
-  }
-
-  const socket = io.sockets.sockets.get(playerId);
-  if (socket && socket.connected) {
-    socket.emit(eventName, data);
-    return true;
-  }
-  return false;
-}
+// Stage 9: AI opponent helpers now in lib/combat/ai/helpers.js
+// Imported: createDummyPlayer, isDummyAI, emitToPlayer
 
 // ======== SOLO MODE AI OPPONENT SYSTEM ========
 //
