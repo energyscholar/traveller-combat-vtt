@@ -18,7 +18,10 @@
     "security:audit": "npm audit --audit-level=moderate",
     "security:audit:strict": "npm audit --audit-level=high",
     "security:fix": "npm audit fix",
-    "security:fix:force": "npm audit fix --force"
+    "security:fix:force": "npm audit fix --force",
+    "db:reset": "node lib/operations/reset-db.js",
+    "db:reset:full": "node lib/operations/reset-db.js --full",
+    "db:seed": "node lib/operations/seed-dorannia.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.5.0",
