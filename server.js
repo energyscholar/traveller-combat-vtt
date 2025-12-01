@@ -66,6 +66,7 @@ const services = require('./lib/services');
 
 // MVC: AI helpers (extracted from server.js)
 const { createDummyPlayer, isDummyAI, emitToPlayer } = require('./lib/combat/ai/helpers');
+const { makeAIDecision } = require('./lib/combat/ai/decisions');
 
 // Serve static files from public directory
 app.use(express.static('public'));
@@ -155,130 +156,8 @@ setInterval(() => {
 // Imported: createDummyPlayer, isDummyAI, emitToPlayer
 
 // ======== SOLO MODE AI OPPONENT SYSTEM ========
-//
-// FUTURE ENHANCEMENT: Advanced AI Opponent System (Stage 15+)
-// TODO: Implement GM-configurable AI system with:
-// - Multiple difficulty levels (Easy, Normal, Hard, Expert)
-// - Different AI personality types (Aggressive, Defensive, Tactical, Reckless)
-// - Proper tactical decision making (range management, ammo conservation)
-// - Learning/adaptive behavior based on player patterns
-// - GM override controls to manually control AI during combat
-// - Configurable via game settings UI
-//
-// Current Implementation: Simple random AI for testing purposes
-// - Primarily attacks (70% of time)
-// - Uses defensive actions occasionally (20% dodge, 10% other)
-// - Prioritizes point defense against missiles
-// - Heavy use of sandcasters when damaged
-// - Range-based weapon selection (lasers close, missiles long)
-// - Random element ensures all features get exercised for testing
-//
-
-// Simple AI decision-making for dummy opponent
-// Returns: { action: 'fire'|'dodge'|'sandcaster'|'endTurn', params: {...} }
-function makeAIDecision(combat, aiPlayer) {
-  const humanPlayer = aiPlayer === combat.player1 ? combat.player2 : combat.player1;
-  const aiData = aiPlayer === combat.player1 ? combat.player1 : combat.player2;
-  const currentRange = combat.range;
-
-  // Check for incoming missiles
-  const incomingMissiles = combat.missileTracker ?
-    combat.missileTracker.getMissilesTargeting(aiData.id) : [];
-
-  // Random number for decision weights
-  const roll = Math.random() * 100;
-
-  // HIGH PRIORITY: Point defense if missiles incoming (50% chance)
-  if (incomingMissiles.length > 0 && roll < 50) {
-    combatLog.info(`[AI] Incoming missiles detected, attempting point defense`);
-    return {
-      action: 'pointDefense',
-      params: {
-        targetMissileId: incomingMissiles[0].id
-      }
-    };
-  }
-
-  // MEDIUM PRIORITY: Use sandcaster if available and recently hit (30% chance if damaged)
-  const healthPercent = (aiData.hull / aiData.maxHull) * 100;
-  if (aiData.ammo && aiData.ammo.sandcaster > 0 && healthPercent < 90 && roll < 30) {
-    combatLog.info(`[AI] Using sandcaster (hull at ${healthPercent.toFixed(0)}%)`);
-    return {
-      action: 'sandcaster',
-      params: {}
-    };
-  }
-
-  // MEDIUM PRIORITY: Dodge maneuver (10% chance)
-  if (roll < 40) {  // 40-30 = 10% since sandcaster used 30%
-    combatLog.info(`[AI] Performing dodge maneuver`);
-    return {
-      action: 'dodge',
-      params: {}
-    };
-  }
-
-  // DEFAULT: Attack with appropriate weapon based on range
-  // Long+ range: Use missiles if available, otherwise laser
-  // Close-Medium: Use laser
-  const rangeBands = ['Adjacent', 'Close', 'Short', 'Medium', 'Long', 'Very Long', 'Distant'];
-  const rangeIndex = rangeBands.indexOf(currentRange);
-  const isLongRange = rangeIndex >= 4;  // Long or further
-
-  // Find available weapons from SHIPS data structure
-  const shipData = SHIPS[aiData.ship];
-  if (!shipData || !shipData.weapons) {
-    combatLog.info(`[AI] No ship data or weapons found for ${aiData.ship}`);
-    combatLog.info(`[AI] No valid actions available, ending turn`);
-    return {
-      action: 'endTurn',
-      params: {}
-    };
-  }
-
-  let missileWeapon = null;
-  let laserWeapon = null;
-
-  // Check each weapon in the ship's weapons array
-  for (let w = 0; w < shipData.weapons.length; w++) {
-    const weapon = shipData.weapons[w];
-    if (weapon.id === 'missiles' && aiData.ammo && aiData.ammo.missiles > 0) {
-      missileWeapon = { turret: 0, weapon: w };  // Use turret 0 as default
-      combatLog.info(`[AI] Found missile weapon at index ${w}`);
-    } else if (weapon.id && weapon.id.includes('Laser')) {
-      laserWeapon = { turret: 0, weapon: w };
-      combatLog.info(`[AI] Found laser weapon at index ${w}: ${weapon.name}`);
-    }
-  }
-
-  // Choose weapon based on range
-  let chosenWeapon = null;
-  if (isLongRange && missileWeapon && aiData.ammo.missiles > 0) {
-    chosenWeapon = missileWeapon;
-    combatLog.info(`[AI] Attacking at long range with missile`);
-  } else if (laserWeapon) {
-    chosenWeapon = laserWeapon;
-    combatLog.info(`[AI] Attacking with laser`);
-  }
-
-  if (chosenWeapon) {
-    return {
-      action: 'fire',
-      params: {
-        turret: chosenWeapon.turret,
-        weapon: chosenWeapon.weapon,
-        target: 'opponent'
-      }
-    };
-  }
-
-  // Fallback: End turn if no valid action
-  combatLog.info(`[AI] No valid actions available, ending turn`);
-  return {
-    action: 'endTurn',
-    params: {}
-  };
-}
+// AI decision-making now in lib/combat/ai/decisions.js
+// Imported: makeAIDecision
 
 // Execute AI turn automatically
 function executeAITurn(combat, io) {
