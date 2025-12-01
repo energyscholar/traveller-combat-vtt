@@ -1,0 +1,343 @@
+# Bruce's Live Game Use Cases
+
+Created: 2025-11-30
+Next Session: ~9 days (for development review)
+Live Game: ~48 hours from creation
+
+---
+
+## Use Case Bruce1Dorania: Evasion Journey
+
+### Scenario
+Bruce is running a 3-hour Traveller session with 5 players. The party is evading bounty hunters, traveling from Raschev back to their fleet base at Flammarion via two jumps:
+
+```
+Raschev → [arrived] → Dorannia → Ator → Flammarion
+                      (current)   (J1)    (J1)
+```
+
+### World Data (from TravellerMap API + Wiki)
+
+| World | Hex | UWP | Key Features |
+|-------|-----|-----|--------------|
+| Dorannia | 0530 | E42158A-8 | "Atomic Dorannia" - nuclear exports, sealed habitats, extreme law |
+| Ator | 0729 | D426258-7 | Ancient artifacts site, Darrian refueling stop, Telesco family rule |
+| Flammarion | 0930 | A623514-B | LSP corporate world, naval base, Class A shipyard, Imperial Regency |
+
+#### Dorannia (Current Location)
+- **Starport:** E (frontier, no facilities)
+- **Population:** ~500,000 in sealed habitats
+- **Government:** Civil Service Bureaucracy (extreme law enforcement)
+- **Economy:** Radioactive ore mining, nuclear tech exports
+- **Known as:** "Atomic Dorannia" - nuclear missiles as defense
+- **Atmosphere:** Vacuum (very thin, tainted with radiation)
+- **Notes:** Naturally uninhabitable, strict gov control of mining/exports
+
+#### Ator (Jump 1)
+- **Starport:** D (poor, minor repair, unrefined fuel)
+- **Population:** ~800 people
+- **Government:** Feudal Technocracy (Telesco family)
+- **Economy:** Refueling point on Darrian trade route, customs fees
+- **Special:** Ancient artifacts archaeological site
+- **Notes:** Contested history between Darrians and Sword Worlds
+
+#### Flammarion (Destination)
+- **Starport:** A (excellent, shipyard, naval base)
+- **Population:** ~700,000
+- **Government:** Corporate (Ling-Standard Products)
+- **Military:** Naval base on moon, Scout X-boat way station
+- **Tech Level:** 11 (high)
+- **Notes:** Imperial Regency world, heavily fortified
+
+### Setting
+- **Current Location:** Atomic Dorannia - TL-8 Industrial world (TL-10 in atomics)
+- **Ship:** Type S Scout with 5 PCs + 1 NPC Pilot
+- **Situation:** Safe port currently, but bounty hunters pursuing
+- **Time Pressure:** ~2 weeks travel time, want to minimize delays
+
+### Player Roster
+
+| Player | Primary Role | Secondary Skills | Notes |
+|--------|-------------|------------------|-------|
+| Von Sydo | Sensors | Gunner, Computer, Pilot | Versatile |
+| James | Captain | Naval Strategy, Intel | Retired Admiral, commanded large ships |
+| Max | Engineer | Multiple specialties | Ship maintenance |
+| Marina | Gunner | Remote Ops | Controls drone fleet |
+| Asao | Damage Control | Marine | Aslan space marine |
+
+NPC: Pilot (unnamed) - handles actual flying
+
+### GM Intent
+- NOT blocking the journey - they WILL reach Flammarion
+- Create obstacles and tension along the way
+- Starship traffic could be interesting/dangerous
+- Bounty hunter threat in background
+
+### Integration Context
+This VTT is ONE tool alongside:
+- Roll20 VTT (maps, character sheets)
+- Discord voice chat
+- Multiple text chat channels
+
+**Success criteria:** Fun, compelling, good Traveller representation
+
+---
+
+## Use Case Bruce2Flammarion: Q-Ship Anti-Piracy Fleet
+
+### Scenario
+After reaching Flammarion, the party takes command of a disguised anti-piracy battle group. Think historical Barbary Pirates hunting.
+
+### The Q-Ship
+- **Type:** 600-ton Merchant (common type)
+- **Actual:** Concealed military upgrade - Q-Ship + X-Carrier
+- **Hangars:** Replace cargo space with small craft bays
+- **Disguise:**
+  - Authorized transponder changes
+  - Exterior modifications possible
+  - LOOKS like common merchant
+
+### Fleet Composition
+| Craft | Type | Quantity | Notes |
+|-------|------|----------|-------|
+| Q-Ship | 600t Merchant (disguised) | 1 | Mother ship |
+| Tlatl Fighters | 10t Missile Fighters | 6 | Primary strike craft |
+| Other Smallcraft | Various | Few | Support craft |
+
+### Operational Concept
+1. **Trickery Phase:** Appear as vulnerable merchant
+2. **Surprise:** Pirates engage expecting easy prey
+3. **Force:** Launch fighters, reveal true nature
+4. **Engagement:** Coordinated strike with missile fighters
+
+### Campaign Focus
+This is a future campaign arc - the party has a trained crew awaiting them. The VTT should help tell this story.
+
+---
+
+## Infrastructure Analysis
+
+### What We Have (Current)
+
+| Feature | Status | Relevance |
+|---------|--------|-----------|
+| Campaign Management | ✅ | Multi-session tracking |
+| Player Slots & Roles | ✅ | 5 PC + NPC assignment |
+| Ship Management | ✅ | Type S Scout support |
+| Jump Travel System | ✅ | Dorania→Ator→Flammarion |
+| Contact Tracking | ✅ | Sensor contacts, traffic |
+| Alert Status | ✅ | Tension building |
+| Ship Log | ✅ | Narrative recording |
+| Ship Systems | ✅ | Damage, repairs |
+| Space Combat | ✅ | If bounty hunters catch up |
+| Date/Time System | ✅ | Travel time tracking |
+
+### What We Need (Bruce1Dorania)
+
+| Feature | Priority | Effort | Notes |
+|---------|----------|--------|-------|
+| Player-facing UI polish | HIGH | Medium | Each player needs clear role view |
+| Sensor station UI | HIGH | Medium | Von Sydo's primary interface |
+| Contact generation/management | HIGH | Low | GM creates traffic/threats |
+| Jump planning display | MEDIUM | Low | Show route, fuel, time |
+| Captain's overview | MEDIUM | Low | James sees big picture |
+| Engineer station UI | MEDIUM | Medium | Max monitors systems |
+| Mobile-friendly views | MEDIUM | High | Players may be on phones |
+| Quick NPC assignment | LOW | Low | NPC pilot setup |
+
+### What We Need (Bruce2Flammarion)
+
+| Feature | Priority | Effort | Notes |
+|---------|----------|--------|-------|
+| Multi-ship fleet management | HIGH | High | 7+ craft coordination |
+| Small craft launch/recovery | HIGH | Medium | Fighter operations |
+| Transponder/disguise system | MEDIUM | Low | Q-Ship identity |
+| Squadron combat | HIGH | High | Multiple friendly ships |
+| Carrier operations | MEDIUM | Medium | X-Carrier functionality |
+| Fleet tactical display | MEDIUM | High | Coordinated view |
+
+---
+
+## Recommended Development Priority
+
+### For Live Game in ~48 Hours (Bruce1Dorania)
+**Realistic scope:** Polish what we have, not new features
+
+1. **Test existing flow** - Can 5 players join and see their roles?
+2. **Contact management** - GM can add sensor contacts easily
+3. **Ship log entries** - Record narrative moments
+4. **Alert status** - Build tension with yellow/red alerts
+
+### For Future Sessions (Bruce2Flammarion)
+This is a larger feature set requiring:
+- Multi-ship data model
+- Fleet coordination UI
+- Small craft as separate entities
+- Carrier mechanics
+
+**Estimate:** Stage 6+ in design patterns, or separate feature branch
+
+---
+
+## Bruce1Dorania: Detailed Investigation (15% Thread)
+
+### Scenario Flow Analysis
+
+```
+Session Start: Dorannia orbit (safe port)
+│
+├─ Phase 1: Departure Prep (~30 min real time)
+│   ├─ Refueling (E starport = wilderness refueling only?)
+│   ├─ Sensor sweep - what's in system?
+│   ├─ Plot jump to Ator
+│   └─ Tension: Are bounty hunters here? Tracking us?
+│
+├─ Phase 2: Jump to Ator (narrative skip, ~1 week game time)
+│   └─ In-jump: ship maintenance, planning, character moments
+│
+├─ Phase 3: Ator Arrival (~1 hour real time)
+│   ├─ Exit jump - sensor sweep
+│   ├─ Approach D-class starport
+│   ├─ Unrefined fuel only - potential misjump risk?
+│   ├─ Tension: Bounty hunters waiting? Other ships?
+│   ├─ Optional: Ancient artifacts subplot hook
+│   └─ Refuel and jump to Flammarion
+│
+├─ Phase 4: Jump to Flammarion (narrative skip)
+│   └─ Almost home...
+│
+└─ Phase 5: Flammarion Arrival (~30 min)
+    ├─ Class A starport - naval base
+    ├─ Safe arrival - reunite with fleet
+    └─ Setup for Bruce2Flammarion arc
+```
+
+### What VTT Can Provide Per Phase
+
+| Phase | VTT Feature | Player Engagement |
+|-------|-------------|-------------------|
+| 1. Departure | Sensor contacts, alert status | Von Sydo scans, James decides |
+| 2. Jump | Ship log, date advance | Log entries, time skip |
+| 3. Ator | Contacts, fuel status, alerts | Full crew engagement |
+| 4. Jump | Ship log | Log entries |
+| 5. Arrival | Contacts, safe status | Resolution |
+
+### MVP Feature Set (48 Hours)
+
+**Must Have (Critical Path):**
+1. Campaign with Type S Scout configured
+2. 5 player accounts with roles assigned
+3. GM can add/edit sensor contacts
+4. Alert status visible to all players
+5. Basic role-based views work
+
+**Should Have (Enhanced Experience):**
+1. Ship log entries (GM or player-written)
+2. Jump status display (fuel, time, destination)
+3. Contact details (range, type, threat level)
+
+**Nice to Have (If Time):**
+1. Player actions (scan, hail, etc.)
+2. Time advancement controls
+3. Map integration (link to TravellerMap)
+
+### Test Data Structure
+
+```javascript
+// Campaign: Dorannia Escape
+{
+  name: "Dorannia Escape",
+  currentLocation: "Dorannia",
+  currentDate: "001-1107", // Or appropriate date
+  alertStatus: "normal",
+  ship: {
+    name: "TBD", // What's the scout's name?
+    type: "scout",
+    fuel: { current: 40, max: 40 }, // Full tank
+    hull: { current: 40, max: 40 }
+  }
+}
+
+// Player Accounts
+[
+  { name: "Von Sydo", role: "sensors", skills: { sensors: 2, gunner: 1, pilot: 1 } },
+  { name: "James", role: "captain", skills: { tactics_naval: 3, leadership: 2 } },
+  { name: "Max", role: "engineer", skills: { engineer: 2 } },
+  { name: "Marina", role: "gunner", skills: { gunner: 2, remote_ops: 2 } },
+  { name: "Asao", role: "marine", skills: { combat: 2, vacc_suit: 2 } }
+]
+
+// NPC
+{ name: "TBD", role: "pilot", skills: { pilot: 2 } }
+
+// Sample Contacts for GM
+[
+  { type: "Free Trader", range: "Long", bearing: 45, status: "departing", threat: "none" },
+  { type: "System Defense Boat", range: "Very Long", bearing: 180, status: "patrol", threat: "none" },
+  { type: "Unknown Contact", range: "Long", bearing: 270, status: "closing", threat: "unknown" }
+]
+```
+
+### Bounty Hunter Tension Ideas
+
+The bounty hunters don't need to APPEAR in session - the tension of "are they out there?" is enough:
+
+1. **False Alarm:** A ship matching bounty hunter profile appears on sensors, but it's just a merchant
+2. **Near Miss:** Hear chatter about bounty hunters at Ator after they leave
+3. **Shadow:** One contact always seems to be following at extreme range
+4. **Intel:** James uses contacts to learn bounty hunters are 2 jumps behind
+
+### Role Engagement Matrix
+
+| Role | Phase 1 | Phase 3 | Key Moment |
+|------|---------|---------|------------|
+| Von Sydo (Sensors) | Scan system | Scan on arrival | "Unknown contact, bearing 270, closing" |
+| James (Captain) | Decide departure | Handle Ator port | "All hands, we're jumping in 10" |
+| Max (Engineer) | Check jump drive | Monitor fuel quality | "Unrefined fuel - 5% misjump chance" |
+| Marina (Gunner) | Ready weapons | Stay alert | "Turret tracking unknown contact" |
+| Asao (Marine) | Security prep | Ready for boarding | "Airlock secured, sir" |
+
+### Recommendations
+
+1. **Keep it simple** - The VTT should SUPPORT the game, not dominate it
+2. **GM control** - You drive the contacts and tension, VTT displays it
+3. **Passive beauty** - Players see their ship status, that's compelling enough
+4. **Optional actions** - If a player WANTS to push a button, they can
+5. **Fallback plan** - If VTT has issues, the game continues without it
+
+---
+
+## Questions for Bruce
+
+### Bruce1Dorania
+1. Do players need to take actions in VTT, or mostly observe/track?
+2. Should sensor contacts be "discovered" or pre-populated?
+3. How much time tracking matters? (exact hours vs narrative beats)
+4. What's the NPC pilot's name?
+
+### Bruce2Flammarion
+1. Are the Tlatl fighters pre-defined or need creation?
+2. Do PCs crew the fighters or NPCs?
+3. How detailed should carrier ops be? (launch/recovery times?)
+4. Should pirates be AI-controlled or GM-run?
+
+---
+
+## Session Notes Space
+
+### Pre-Session Checklist
+- [ ] Campaign created for Dorania scenario
+- [ ] Type S Scout configured
+- [ ] 5 player accounts set up
+- [ ] NPC pilot assigned
+- [ ] Test login flow with one player
+- [ ] Contact examples ready for GM
+
+### Post-Session Feedback
+_(To be filled after live game)_
+
+- What worked:
+- What didn't:
+- Player feedback:
+- Technical issues:
+- Feature requests:
