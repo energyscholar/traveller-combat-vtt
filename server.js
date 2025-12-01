@@ -58,6 +58,9 @@ const operations = require('./lib/operations');
 // MVC: Socket handlers (extracted from server.js)
 const { registerHandlers } = require('./lib/socket-handlers');
 
+// MVC: State modules (extracted from server.js)
+const state = require('./lib/state');
+
 // Serve static files from public directory
 app.use(express.static('public'));
 // Serve lib directory for client-side modules (Stage 12.4)
@@ -66,9 +69,8 @@ app.use('/lib', express.static('lib'));
 app.use('/data', express.static('data'));
 app.use(express.json());
 
-// Track connections and ship assignments
-let connectionCount = 0;
-const connections = new Map();
+// Track connections and ship assignments (from lib/state)
+const connections = state.getConnections();
 
 // SESSION 7: Connection management and idle timeout (Stage 13.5)
 const IDLE_TIMEOUT_MS = 30000; // 30 seconds
@@ -77,12 +79,11 @@ const CONNECTION_CHECK_INTERVAL = 10000; // Check every 10 seconds
 // SESSION 7: Rate limiting (Stage 13.5)
 const RATE_LIMIT_WINDOW_MS = 1000; // 1 second window
 const RATE_LIMIT_MAX_ACTIONS = 2; // 2 actions per second
-const actionTimestamps = new Map(); // Track action timestamps per socket
 
 // Rate limiter
 function checkRateLimit(socketId) {
   const now = Date.now();
-  const timestamps = actionTimestamps.get(socketId) || [];
+  const timestamps = state.getSocketTimestamps(socketId);
 
   // Remove timestamps outside the window
   const recentTimestamps = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
@@ -95,7 +96,7 @@ function checkRateLimit(socketId) {
 
   // Add current timestamp
   recentTimestamps.push(now);
-  actionTimestamps.set(socketId, recentTimestamps);
+  state.setSocketTimestamps(socketId, recentTimestamps);
   performanceMetrics.actions.total++; // SESSION 7: Track total actions
 
   return true; // Action allowed
@@ -132,12 +133,12 @@ setInterval(() => {
   }
 }, CONNECTION_CHECK_INTERVAL);
 
-// Stage 8.8: Track active space combat sessions
-const activeCombats = new Map();
+// Stage 8.8: Track active space combat sessions (from lib/state)
+const activeCombats = state.getActiveCombats();
 
-// SESSION 7: Combat state optimization (Stage 13.5)
-const COMBAT_INACTIVE_TIMEOUT_MS = 300000; // 5 minutes
-const COMBAT_HISTORY_LIMIT = 10; // Keep last 10 rounds of history
+// SESSION 7: Combat state optimization constants (from lib/state)
+const COMBAT_INACTIVE_TIMEOUT_MS = state.COMBAT_INACTIVE_TIMEOUT_MS;
+const COMBAT_HISTORY_LIMIT = state.COMBAT_HISTORY_LIMIT;
 const COMBAT_CHECK_INTERVAL = 60000; // Check every minute
 
 // Prune inactive combats
@@ -160,20 +161,8 @@ setInterval(() => {
   }
 }, COMBAT_CHECK_INTERVAL);
 
-// Update combat activity timestamp
-function updateCombatActivity(combatId) {
-  const combat = activeCombats.get(combatId);
-  if (combat) {
-    combat.lastActivity = Date.now();
-  }
-}
-
-// Trim combat history to last N rounds
-function trimCombatHistory(combat) {
-  if (combat.history && combat.history.length > COMBAT_HISTORY_LIMIT) {
-    combat.history = combat.history.slice(-COMBAT_HISTORY_LIMIT);
-  }
-}
+// Combat activity and history management now in lib/state/combat-state.js
+// Use: state.updateCombatActivity(combatId) and state.trimCombatHistory(combat)
 
 // SESSION 7: Performance profiling (Stage 13.5)
 const performanceMetrics = {
@@ -583,95 +572,28 @@ function generateDefaultCrew(shipType) {
   return [];
 }
 
-// Stage 5: Initialize ammo for each weapon
-function initializeAmmo(ship) {
-  const ammo = {};
-  ship.weapons.forEach(weapon => {
-    if (weapon.ammo !== null) {
-      ammo[weapon.id] = weapon.ammo;
-    }
-  });
-  return ammo;
-}
+// Stage 3-7: Ship and game state (from lib/state)
+const shipState = state.getShipState();
+const gameState = state.getGameState();
 
-// Stage 3: Track persistent ship state (hull, etc.)
-// Stage 5: Added ammo tracking
-// Stage 6: Added crew assignments
-// Stage 7: Added position tracking
-const shipState = {
-  scout: {
-    hull: SHIPS.scout.hull,
-    maxHull: SHIPS.scout.maxHull,
-    armor: SHIPS.scout.armor,
-    pilotSkill: SHIPS.scout.pilotSkill,
-    ammo: initializeAmmo(SHIPS.scout),  // Stage 5: Track ammo per weapon
-    crew: {  // Stage 6: Track crew assignments
-      pilot: {...CREW.scout[0]},  // Default: assign all crew
-      gunner: {...CREW.scout[1]},
-      engineer: {...CREW.scout[2]}
-    },
-    position: { q: 2, r: 2 },  // Stage 7: Starting position on grid
-    movement: SHIPS.scout.movement
-  },
-  free_trader: {
-    hull: SHIPS.free_trader.hull,
-    maxHull: SHIPS.free_trader.maxHull,
-    armor: SHIPS.free_trader.armor,
-    pilotSkill: SHIPS.free_trader.pilotSkill,
-    ammo: initializeAmmo(SHIPS.free_trader),  // Stage 5: Track ammo per weapon
-    crew: {  // Stage 6: Track crew assignments
-      pilot: {...CREW.free_trader[0]},  // Default: assign all crew
-      gunner: {...CREW.free_trader[1]},
-      engineer: {...CREW.free_trader[2]}
-    },
-    position: { q: 7, r: 7 },  // Stage 7: Starting position on grid
-    movement: SHIPS.free_trader.movement
-  }
-};
+// Helper functions now in lib/state/game-state.js:
+// - initializeAmmo(ship) - Initialize ammo for each weapon
+// - resetShipStates() - Reset ship states to full hull + ammo + positions
+// - getAvailableShip(connections) - Get available ship for new player
+// - getShipAssignments(connections) - Get all current assignments
 
-// Stage 4: Track game state (rounds, turns, initiative)
-const gameState = {
-  currentRound: 0,
-  currentTurn: null, // 'scout' or 'free_trader'
-  initiative: {
-    scout: null,
-    free_trader: null
-  },
-  roundHistory: []
-};
-
-// Helper: Reset ship states to full hull
-// Stage 5: Also reset ammo
-// Stage 7: Also reset positions
-function resetShipStates() {
-  shipState.scout.hull = SHIPS.scout.maxHull;
-  shipState.free_trader.hull = SHIPS.free_trader.maxHull;
-  shipState.scout.ammo = initializeAmmo(SHIPS.scout);
-  shipState.free_trader.ammo = initializeAmmo(SHIPS.free_trader);
-  shipState.scout.position = { q: 2, r: 2 };  // Reset to starting position
-  shipState.free_trader.position = { q: 7, r: 7 };  // Reset to starting position
-  gameLog.info(' Ship states reset (hull + ammo + positions)');
-}
-
-// Helper: Get available ship for new player
+// Wrapper functions for state module (maintain existing API)
 function getAvailableShip() {
-  const assignedShips = Array.from(connections.values())
-    .map(conn => conn.ship)
-    .filter(ship => ship !== null);
-
-  if (!assignedShips.includes('scout')) return 'scout';
-  if (!assignedShips.includes('free_trader')) return 'free_trader';
-  return null; // No ships available (spectator mode)
+  return state.getAvailableShip(connections);
 }
 
-// Helper: Get all current assignments
 function getShipAssignments() {
-  const assignments = { scout: null, free_trader: null };
-  connections.forEach((conn, socketId) => {
-    if (conn.ship === 'scout') assignments.scout = conn.id;
-    if (conn.ship === 'free_trader') assignments.free_trader = conn.id;
-  });
-  return assignments;
+  return state.getShipAssignments(connections);
+}
+
+function resetShipStates() {
+  state.resetShipStates();
+  gameLog.info(' Ship states reset (hull + ammo + positions)');
 }
 
 // Stage 4: Helper - Roll initiative for both ships
@@ -1474,7 +1396,7 @@ io.on('connection', (socket) => {
         defenderPlayer = c.player2;
         attackerSocket = socket;
         defenderSocket = io.sockets.sockets.get(c.player2.id);
-        updateCombatActivity(combatId); // SESSION 7: Track combat activity
+        state.updateCombatActivity(combatId); // SESSION 7: Track combat activity
         break;
       } else if (c.player2.id === socket.id) {
         combat = c;
@@ -1482,7 +1404,7 @@ io.on('connection', (socket) => {
         defenderPlayer = c.player1;
         attackerSocket = socket;
         defenderSocket = io.sockets.sockets.get(c.player1.id);
-        updateCombatActivity(combatId); // SESSION 7: Track combat activity
+        state.updateCombatActivity(combatId); // SESSION 7: Track combat activity
         break;
       }
     }
