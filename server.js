@@ -390,86 +390,10 @@ io.on('connection', (socket) => {
     ships: shipState
   });
 
-  // ======== CLIENT LOGGING HANDLER ========
-  // Receive logs from client and log them on server
-  socket.on('client:log', (data) => {
-    const { level, message, meta, playerId } = data;
-    const playerInfo = playerId ? `Player ${playerId}` : `Socket ${socket.id.substring(0, 8)}`;
-
-    // Log using appropriate level
-    switch (level) {
-      case 'error':
-        clientLog.error(`${playerInfo}: ${message}`, meta);
-        break;
-      case 'warn':
-        clientLog.warn(`${playerInfo}: ${message}`, meta);
-        break;
-      case 'info':
-        clientLog.info(`${playerInfo}: ${message}`, meta);
-        break;
-      case 'debug':
-      default:
-        clientLog.debug(`${playerInfo}: ${message}`, meta);
-        break;
-    }
-  });
-
-  // ======== PLAYER FEEDBACK HANDLER ========
-  // Receive player feedback and log with special marker for easy parsing
-  socket.on('player:feedback', (data) => {
-    const { feedback, timestamp, context } = data;
-    const playerInfo = `Socket ${socket.id.substring(0, 8)}`;
-
-    // SECURITY: Validate and sanitize feedback
-    if (!feedback || typeof feedback !== 'string') {
-      socketLog.warn(` Invalid feedback from ${connectionId}: not a string`);
-      return;
-    }
-
-    // Limit feedback length (prevent DoS via huge strings)
-    const MAX_FEEDBACK_LENGTH = 2000;
-    const sanitizedFeedback = feedback.substring(0, MAX_FEEDBACK_LENGTH).trim();
-
-    if (sanitizedFeedback.length === 0) {
-      socketLog.warn(` Empty feedback from ${connectionId}`);
-      return;
-    }
-
-    // Strip dangerous characters that could break log parsing
-    // Remove control characters, null bytes, and log injection attempts
-    const safeFeedback = sanitizedFeedback
-      .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
-      .replace(/\n/g, ' ')              // Convert newlines to spaces
-      .replace(/\r/g, '')               // Remove carriage returns
-      .replace(/\t/g, ' ')              // Convert tabs to spaces
-      .replace(/\\/g, '\\\\')           // Escape backslashes
-      .replace(/"/g, '\\"');            // Escape quotes
-
-    // Validate context object
-    const safeContext = {};
-    if (context && typeof context === 'object') {
-      // Only allow specific whitelisted properties
-      if (context.ship && typeof context.ship === 'string') {
-        safeContext.ship = context.ship.substring(0, 50);
-      }
-      if (context.round && typeof context.round === 'number') {
-        safeContext.round = Math.floor(context.round);
-      }
-      if (context.hull && typeof context.hull === 'string') {
-        safeContext.hull = context.hull.substring(0, 20);
-      }
-    }
-
-    // Log with special marker [PLAYER_FEEDBACK] for easy grep/parsing
-    log.info(`[PLAYER_FEEDBACK] ${playerInfo}: ${safeFeedback}`, {
-      timestamp: timestamp || new Date().toISOString(),
-      socketId: socket.id,
-      context: safeContext,
-      feedbackLength: safeFeedback.length
-    });
-
-    socketLog.info(` Player feedback received from ${connectionId} (${safeFeedback.length} chars)`);
-  });
+  // Register utility handlers (client:log, player:feedback, ping)
+  // These are extracted to lib/socket-handlers/utility.handlers.js
+  const utilityHandlers = require('./lib/socket-handlers/utility.handlers');
+  utilityHandlers.register(socket, io, connectionId);
 
   // Handle "hello" messages (Stage 1)
   socket.on('hello', (data) => {
@@ -781,13 +705,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle "ping" for latency measurement
-  socket.on('ping', (data) => {
-    socket.emit('pong', {
-      clientTimestamp: data.timestamp,
-      serverTimestamp: Date.now()
-    });
-  });
+  // Handle "ping" - now in utility.handlers.js
 
   // Stage 4: Handle start game request
   socket.on('startGame', () => {
