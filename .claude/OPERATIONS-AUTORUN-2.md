@@ -152,5 +152,13 @@
 
 ---
 
+## Risk Mitigation Decisions
+
+1. **DB Changes:** Try auto-migrate first, fall back to reset if needed
+2. **Encyclopedia:** Research Ator + Flammarion together, seed simultaneously
+3. **ASCII Art:** Compact 5-8 lines (fits tooltips, fast render)
+
+---
+
 **STATUS:** Ready to execute
 **NEXT:** Begin Stage 1 - Crew Status Bug Fix
