@@ -13,7 +13,10 @@ Bruce is running a 3-hour Traveller session with 5 players. The party is evading
 
 ```
 Raschev → [arrived] → Dorannia → Ator → Flammarion
-                      (current)   (J1)    (J1)
+                      (current)   (J2)    (J1)
+                                  ↑        ↑
+                              2 parsecs  1 parsec
+                              ~1 week    ~1 week
 ```
 
 ### World Data (from TravellerMap API + Wiki)
@@ -55,17 +58,26 @@ Raschev → [arrived] → Dorannia → Ator → Flammarion
 - **Situation:** Safe port currently, but bounty hunters pursuing
 - **Time Pressure:** ~2 weeks travel time, want to minimize delays
 
-### Player Roster
+### The Kimbly (Type S Scout)
+Named after Von Sydo's 70kg Tenser Wolf pet.
 
-| Player | Primary Role | Secondary Skills | Notes |
-|--------|-------------|------------------|-------|
-| Von Sydo | Sensors | Gunner, Computer, Pilot | Versatile |
-| James | Captain | Naval Strategy, Intel | Retired Admiral, commanded large ships |
-| Max | Engineer | Multiple specialties | Ship maintenance |
-| Marina | Gunner | Remote Ops | Controls drone fleet |
-| Asao | Damage Control | Marine | Aslan space marine |
+### Player Roster (from Campaign Data)
 
-NPC: Pilot (unnamed) - handles actual flying
+| Player | Primary Role | Key Skills | Secrets/Notes |
+|--------|-------------|------------|---------------|
+| James | Captain | Tactics_Naval, Leadership | SECRET: Imperial Admiral, Naval Intel, Darrian (TL16) |
+| Von Sydo | Sensors | Sensors, Pilot, Gunner | SECRET: Illegal psion (teleport, telekinesis) |
+| Max | Engineer | Electronics, Mechanic, Medic | Mad scientist, has salvaged chamax tech |
+| Marina | Gunner | Diplomat 3, Deception 2 | Social specialist, face of the party |
+| Asao | Marine/DC | Melee combat devastating | Hairless Aslan, face on WANTED posters |
+
+**NPC Pilot:** Chance Dax
+
+### Campaign Context
+- **Year:** 1115, Day 310
+- **Situation:** Fleeing District 268 - falsely accused of assassination, secretly guilty of accidental genocide (Chamax Crisis)
+- **Threat:** Agent Thale (HP fanatic) hunting them with 5-10 armed followers
+- **Destination:** Flammarion (their fleet base with Q-Ship)
 
 ### GM Intent
 - NOT blocking the journey - they WILL reach Flammarion
@@ -248,44 +260,54 @@ Session Start: Dorannia orbit (safe port)
 {
   name: "Dorannia Escape",
   currentLocation: "Dorannia",
-  currentDate: "001-1107", // Or appropriate date
+  currentDate: "310-1115",
   alertStatus: "normal",
   ship: {
-    name: "TBD", // What's the scout's name?
+    name: "Kimbly",
     type: "scout",
-    fuel: { current: 40, max: 40 }, // Full tank
+    fuel: { current: 40, max: 40 }, // Full tank (Jump-2 capable)
     hull: { current: 40, max: 40 }
   }
 }
 
 // Player Accounts
 [
-  { name: "Von Sydo", role: "sensors", skills: { sensors: 2, gunner: 1, pilot: 1 } },
   { name: "James", role: "captain", skills: { tactics_naval: 3, leadership: 2 } },
-  { name: "Max", role: "engineer", skills: { engineer: 2 } },
-  { name: "Marina", role: "gunner", skills: { gunner: 2, remote_ops: 2 } },
-  { name: "Asao", role: "marine", skills: { combat: 2, vacc_suit: 2 } }
+  { name: "Von Sydo", role: "sensors", skills: { sensors: 2, gunner: 1, pilot: 1 } },
+  { name: "Max", role: "engineer", skills: { electronics: 2, mechanic: 2, medic: 1 } },
+  { name: "Marina", role: "gunner", skills: { diplomat: 3, deception: 2, gunner: 1 } },
+  { name: "Asao", role: "marine", skills: { melee: 3, vacc_suit: 2 } }
 ]
 
-// NPC
-{ name: "TBD", role: "pilot", skills: { pilot: 2 } }
+// NPC Crew
+{ name: "Chance Dax", role: "pilot", skills: { pilot: 2 } }
 
-// Sample Contacts for GM
+// Sample Contacts for GM (Dorannia System)
 [
-  { type: "Free Trader", range: "Long", bearing: 45, status: "departing", threat: "none" },
-  { type: "System Defense Boat", range: "Very Long", bearing: 180, status: "patrol", threat: "none" },
-  { type: "Unknown Contact", range: "Long", bearing: 270, status: "closing", threat: "unknown" }
+  { type: "Free Trader", name: "Beowulf-class", range: "Long", bearing: 45, status: "departing", threat: "none" },
+  { type: "System Defense Boat", name: "Atomic Guard", range: "Very Long", bearing: 180, status: "patrol", threat: "none" },
+  { type: "Far Trader", name: "Unknown", range: "Distant", bearing: 90, status: "arriving", threat: "none" },
+  { type: "Unknown Contact", name: "???", range: "Long", bearing: 270, status: "closing", threat: "unknown" }
+]
+
+// Tension Contacts (for GM to introduce)
+[
+  { type: "Scout/Courier", name: "Suspicious Scout", range: "Very Long", bearing: 315, status: "matching course", threat: "possible", note: "Could be Agent Thale's pursuit ship" },
+  { type: "Corsair", name: "Raider", range: "Distant", bearing: 180, status: "lurking", threat: "high", note: "Opportunistic pirates" }
 ]
 ```
 
-### Bounty Hunter Tension Ideas
+### Agent Thale Tension Ideas
 
-The bounty hunters don't need to APPEAR in session - the tension of "are they out there?" is enough:
+**Agent Thale** - HP Fanatic, TL10 equipment, 5-10 armed followers, hunting Asao specifically.
 
-1. **False Alarm:** A ship matching bounty hunter profile appears on sensors, but it's just a merchant
-2. **Near Miss:** Hear chatter about bounty hunters at Ator after they leave
-3. **Shadow:** One contact always seems to be following at extreme range
-4. **Intel:** James uses contacts to learn bounty hunters are 2 jumps behind
+The pursuit doesn't need to APPEAR in session - the tension of "are they out there?" is enough:
+
+1. **False Alarm:** A scout/courier matching pursuit profile appears on sensors - just a mail run
+2. **Near Miss:** Hear X-boat traffic about HP agents asking questions at Ator
+3. **Shadow:** One contact at extreme range seems to match course - paranoia or real?
+4. **Intel:** James uses Naval Intel contacts - "Thale chartered a Fast Courier from Raschev"
+5. **Close Call:** At Ator, a patron mentions "some armed types asking about an Aslan"
 
 ### Role Engagement Matrix
 
