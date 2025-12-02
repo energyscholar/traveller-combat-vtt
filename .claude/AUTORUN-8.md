@@ -1,7 +1,7 @@
 # AUTORUN 8: GM Prep UI & Bridge Polish
 
 **Created:** 2025-12-01
-**Status:** IN PROGRESS
+**Status:** COMPLETE
 **Risk Level:** LOW
 **Prerequisite:** AUTORUN-7 completed (data foundation)
 
@@ -12,9 +12,9 @@
 | 8.1   | COMPLETE | ~850 |
 | 8.2   | COMPLETE | ~310 |
 | 8.3   | COMPLETE | ~220 |
-| 8.4   | PENDING | 0 |
-| 8.5   | PENDING | 0 |
-| **TOTAL** | - | **~1380** |
+| 8.4   | COMPLETE | 0 (pre-existing) |
+| 8.5   | COMPLETE | ~80 |
+| **TOTAL** | - | **~1460** |
 <!-- END_LOC_METRICS -->
 
 ## Execution Protocol
