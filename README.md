@@ -1,86 +1,78 @@
-# Traveller Combat VTT
+# Traveller VTT for Starship Operations
 
-[![CI Status](https://github.com/OWNER/traveller-combat-vtt/workflows/CI/badge.svg)](https://github.com/OWNER/traveller-combat-vtt/actions)
-[![Test Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://github.com/OWNER/traveller-combat-vtt)
-[![Security Audit](https://img.shields.io/badge/security-0%20vulnerabilities-brightgreen)](https://github.com/OWNER/traveller-combat-vtt)
+[![Test Status](https://img.shields.io/badge/tests-325%20passing-brightgreen)](https://github.com/OWNER/traveller-combat-vtt)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
-> A production-ready, real-time multiplayer Virtual Tabletop (VTT) for Mongoose Traveller 2nd Edition space combat. Built with test-driven development (TDD), containerised with Docker, and designed for horizontal scalability.
+> A real-time multiplayer Virtual Tabletop (VTT) for Mongoose Traveller 2nd Edition starship operations. Multi-role crew management, campaign persistence, and authentic space combat.
 
-![Main Menu](screenshots/01-main-menu.png)
+![Login Screen](screenshots/01-login.png)
 
 ## Overview
 
-Traveller Combat VTT is a web-based virtual tabletop specifically designed for **Mongoose Traveller 2nd Edition** space combat. It implements authentic 2D6 Traveller combat mechanics with real-time multiplayer synchronisation, providing game masters and players with a professional, browser-based combat management system.
+Traveller VTT is a web-based virtual tabletop for **Mongoose Traveller 2nd Edition** that puts each player in a specific crew role aboard a starship. The GM manages campaigns while players take roles like Captain, Pilot, Engineer, Gunner, Astrogator, and more—each with their own dedicated control panels.
 
-**Key Highlights:**
-- ✅ **197 passing tests** (95%+ coverage) with zero regressions
-- ✅ **7 ship templates** with full validation and customisation
-- ✅ **Real-time multiplayer** via WebSocket (Socket.io)
-- ✅ **Docker containerised** with health checks and multi-stage builds
-- ✅ **Export/import system** for VTT integration (Roll20, Foundry, Fantasy Grounds)
-- ✅ **CI/CD pipeline** with automated testing and security scanning
+**Key Features:**
+- **11 Crew Roles** with dedicated control panels (Captain, Pilot, Engineer, Astrogator, Gunner, Sensors, Medic, Marines, Cargo, Steward, Damage Control)
+- **Campaign Management** - Persistent campaigns with join codes for players
+- **Real-time Multiplayer** - WebSocket synchronisation via Socket.io
+- **Ship Operations** - Jump plotting, sensor contacts, ship mail, crew status
+- **Space Combat** - Authentic Traveller 2E mechanics with 7 ship templates
+- **325 Passing Tests** across 32 test suites
 
-**Current Status:** Stage 12.5/16 Complete (78%) - Production infrastructure ready
+**Version:** 0.31
 
 ---
 
 ## Screenshots
 
-### Ship Selection
-![Ship Selection](screenshots/02-ship-selection.png)
-*Choose from 7 authentic Traveller ships with full specifications*
+### Login & Campaign Selection
+![Campaign Selection](screenshots/02-campaign-select.png)
+*GM creates campaigns, players join with campaign codes*
 
-### Ship Customiser
-![Ship Customiser](screenshots/03-ship-customizer.png)
-*Modify M-Drive, J-Drive, weapons, armour, and cargo capacity*
+### Role Selection
+![Role Selection](screenshots/03-role-selection.png)
+*Players choose from 11 crew roles, each with unique responsibilities*
 
-### Combat Interface
-![Combat Started](screenshots/04-combat-started.png)
-*Real-time turn-based space combat with initiative tracking*
+### Bridge View
+![Bridge View](screenshots/04-bridge-view.png)
+*Full bridge interface with Engineering panel, Sensor Display, Crew Status, and Ship Log*
 
-### Combat Visualisation
-![Combat State](screenshots/05-combat-state.png)
-*Range bands, damage tracking, and critical hit system*
+### Astrogator Panel
+![Astrogator Panel](screenshots/05-astrogator-panel.png)
+*Jump plotting with Traveller Map integration and route calculation*
 
-### Combat Log
-![Combat Log](screenshots/06-combat-log.png)
-*Comprehensive combat history with 2D6 roll results and effects*
+### Ship Mail System
+![Ship Mail](screenshots/06-ship-mail.png)
+*In-character communications between crew and NPCs*
 
 ---
 
 ## Features
 
-### Core Space Combat System
+### Operations Layer (NEW)
+- **Campaign Management** - Create campaigns, manage player slots, persistent state
+- **11 Crew Roles** - Captain, Pilot, Engineer, Astrogator, Gunner, Sensors, Medic, Marines, Cargo, Steward, Damage Control
+- **Role-Specific Panels** - Each role has dedicated controls and displays
+- **Ship Systems** - M-Drive, J-Drive, Power Plant, Sensors, Computer status
+- **Ship Log** - Timestamped crew actions and system events
+- **Ship Mail** - In-game messaging system with NPC contacts
+- **Alert Status** - Normal, Yellow, Red alert with visual indicators
+- **Jump Maps** - Astrogator jump plotting with Traveller Map API
+
+### Space Combat System
 - **Authentic Traveller 2E Mechanics** - 2D6 + skill + modifiers ≥ 8 target
-- **Real-Time Multiplayer** - Socket.io WebSocket synchronisation with server-authoritative state
-- **Turn-Based Combat** - Initiative system (2D6 + Pilot + Thrust + Captain Tactics)
-- **Range Bands** - 7 range bands (Adjacent → Distant) with proper Traveller modifiers
+- **7 Ship Templates** - Scout, Free Trader, Far Trader, Patrol Corvette, Mercenary Cruiser, Subsidised Liner, Safari Ship
+- **Range Bands** - 7 range bands (Adjacent → Distant) with proper modifiers
 - **Weapons System** - Pulse lasers, beam lasers, missiles with authentic damage
 - **Critical Hits** - Severity-based effects (1-6) affecting drives, weapons, sensors, crew
-- **Damage Model** - Weapon damage + Effect - Armour with minimum 0 damage
+- **Initiative System** - 2D6 + Pilot + Thrust + Captain Tactics
 
-### Ship Management
-- **7 Ship Templates** - Scout, Free Trader, Far Trader, Patrol Corvette, Mercenary Cruiser, Subsidised Liner, Safari Ship
-- **Component Validation** - M-Drive, J-Drive, power plant, weapons, armour, sensors, bridge, staterooms
-- **Power Calculation** - Automatic power requirement vs. availability validation
-- **Ship Customiser** - Modify drives, weapons, cargo, and components
-- **Interactive Viewer** - HTML viewer with tactical colour coding
-
-### Production Infrastructure
-- **Export/Import System** - JSON-based save/load with schema versioning (v1.0)
-- **VTT Integration Ready** - Compatible with Roll20, Foundry VTT, Fantasy Grounds
-- **Docker Containerisation** - Multi-stage builds with health checks
-- **Health Endpoints** - `/health` and `/ready` for load balancer integration
-- **Deployment Documentation** - Azure, AWS, GCP, Kubernetes, and Docker Compose guides
-
-### Quality Assurance
-- **197 Passing Tests** - 95%+ coverage across unit and integration tests
-- **CI/CD Pipeline** - GitHub Actions with automated testing and security scanning
-- **Security Automation** - Dependabot for dependency updates, npm audit integration
-- **Zero Technical Debt** - Maintained across all 12.5 stages
-- **Test-Driven Development** - 1.07:1 test-to-code ratio (11,888 LOC tests : 11,112 LOC production)
+### Technical Infrastructure
+- **SQLite Database** - Persistent campaign and character storage
+- **Real-time Sync** - Socket.io WebSocket communication
+- **Docker Ready** - Multi-stage builds with health checks
+- **Export/Import** - JSON-based save/load with schema versioning
 
 ---
 
@@ -90,24 +82,18 @@ Traveller Combat VTT is a web-based virtual tabletop specifically designed for *
 - **[Node.js](https://nodejs.org/)** (≥18.0.0) - JavaScript runtime
 - **[Express](https://expressjs.com/)** (4.18.2) - Web application framework
 - **[Socket.io](https://socket.io/)** (4.7.2) - Real-time WebSocket communication
+- **[better-sqlite3](https://github.com/WiseLibs/better-sqlite3)** (12.5.0) - SQLite database
 - **[Winston](https://github.com/winstonjs/winston)** (3.18.3) - Structured logging
 
 ### Frontend
-- **Vanilla JavaScript** - No framework dependencies for minimal bundle size
-- **HTML5/CSS3** - Semantic markup with responsive design
+- **Vanilla JavaScript** - No framework dependencies
+- **HTML5/CSS3** - Responsive sci-fi themed UI
 - **WebSockets** - Real-time bidirectional communication
 
-### DevOps & Testing
+### Testing
 - **[Jest](https://jestjs.io/)** (29.7.0) - Testing framework
 - **[Puppeteer](https://pptr.dev/)** (24.29.1) - Browser automation for E2E tests
-- **[Docker](https://www.docker.com/)** - Containerisation and deployment
-- **GitHub Actions** - CI/CD pipeline automation
-- **Dependabot** - Automated dependency updates
-
-### Development Tools
-- **Custom Test Runner** - Jest-style test harness for unit and integration tests
-- **Data Validators** - JSON schema validation for ship templates and game state
-- **Export/Import API** - Schema-versioned serialisation for save/load functionality
+- **325 tests** across 32 test suites
 
 ---
 
@@ -116,9 +102,8 @@ Traveller Combat VTT is a web-based virtual tabletop specifically designed for *
 ### Prerequisites
 - **Node.js** v18.0.0 or higher
 - **npm** v9.0.0 or higher
-- **Docker** (optional, for containerised deployment)
 
-### Local Development
+### Quick Start
 
 ```bash
 # Clone the repository
@@ -128,11 +113,11 @@ cd traveller-combat-vtt
 # Install dependencies
 npm install
 
-# Run tests to verify installation
+# Run tests
 npm test
-# Expected: 197/197 tests passing ✅
+# Expected: 325/325 tests passing
 
-# Start development server
+# Start server (kills existing port 3000 process, resets DB)
 npm start
 # Server running at http://localhost:3000
 ```
@@ -140,395 +125,143 @@ npm start
 ### Docker Deployment
 
 ```bash
-# Production build
 docker build -t traveller-vtt .
 docker run -d -p 3000:3000 --name traveller-vtt traveller-vtt
 
-# Or use Docker Compose
-docker-compose up -d app-prod
-
 # Health check
 curl http://localhost:3000/health
-# Expected: {"status":"healthy","timestamp":"...","uptime":...}
 ```
-
-**See:** [docs/docker-deployment.md](docs/docker-deployment.md) for complete deployment guide including Azure, AWS, GCP, and Kubernetes.
 
 ---
 
 ## Usage
 
-### Quick Start - Multiplayer Combat
+### For Game Masters
 
-Traveller Combat VTT is designed for **two-player multiplayer**. Each player opens the application in a separate browser tab or window.
+1. Open `http://localhost:3000/operations/`
+2. Click **GM Login**
+3. Create or select a campaign
+4. Share the **Campaign Code** with players
+5. Start the session when players have joined
 
-```bash
-# Start the server
-npm start
-```
+### For Players
 
-**Player 1 Setup:**
-1. Open browser to `http://localhost:3000`
-2. You'll see **"Player 1"** indicator at top
-3. Select your spacecraft (Scout or Free Trader)
-4. Choose starting range
-5. Click **"Ready"**
+1. Open `http://localhost:3000/operations/`
+2. Click **Player Login**
+3. Enter the **Campaign Code** from your GM
+4. Import or create your character
+5. Select a ship and crew role
+6. Click **Join Bridge**
 
-**Player 2 Setup:**
-1. Open **new tab/window** to `http://localhost:3000`
-2. You'll see **"Player 2"** indicator at top
-3. Select your spacecraft (different from Player 1)
-4. Range is set by Player 1
-5. Click **"Ready"**
+### Crew Roles
 
-**Combat (Switch Between Tabs):**
-1. Combat begins automatically when both players are ready
-2. **On your turn:** Select turret, target, weapon → Click **"Fire!"**
-3. **On opponent's turn:** Switch to other browser tab and take their turn
-4. Combat log shows all attack results with 2D6 rolls
-5. Hull bar updates in real-time
-6. **Victory:** Reduce opponent hull to ≤ 0
-
-**Features:**
-- 30-second turn timer with colour warnings
-- "Use Default" button for quick auto-fire
-- Real-time synchronisation between tabs
-- Critical hit notifications (when hull < 50%)
-
-### Testing Against Yourself
-
-The easiest way to test:
-1. **Tab 1:** Select Scout → Ready
-2. **Tab 2:** Select Free Trader → Ready
-3. Switch between tabs to play both sides
-
----
-
-## Architecture
-
-### System Overview
-
-```
-┌─────────────┐      WebSocket      ┌──────────────┐
-│   Client    │ ←──────────────────→ │   Express    │
-│  (Browser)  │   Socket.io Events   │   + Socket.io│
-└─────────────┘                      └──────────────┘
-                                              │
-                                              ↓
-                                     ┌──────────────┐
-                                     │  Game State  │
-                                     │  (In-Memory) │
-                                     └──────────────┘
-```
-
-### Design Principles
-
-- **Server-Authoritative** - All combat actions validated server-side
-- **Event-Driven** - Communication via Socket.io events
-- **Test-Driven Development** - Tests before implementation (1.07:1 ratio)
-- **MVC Architecture** - Clean separation: state, services, handlers, routes
-- **Design Patterns** - Factory, Strategy, Command, Observer patterns (see below)
-- **Zero Technical Debt** - Maintained across all development stages
-- **British Spelling** - Matches Traveller rules ("armour", not "armor")
-
-### Architecture Patterns
-
-The codebase uses established design patterns for maintainability and extensibility:
-
-| Pattern | Location | Purpose |
-|---------|----------|---------|
-| **MVC** | `lib/` | State/services/handlers separation |
-| **Factory** | `lib/factories/` | Entity creation (ships, crews) |
-| **Strategy** | `lib/combat/ai/`, `lib/combat/weapons/` | AI behaviours, weapon types |
-| **Command** | `lib/combat/commands/` | Combat actions with undo/redo |
-| **Observer** | `lib/events/` | Internal event bus for decoupling |
-| **State** | `lib/combat/states/` | Combat phase machine |
-
-**See:** [.claude/DESIGN-PATTERN-REFACTOR.md](.claude/DESIGN-PATTERN-REFACTOR.md) for implementation details.
-
-### Key Technical Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| **Node.js + Express** | JavaScript full-stack, npm ecosystem, wide deployment options |
-| **Socket.io** | WebSocket abstraction with fallbacks, event-based API, room support |
-| **In-memory state** | Fast, simple for MVP; Redis/PostgreSQL migration planned (Stage 14+) |
-| **Vanilla JS frontend** | Zero build step, minimal bundle, faster development iteration |
-| **Custom test runner** | Full control, Jest-style assertions, 95%+ coverage |
-| **Docker multi-stage** | Small production images (322MB), clear dev/prod separation |
-
-### Project Structure
-
-```
-traveller-combat-vtt/
-├── lib/                      # Core game logic (MVC architecture)
-│   ├── state/                # State management (connections, combat, game)
-│   ├── services/             # Rate limiting, metrics, connection management
-│   ├── socket-handlers/      # Socket.io event handlers
-│   │   ├── space.handlers.js # Space combat events
-│   │   ├── legacy.handlers.js# Ground combat events
-│   │   └── operations.handlers.js # Operations VTT events
-│   ├── routes/               # REST API endpoints
-│   ├── combat/               # Combat resolution engine
-│   │   ├── ai/               # AI strategies (Strategy pattern)
-│   │   ├── commands/         # Combat actions (Command pattern)
-│   │   ├── weapons/          # Weapon strategies (Strategy pattern)
-│   │   └── states/           # Combat phases (State pattern)
-│   ├── factories/            # Entity creation (Factory pattern)
-│   ├── events/               # Event bus (Observer pattern)
-│   ├── ship-*.js             # Ship component validation modules
-│   └── export-import.js      # Save/load system
-├── data/                     # Game data
-│   ├── ships/v2/             # Ship templates (JSON)
-│   └── rules/                # High Guard 2022 reference tables
-├── public/                   # Static client-side files
-│   ├── index.html            # Multiplayer UI
-│   ├── app.js                # Client application
-│   └── ship-templates.html   # Interactive ship viewer
-├── tests/                    # Test suites
-│   ├── unit/                 # 11 unit test suites (144 tests)
-│   ├── integration/          # 3 integration suites (53 tests)
-│   └── automated/            # Puppeteer E2E tests
-├── .github/                  # GitHub configuration
-│   ├── workflows/ci.yml      # CI/CD pipeline
-│   └── dependabot.yml        # Automated dependency updates
-├── docs/                     # Documentation
-│   ├── docker-deployment.md  # Deployment guide
-│   └── export-import-api.md  # API documentation
-├── .claude/                  # Project planning & tracking
-│   ├── SESSION-*-PLAN.md     # Autonomous session plans
-│   ├── handoffs/             # Stage completion documents
-│   └── ROADMAP.md            # Development roadmap
-├── server.js                 # Express + Socket.io orchestrator (~365 LOC)
-├── Dockerfile                # Multi-stage production build
-├── docker-compose.yml        # Dev and prod configurations
-├── package.json              # Dependencies and scripts
-├── SECURITY.md               # Security policy
-├── CONTRIBUTING.md           # Contribution guidelines
-└── CODE_OF_CONDUCT.md        # Community standards
-```
+| Role | Responsibilities |
+|------|------------------|
+| **Captain** | Command, tactics, leadership, relieve crew |
+| **Pilot** | Navigation, manoeuvring, docking |
+| **Astrogator** | Jump plotting, route calculation |
+| **Engineer** | Power allocation, repairs, drive management |
+| **Gunner** | Weapons, point defence |
+| **Sensors** | Detection, comms, electronic warfare |
+| **Medic** | Medical care, crew health |
+| **Marines** | Security, boarding actions |
+| **Cargo** | Cargo operations, loading |
+| **Steward** | Passengers, supplies |
+| **Damage Control** | Repairs, emergencies |
 
 ---
 
 ## Testing
 
-### Run Tests
-
 ```bash
-# All tests (197 tests across 17 suites)
+# All tests (325 tests across 32 suites)
 npm test
 
 # Unit tests only
 npm run test:unit
 
-# Integration tests only
+# Integration tests
 npm run test:integration
 
-# Data validation
-npm run test:data
-
-# Security tests (XSS validation)
-npm run test:security
-
-# Automated browser tests (Puppeteer)
+# Automated browser tests
 npm run test:auto
 ```
 
-### Test Coverage
+---
 
-**Overall:** 95%+ coverage with 197 passing tests
+## Project Structure
 
-| Suite | Tests | Coverage | Status |
-|-------|-------|----------|--------|
-| Combat Math | 7 | 100% | ✅ |
-| Crew System | 20 | 100% | ✅ |
-| Weapon System | 20 | 100% | ✅ |
-| Ship Registry | 25 | 100% | ✅ |
-| Space Combat | 17 | 100% | ✅ |
-| Export/Import | 36 | 100% | ✅ |
-| XSS Validation | 33 | 100% | ✅ |
-| Integration Tests | 53 | 95% | ✅ |
-
-### Performance Benchmarks
-
-- **Combat resolution:** <50ms per attack
-- **Turn processing:** <100ms
-- **Socket.io latency:** <50ms
-- **Zero memory leaks** detected
+```
+traveller-combat-vtt/
+├── lib/                      # Core game logic
+│   ├── operations/           # Operations layer (campaigns, accounts, database)
+│   ├── state/                # State management
+│   ├── services/             # Rate limiting, metrics
+│   ├── socket-handlers/      # Socket.io event handlers
+│   ├── combat/               # Combat resolution engine
+│   └── ship-*.js             # Ship validation modules
+├── data/
+│   ├── campaigns/            # SQLite database (operations.db)
+│   ├── ships/v2/             # Ship templates (JSON)
+│   └── rules/                # High Guard 2022 reference
+├── public/
+│   ├── operations/           # Operations VTT UI
+│   ├── index.html            # Space combat UI
+│   └── app.js                # Combat client
+├── tests/                    # 325 tests across 32 suites
+├── server.js                 # Express + Socket.io (~414 LOC)
+├── Dockerfile                # Multi-stage production build
+└── package.json
+```
 
 ---
 
-## Mongoose Traveller 2E Rules Implementation
+## Mongoose Traveller 2E Rules
 
-This VTT implements authentic **Mongoose Traveller 2nd Edition** combat rules:
+This VTT implements authentic **Mongoose Traveller 2nd Edition** rules:
 
-### Core Mechanics
 - **Attack Roll:** 2D6 + Skill + Stat DM + Range DM ≥ 8
-- **Effect:** Attack Total - 8 (degree of success)
+- **Effect:** Attack Total - 8
 - **Damage:** Weapon Damage + Effect - Armour (minimum 0)
-- **Critical Hits:** 30% chance when hull < 50%, severity 1-6
-
-### Space Combat
 - **Initiative:** 2D6 + Pilot + Thrust + Captain Tactics
-- **Range Bands:** Adjacent (+2 DM) → Close (0) → Short (-1) → Medium (-2) → Long (-2) → Very Long (-4) → Distant (-4)
-- **Weapons:**
-  - **Pulse Laser:** 2d6 damage, all ranges
-  - **Beam Laser:** 3d6 damage, Close-Medium only
-  - **Missiles:** 4d6 damage, +2 DM at Long range, 6 shots
-- **Movement:** Thrust allocation, range band changes
-- **Manoeuvres:** Aid Gunners (+1 DM), Evasive Action (-2 to hit)
-- **Jump Away:** 1-turn charge delay, interruption mechanics
-
-For complete rules reference, see [.claude/MONGOOSE-TRAVELLER-RULES-EXTRACT.md](.claude/MONGOOSE-TRAVELLER-RULES-EXTRACT.md)
-
----
-
-## Deployment
-
-### Production Deployment Options
-
-| Platform | Guide | Status |
-|----------|-------|--------|
-| **Docker** | [docs/docker-deployment.md](docs/docker-deployment.md) | ✅ Tested |
-| **Azure** | [docs/docker-deployment.md#azure](docs/docker-deployment.md#azure) | 📋 Documented |
-| **AWS** | [docs/docker-deployment.md#aws](docs/docker-deployment.md#aws) | 📋 Documented |
-| **GCP** | [docs/docker-deployment.md#gcp](docs/docker-deployment.md#gcp) | 📋 Documented |
-| **Kubernetes** | [docs/docker-deployment.md#kubernetes](docs/docker-deployment.md#kubernetes) | 📋 Documented |
-
-### Production Readiness
-
-- ✅ Docker multi-stage builds (322MB production image)
-- ✅ Health check endpoints (`/health`, `/ready`)
-- ✅ Structured logging (Winston)
-- ✅ Environment configuration
-- ✅ CI/CD pipeline (GitHub Actions)
-- ✅ Security automation (Dependabot, npm audit)
-- 📋 Horizontal scaling (planned: Redis for sessions, PostgreSQL for persistence)
-- 📋 Monitoring integration (planned: Prometheus, Grafana)
-
-**See:** [.claude/PRODUCTION-DEPLOYMENT-STRATEGY.md](.claude/PRODUCTION-DEPLOYMENT-STRATEGY.md) for comprehensive deployment strategy.
-
----
-
-## Roadmap
-
-### ✅ Completed Stages (1-12.5)
-- **Stages 1-7:** Personal combat, crew system, weapons, hex grid movement
-- **Stage 8:** Multiplayer space combat MVP
-- **Stage 9:** Movement, advanced initiative, combat manoeuvres
-- **Stage 10:** Critical hit effects and severity system
-- **Stage 11:** Missiles, sandcasters, point defence
-- **Stage 12:** Boarding actions
-- **Stage 12.5:** Ship templates, validation modules, export/import system
-
-### 🔨 In Progress (Session 5)
-- **Professional Portfolio Foundation:** CI/CD, security automation, governance files, documentation polish
-
-### 📋 Planned (Stages 13-16+)
-- **Stage 13:** Performance testing (10 concurrent battles, 60 players, <200ms latency)
-- **Stage 14:** VTT integration (Roll20, Foundry VTT, Fantasy Grounds plugins)
-- **Stage 15:** Cloud deployment (Azure, AWS, production monitoring)
-- **Stage 16+:** Ship builder UI, fleet battles, campaign persistence
-
-**Total Estimated Effort:** ~85+ hours to production-ready VTT plugin
+- **Range Bands:** Adjacent (+2) → Close (0) → Short (-1) → Medium (-2) → Long (-2) → Very Long (-4) → Distant (-4)
 
 ---
 
 ## Contributing
 
-Contributions are welcome! This project follows professional open-source standards.
+Contributions welcome! Please:
 
-**Before contributing, please:**
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
-2. Review [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards
-3. Check [SECURITY.md](SECURITY.md) for security policy
-
-**Quick Guidelines:**
-- ✅ Write tests first (TDD required)
-- ✅ Maintain 80%+ test coverage
-- ✅ Use British spelling ("armour", not "armor")
-- ✅ Run `npm test` before committing
-- ✅ Follow conventional commit messages
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
+2. Write tests first (TDD)
+3. Use British spelling ("armour", not "armor")
+4. Run `npm test` before committing
 
 ---
 
 ## License
 
-**Code License:** [GNU General Public License v3.0](LICENSE)
+**Code:** [GNU General Public License v3.0](LICENSE)
 
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-**Traveller Content License:**
-
-This project uses game rules and mechanics from **Mongoose Traveller 2nd Edition** under fair use for educational and non-commercial purposes.
-
-**Traveller** is a registered trademark of **Far Future Enterprises**, used under license by **Mongoose Publishing Ltd.**
-
-This software is **NOT** endorsed by or affiliated with Mongoose Publishing or Far Future Enterprises.
-
-**Attribution:**
-- Ship specifications based on **Mongoose Traveller High Guard (2022 Update)**
-- Combat rules based on **Mongoose Traveller Core Rulebook (2nd Edition)**
-- All Traveller intellectual property is property of Far Future Enterprises
-
-**Legal Disclaimer:**
-This is a fan-made tool for playing Traveller. No copyrighted text from Traveller rulebooks is reproduced in this software. Only game mechanics, statistics, and formulas (which are not copyrightable) are implemented. Users must own Mongoose Traveller rulebooks to understand and use this VTT.
+**Traveller Content:**
+- **Traveller** is a registered trademark of **Far Future Enterprises**
+- Used under license by **Mongoose Publishing Ltd.**
+- This is an unofficial fan project, not affiliated with or endorsed by Mongoose Publishing or Far Future Enterprises
 
 ---
 
 ## Acknowledgments
 
-### Rules & Content
-- **Mongoose Publishing** - Mongoose Traveller 2nd Edition rules
+- **Mongoose Publishing** - Mongoose Traveller 2nd Edition
 - **Far Future Enterprises** - Original Traveller game system
-- **High Guard (2022 Update)** - Ship design rules and specifications
-
-### Technology & Tools
-- **Anthropic Claude Code** - AI-assisted development and CTO mentorship
-- **Node.js Community** - Express, Socket.io, Jest, Puppeteer
-- **Docker Community** - Containerisation best practices
-- **GitHub** - CI/CD, Dependabot, security scanning
-
-### Development Methodology
-- **Test-Driven Development (TDD)** - Maintained 1.07:1 test-to-code ratio
-- **Sarnath Software Lessons** - Process maturity, overhead discipline, velocity tracking
-- **Autonomous Build (AB) Sessions** - Structured AI-assisted development with 30% overhead target
+- **Traveller Map** - Jump map data and API
+- **Anthropic Claude Code** - AI-assisted development
 
 ---
 
-## Project Status
+**Version:** 0.31
+**Tests:** 325 passing (32 suites)
+**Last Updated:** 2025-12-02
+**Created by:** Bruce Stephenson
 
-**Version:** 0.12.5
-**Stage:** 12.5/16 Complete (78%)
-**Tests:** 197/197 passing (95%+ coverage)
-**Status:** ✅ Production infrastructure ready
-**Next Milestone:** Stage 13 (Performance & Scale)
-
-**Recent Updates:**
-- **2025-11-30:** MVC refactor complete (server.js 2700→365 LOC), design pattern implementation planned
-- **Session 5 (2025-11-14):** Professional portfolio foundation - CI/CD pipeline, security automation, governance files
-- **Session 4 (2025-11-13):** Export/import system, Docker containerisation, health endpoints, deployment documentation
-
----
-
-## Contact & Support
-
-**Project Type:** Fractional CTO Portfolio Project
-**Developer:** Bruce
-**VTT Targets:** Roll20, Fantasy Grounds, Foundry VTT
-
-**Resources:**
-- **Documentation:** [.claude/](.claude/) directory
-- **Issues:** [GitHub Issues](https://github.com/OWNER/traveller-combat-vtt/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/OWNER/traveller-combat-vtt/discussions)
-- **Security:** [SECURITY.md](SECURITY.md)
-
----
-
-**Last Updated:** 2025-11-14
-**License:** GPL-3.0
-**Traveller:** Mongoose Traveller 2nd Edition
-
-[![Built with Docker](https://img.shields.io/badge/Built%20with-Docker-2496ED?logo=docker)](https://www.docker.com/)
-[![Powered by Node.js](https://img.shields.io/badge/Powered%20by-Node.js-339933?logo=node.js)](https://nodejs.org/)
-[![Tested with Jest](https://img.shields.io/badge/Tested%20with-Jest-C21325?logo=jest)](https://jestjs.io/)
+© 2025 Bruce Stephenson. Open source under GPL-3.0 License.
