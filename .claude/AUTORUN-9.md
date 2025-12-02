@@ -1,9 +1,21 @@
 # AUTORUN 9: Character Import & Player Features
 
 **Created:** 2025-12-01
-**Status:** READY
+**Status:** IN PROGRESS
 **Risk Level:** LOW
 **Prerequisite:** AUTORUN-8 completed
+
+## LOC Metrics (for extraction)
+<!-- DATESTAMP: 2025-12-01 | AUTORUN: 9 -->
+| Stage | Status | LOC Added |
+|-------|--------|-----------|
+| 9.1   | COMPLETE | ~320 |
+| 9.2   | PENDING | 0 |
+| 9.3   | PENDING | 0 |
+| 9.4   | PENDING | 0 |
+| 9.5   | PENDING | 0 |
+| **TOTAL** | - | **~320** |
+<!-- END_LOC_METRICS -->
 
 ## Execution Protocol
 **Token Efficiency Mode:** Auto-adjust effort to minimize token use.

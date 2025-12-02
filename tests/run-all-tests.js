@@ -46,6 +46,7 @@ const unitTests = [
   'tests/unit/ai-helpers.test.js',  // AI helper tests (9 tests)
   'tests/unit/ai-decisions.test.js',  // AI decision tests (10 tests)
   'tests/unit/reveals.test.js',  // Reveals CRUD tests (23 tests) - AUTORUN-8
+  'tests/unit/characters.test.js',  // Characters CRUD and parsers (17 tests) - AUTORUN-9
   'tests/operations-handlers.test.js',  // Operations handler smoke tests (27 tests)
   'tests/contacts.test.js',  // Contacts CRUD and visibility tests
   'tests/ship-systems.test.js',  // Ship systems damage and repair (18 tests)
