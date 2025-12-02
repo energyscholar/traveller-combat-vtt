@@ -292,8 +292,100 @@
         </section>
       </main>
 
-      <!-- GM Overlay (shown when GM is viewing) -->
-      <div id="gm-overlay" class="gm-overlay hidden">
+      <!-- GM Prep Panel (Collapsible Sidebar - Autorun 8) -->
+      <aside id="gm-prep-panel" class="gm-prep-panel hidden">
+        <div class="prep-panel-header">
+          <h3>GM Prep</h3>
+          <button id="btn-close-prep-panel" class="btn-close" title="Close prep panel">×</button>
+        </div>
+        <nav class="prep-tabs">
+          <button class="prep-tab active" data-tab="reveals">Reveals</button>
+          <button class="prep-tab" data-tab="npcs">NPCs</button>
+          <button class="prep-tab" data-tab="locations">Locations</button>
+          <button class="prep-tab" data-tab="events">Events</button>
+          <button class="prep-tab" data-tab="email">Email</button>
+          <button class="prep-tab" data-tab="handouts">Handouts</button>
+        </nav>
+
+        <!-- Reveals Tab -->
+        <div id="prep-tab-reveals" class="prep-tab-content active">
+          <div class="prep-list-header">
+            <span class="prep-count" id="reveals-count">0 reveals</span>
+            <button id="btn-add-reveal" class="btn btn-small btn-success">+ Add</button>
+          </div>
+          <div id="reveals-list" class="prep-list">
+            <p class="placeholder">No reveals prepared</p>
+          </div>
+        </div>
+
+        <!-- NPCs Tab -->
+        <div id="prep-tab-npcs" class="prep-tab-content">
+          <div class="prep-list-header">
+            <span class="prep-count" id="npcs-count">0 NPCs</span>
+            <button id="btn-add-npc" class="btn btn-small btn-success">+ Add</button>
+          </div>
+          <div id="npcs-list" class="prep-list">
+            <p class="placeholder">No NPCs prepared</p>
+          </div>
+        </div>
+
+        <!-- Locations Tab -->
+        <div id="prep-tab-locations" class="prep-tab-content">
+          <div class="prep-list-header">
+            <span class="prep-count" id="locations-count">0 locations</span>
+            <button id="btn-add-location" class="btn btn-small btn-success">+ Add</button>
+          </div>
+          <div id="locations-list" class="prep-list">
+            <p class="placeholder">No locations prepared</p>
+          </div>
+        </div>
+
+        <!-- Events Tab -->
+        <div id="prep-tab-events" class="prep-tab-content">
+          <div class="prep-list-header">
+            <span class="prep-count" id="events-count">0 events</span>
+            <button id="btn-add-event" class="btn btn-small btn-success">+ Add</button>
+          </div>
+          <div id="events-list" class="prep-list">
+            <p class="placeholder">No events prepared</p>
+          </div>
+        </div>
+
+        <!-- Email Tab -->
+        <div id="prep-tab-email" class="prep-tab-content">
+          <div class="prep-list-header">
+            <span class="prep-count" id="email-count">0 emails</span>
+            <button id="btn-add-email" class="btn btn-small btn-success">+ Draft</button>
+          </div>
+          <div id="email-list" class="prep-list">
+            <p class="placeholder">No emails queued</p>
+          </div>
+        </div>
+
+        <!-- Handouts Tab -->
+        <div id="prep-tab-handouts" class="prep-tab-content">
+          <div class="prep-list-header">
+            <span class="prep-count" id="handouts-count">0 handouts</span>
+            <button id="btn-add-handout" class="btn btn-small btn-success">+ Add</button>
+          </div>
+          <div id="handouts-list" class="prep-list">
+            <p class="placeholder">No handouts prepared</p>
+          </div>
+        </div>
+
+        <!-- Import/Export Footer -->
+        <div class="prep-panel-footer">
+          <button id="btn-export-adventure" class="btn btn-small" title="Export adventure prep to JSON">Export</button>
+          <button id="btn-import-adventure" class="btn btn-small" title="Import adventure prep from JSON">Import</button>
+        </div>
+      </aside>
+
+      <!-- GM Prep Panel Toggle Button -->
+      <button id="btn-toggle-prep-panel" class="btn-prep-toggle hidden" title="Open GM Prep Panel">
+        Prep
+      </button>
+
+      <!-- GM Overlay (shown when GM is viewing) --><div id="gm-overlay" class="gm-overlay hidden">
         <div class="gm-controls">
           <!-- Alert Status Controls -->
           <div class="gm-control-group">

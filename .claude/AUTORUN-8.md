@@ -1,9 +1,21 @@
 # AUTORUN 8: GM Prep UI & Bridge Polish
 
 **Created:** 2025-12-01
-**Status:** READY
+**Status:** IN PROGRESS
 **Risk Level:** LOW
 **Prerequisite:** AUTORUN-7 completed (data foundation)
+
+## LOC Metrics (for extraction)
+<!-- DATESTAMP: 2025-12-01 | AUTORUN: 8 -->
+| Stage | Status | LOC Added |
+|-------|--------|-----------|
+| 8.1   | COMPLETE | ~850 |
+| 8.2   | PENDING | 0 |
+| 8.3   | PENDING | 0 |
+| 8.4   | PENDING | 0 |
+| 8.5   | PENDING | 0 |
+| **TOTAL** | - | **~850** |
+<!-- END_LOC_METRICS -->
 
 ## Execution Protocol
 **Token Efficiency Mode:** Auto-adjust effort to minimize token use.

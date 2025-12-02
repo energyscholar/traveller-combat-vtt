@@ -1,8 +1,8 @@
-# AUTORUN 10: Adventure Packages + Combat Extraction
+# AUTORUN 10: Adventure Packages + Combat Verification
 
 **Created:** 2025-12-01
 **Status:** READY
-**Risk Level:** LOW
+**Risk Level:** VERY LOW
 **Prerequisite:** AUTORUN-9 completed (JSON Schema validation)
 
 ## Execution Protocol
@@ -12,7 +12,12 @@
 - Signal mode changes inline. Override with user instruction.
 
 ## Summary
-Two parallel tracks: (A) Complete adventure file format for distribution, (B) Extract combat handlers for code health. Mixed approach balances new features with technical debt reduction.
+Adventure package format (.tvadv) for distribution. Combat extraction is **ALREADY COMPLETE**:
+- `server.js` = 414 LOC (target was <500)
+- `lib/combat/ai/` has Strategy Pattern (4 strategies)
+- `lib/combat/commands/` has Command Pattern (6 commands)
+
+Stages 10.3-10.5 repurposed from "extraction" to "verification & documentation".
 
 ---
 
@@ -47,61 +52,86 @@ Tools for working with adventure packages.
 
 ---
 
-## Stage 10.3: Combat AI Extraction (Facade Pattern)
-**Risk:** LOW | **LOC:** ~300 | **Commit after**
+## Stage 10.3: Combat AI Verification (REDUCED SCOPE)
+**Risk:** VERY LOW | **LOC:** ~80 | **Commit after**
 
-Extract AI decision logic using facade pattern for safety.
-
-| Task | Description | Est. LOC |
-|------|-------------|----------|
-| 10.3.1 | Write behavior tests for current AI decisions | ~80 |
-| 10.3.2 | Create `lib/combat/ai.js` facade (wraps existing) | ~60 |
-| 10.3.3 | Migrate target selection into facade | ~50 |
-| 10.3.4 | Migrate weapon choice into facade | ~50 |
-| 10.3.5 | Internalize logic (remove server.js deps) | ~60 |
-
-**Pattern:** Facade wraps old code → tests pass → internalize → tests pass → delete old
-
-**Deliverable:** AI logic testable in isolation, behavior tests document decisions.
-
----
-
-## Stage 10.4: Combat State Extraction (Facade Pattern)
-**Risk:** LOW | **LOC:** ~260 | **Commit after**
-
-Extract combat state management using facade pattern for safety.
+**STATUS:** AI extraction already complete. Verify and document.
 
 | Task | Description | Est. LOC |
 |------|-------------|----------|
-| 10.4.1 | Write behavior tests for state transitions | ~80 |
-| 10.4.2 | Create `lib/combat/state.js` facade (wraps existing) | ~60 |
-| 10.4.3 | Migrate round/phase management into facade | ~40 |
-| 10.4.4 | Migrate damage application into facade | ~40 |
-| 10.4.5 | Internalize logic (remove server.js deps) | ~40 |
+| 10.3.1 | Verify AI test coverage (target 90%+) | ~20 |
+| 10.3.2 | Document existing Strategy Pattern | ~30 |
+| 10.3.3 | Add any missing behavior tests | ~30 |
 
-**Pattern:** Same as 10.3 - facade first, internalize after tests green
+**Existing Structure:**
+```
+lib/combat/ai/
+├── decisions.js          # Main entry point
+├── execution.js          # Action execution
+├── helpers.js            # Utility functions
+├── index.js              # Module exports
+└── strategies/
+    ├── AIContext.js      # Strategy Pattern context
+    ├── BaseStrategy.js   # Abstract base
+    ├── BalancedStrategy.js
+    ├── AggressiveStrategy.js
+    ├── DefensiveStrategy.js
+    └── CautiousStrategy.js
+```
 
-**Deliverable:** Combat state logic testable in isolation, behavior tests document flow.
+**Deliverable:** Confirm AI is well-tested, add docs.
 
 ---
 
-## Stage 10.5: Server.js Cleanup
-**Risk:** LOW | **LOC:** ~-200 (reduction) | **Commit after**
+## Stage 10.4: Combat State Verification (REDUCED SCOPE)
+**Risk:** VERY LOW | **LOC:** ~80 | **Commit after**
 
-Reduce server.js to routing only.
+**STATUS:** Command Pattern already implemented. Verify and document.
 
 | Task | Description | Est. LOC |
 |------|-------------|----------|
-| 10.5.1 | Replace inline AI calls with module | ~-100 |
-| 10.5.2 | Replace inline state calls with module | ~-80 |
-| 10.5.3 | Verify all 308+ tests pass | ~0 |
-| 10.5.4 | Document new combat module structure | ~20 |
+| 10.4.1 | Verify command test coverage | ~20 |
+| 10.4.2 | Document existing Command Pattern | ~30 |
+| 10.4.3 | Add any missing state transition tests | ~30 |
 
-**Deliverable:** server.js under 500 LOC. Combat logic in dedicated modules.
+**Existing Structure:**
+```
+lib/combat/commands/
+├── BaseCommand.js
+├── CommandInvoker.js
+├── FireCommand.js
+├── MissileCommand.js
+├── PointDefenseCommand.js
+├── SandcasterCommand.js
+├── EndTurnCommand.js
+└── index.js
+```
+
+**Deliverable:** Confirm commands are well-tested, add docs.
 
 ---
 
-## Total: ~910 LOC new + ~200 LOC reduction = ~710 net
+## Stage 10.5: Technical Debt Assessment
+**Risk:** VERY LOW | **LOC:** ~50 | **Commit after**
+
+Document technical debt for future autoruns.
+
+| Task | Description | Est. LOC |
+|------|-------------|----------|
+| 10.5.1 | Create TECH-DEBT.md with findings | ~40 |
+| 10.5.2 | Prioritize debt items | ~10 |
+| 10.5.3 | All tests pass verification | ~0 |
+
+**Known Debt (from exploration):**
+- `lib/combat.js` = 1670 LOC (large, could split)
+- Rules extracted from Mongoose Traveller PDFs on file
+- Full PDFs available on request for deeper rule integration
+
+**Deliverable:** Technical debt documented for prioritization.
+
+---
+
+## Total: ~560 LOC (reduced from ~710 due to existing extraction)
 
 ---
 
@@ -109,27 +139,13 @@ Reduce server.js to routing only.
 
 | Stage | Original | Mitigation | Final |
 |-------|----------|------------|-------|
-| 10.1 | LOW | Build on AR-9 JSON Schema | LOW |
-| 10.2 | LOW | Read-only operations | LOW |
-| 10.3 | MED | Facade pattern + behavior tests first | **LOW** |
-| 10.4 | MED | Facade pattern + behavior tests first | **LOW** |
-| 10.5 | LOW | Only delete after tests pass | LOW |
+| 10.1 | LOW | Build on AR-9 JSON Schema | **VERY LOW** |
+| 10.2 | LOW | Read-only operations | **VERY LOW** |
+| 10.3 | ~~MED~~ | Combat AI already extracted! Just verify. | **VERY LOW** |
+| 10.4 | ~~MED~~ | Commands already extracted! Just verify. | **VERY LOW** |
+| 10.5 | LOW | Document existing debt | **VERY LOW** |
 
-**All stages now LOW risk.**
-
-## Extraction Pattern Detail
-
-```
-Step 1: Write behavior tests (lock current behavior)
-   ↓
-Step 2: Create facade module (just imports/re-exports)
-   ↓
-Step 3: Tests still pass? → Migrate one function at a time
-   ↓
-Step 4: Tests still pass? → Internalize (remove old code deps)
-   ↓
-Step 5: Tests still pass? → Delete old code from server.js
-```
+**All stages VERY LOW risk. Combat extraction already done.**
 
 ---
 

@@ -125,10 +125,51 @@ Ensure existing solo combat still works.
 | 12.1 | MED | State flag pattern, clean transitions | LOW |
 | 12.2 | MED | Adapter pattern for data conversion | LOW |
 | 12.3 | LOW | Simple mapping table | LOW |
-| 12.4 | MED | Sync on round-end only (not real-time) | LOW |
+| 12.4 | MED | Sync on round-end only (not real-time) | **VERY LOW** |
 | 12.5 | LOW | Explicit solo mode checks | LOW |
 
 **All stages LOW risk with mitigations.**
+
+### Risk Assessment Update (2025-12-01)
+
+**Existing Infrastructure Found:**
+- `lib/operations/contacts.js` - Full CRUD, scan levels (UNKNOWN→PASSIVE→ACTIVE→DEEP)
+- `lib/state/combat-state.js` - Clean Map-based combat sessions
+- `lib/combat/ai/` - Strategy Pattern with 4 strategies
+- `lib/combat/commands/` - Command Pattern with 6 commands
+
+**12.2 Contact→Combatant Adapter:**
+```javascript
+// Concrete implementation pattern - low risk
+function contactToCombatant(contact) {
+  return {
+    id: contact.id,
+    name: contact.scan_level >= SCAN_LEVELS.ACTIVE ? contact.name : '?',
+    type: contact.scan_level >= SCAN_LEVELS.PASSIVE ? contact.type : 'unknown',
+    range: contact.range_band,
+    bearing: contact.bearing,
+    // Hidden data preserved for GM
+    _fullData: contact
+  };
+}
+```
+
+**12.4 State Sync - Simplified:**
+```javascript
+// Round-end sync function - straightforward DB update
+function syncRoundEnd(combatId, campaignId) {
+  const combat = getCombat(combatId);
+  if (!combat || !combat.operationsMode) return;
+
+  // Player ship damage → ops DB
+  updateShipDamage(campaignId, combat.playerShip.hull, combat.playerShip.damage);
+
+  // Fuel/ammo consumption
+  updateShipResources(campaignId, combat.playerShip.fuel, combat.playerShip.ammo);
+}
+```
+
+**Risk now VERY LOW** - existing infrastructure handles complexity.
 
 ---
 
