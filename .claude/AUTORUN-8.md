@@ -11,10 +11,10 @@
 |-------|--------|-----------|
 | 8.1   | COMPLETE | ~850 |
 | 8.2   | COMPLETE | ~310 |
-| 8.3   | PENDING | 0 |
+| 8.3   | COMPLETE | ~220 |
 | 8.4   | PENDING | 0 |
 | 8.5   | PENDING | 0 |
-| **TOTAL** | - | **~1160** |
+| **TOTAL** | - | **~1380** |
 <!-- END_LOC_METRICS -->
 
 ## Execution Protocol

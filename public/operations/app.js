@@ -4033,6 +4033,8 @@ function loadPrepData() {
   renderPrepNpcs();
   renderPrepLocations();
   renderPrepEvents();
+  renderPrepEmails();
+  renderPrepHandouts();
 }
 
 // ==================== Reveals (Stage 8.1) ====================
@@ -4525,6 +4527,176 @@ function showEventDetail(eventId) {
   showModalContent(html);
 }
 
+// ==================== Email Queue (Stage 8.3) ====================
+
+function renderPrepEmails() {
+  const list = document.getElementById('email-list');
+  const count = document.getElementById('email-count');
+  const emails = state.prepEmails || {};
+  const drafts = emails.drafts || [];
+  const queued = emails.queued || [];
+  const sent = emails.sent || [];
+  const total = drafts.length + queued.length + sent.length;
+
+  if (count) count.textContent = `${total} email${total !== 1 ? 's' : ''}`;
+  if (!list) return;
+
+  if (total === 0) {
+    list.innerHTML = '<p class="placeholder">No emails prepared</p>';
+    return;
+  }
+
+  let html = '';
+
+  // Drafts
+  if (drafts.length > 0) {
+    html += `<div class="email-section"><h4>Drafts (${drafts.length})</h4>`;
+    html += drafts.map(email => renderEmailItem(email, 'draft')).join('');
+    html += '</div>';
+  }
+
+  // Queued
+  if (queued.length > 0) {
+    html += `<div class="email-section"><h4>Queued (${queued.length})</h4>`;
+    html += queued.map(email => renderEmailItem(email, 'queued')).join('');
+    html += '</div>';
+  }
+
+  // Sent (collapsed by default)
+  if (sent.length > 0) {
+    html += `<div class="email-section"><h4>Sent (${sent.length})</h4>`;
+    html += sent.slice(0, 5).map(email => renderEmailItem(email, 'sent')).join('');
+    if (sent.length > 5) html += `<p class="text-muted">...and ${sent.length - 5} more</p>`;
+    html += '</div>';
+  }
+
+  list.innerHTML = html;
+}
+
+function renderEmailItem(email, status) {
+  return `
+    <div class="prep-item" data-email-id="${email.id}">
+      <div class="prep-item-header">
+        <span class="prep-item-title">${escapeHtml(email.subject || 'No subject')}</span>
+        <span class="prep-item-status ${status}">${status}</span>
+      </div>
+      <div class="prep-item-desc">
+        From: ${escapeHtml(email.sender_name || 'Unknown')} |
+        To: ${escapeHtml(email.recipient_type || 'player')}
+      </div>
+      <div class="prep-item-meta">
+        ${email.queued_for_date ? `<span>Scheduled: ${email.queued_for_date}</span>` : ''}
+        ${email.sent_date ? `<span>Sent: ${email.sent_date}</span>` : ''}
+      </div>
+      ${status !== 'sent' ? `
+        <div class="prep-item-actions">
+          <button class="btn btn-primary btn-sm" onclick="sendEmailNow('${email.id}')">Send Now</button>
+          ${status === 'draft' ? `<button class="btn btn-sm" onclick="queueEmail('${email.id}')">Queue</button>` : ''}
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+function sendEmailNow(emailId) {
+  state.socket.emit('ops:sendEmail', {
+    emailId,
+    sentDate: state.gameDate,
+    deliveryDate: state.gameDate
+  });
+  showNotification('Email sent', 'success');
+  // Reload prep data
+  loadPrepData();
+}
+
+function queueEmail(emailId) {
+  const date = prompt('Enter game date to send (e.g., 1105-042):');
+  if (!date) return;
+  state.socket.emit('ops:queueEmail', { emailId, queuedForDate: date });
+  showNotification(`Email queued for ${date}`, 'success');
+  loadPrepData();
+}
+
+// ==================== Handouts / Assets (Stage 8.3) ====================
+
+function renderPrepHandouts() {
+  const list = document.getElementById('handouts-list');
+  const count = document.getElementById('handouts-count');
+  const handouts = state.prepHandouts || [];
+
+  if (count) count.textContent = `${handouts.length} handout${handouts.length !== 1 ? 's' : ''}`;
+  if (!list) return;
+
+  if (handouts.length === 0) {
+    list.innerHTML = '<p class="placeholder">No handouts prepared</p>';
+    return;
+  }
+
+  list.innerHTML = handouts.map(handout => `
+    <div class="prep-item" data-handout-id="${handout.id}">
+      <div class="prep-item-header">
+        <span class="prep-item-title">${escapeHtml(handout.title)}</span>
+        <span class="prep-item-status ${handout.visibility}">${handout.visibility}</span>
+      </div>
+      <div class="prep-item-desc">
+        Type: ${handout.handout_type || 'document'}
+        ${handout.file_url ? ' | Has file' : ''}
+      </div>
+      <div class="prep-item-actions">
+        ${handout.visibility === 'hidden' ?
+          `<button class="btn btn-primary btn-sm" onclick="shareHandout('${handout.id}')">Share</button>` :
+          `<button class="btn btn-sm" onclick="hideHandout('${handout.id}')">Hide</button>`
+        }
+        <button class="btn btn-sm" onclick="showHandoutDetail('${handout.id}')">View</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function shareHandout(handoutId) {
+  state.socket.emit('ops:shareHandout', { handoutId });
+  const handout = state.prepHandouts.find(h => h.id === handoutId);
+  if (handout) {
+    handout.visibility = 'revealed';
+    renderPrepHandouts();
+  }
+  showNotification('Handout shared with players', 'success');
+}
+
+function hideHandout(handoutId) {
+  const handout = state.prepHandouts.find(h => h.id === handoutId);
+  if (handout) {
+    handout.visibility = 'hidden';
+    renderPrepHandouts();
+  }
+}
+
+function showHandoutDetail(handoutId) {
+  const handout = state.prepHandouts.find(h => h.id === handoutId);
+  if (!handout) return;
+
+  const html = `
+    <div class="modal-header">
+      <h2>${escapeHtml(handout.title)}</h2>
+      <button class="btn-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>Type:</strong> ${escapeHtml(handout.handout_type || 'document')}</p>
+      <p><strong>Visibility:</strong> ${escapeHtml(handout.visibility)}</p>
+      ${handout.file_url ? `<p><strong>File:</strong> <a href="${escapeHtml(handout.file_url)}" target="_blank">View</a></p>` : ''}
+      ${handout.content_text ? `<div class="handout-content">${escapeHtml(handout.content_text)}</div>` : ''}
+      ${handout.notes ? `<p><strong>GM Notes:</strong> ${escapeHtml(handout.notes)}</p>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Close</button>
+      ${handout.visibility === 'hidden' ?
+        `<button class="btn btn-primary" onclick="shareHandout('${handout.id}'); closeModal();">Share</button>` : ''
+      }
+    </div>
+  `;
+  showModalContent(html);
+}
+
 // ==================== Global Exports for onclick handlers ====================
 // ES6 modules scope functions, but onclick handlers need global access
 window.attemptRepair = attemptRepair;
@@ -4569,3 +4741,9 @@ window.revealLocation = revealLocation;
 window.hideLocation = hideLocation;
 window.triggerEvent = triggerEvent;
 window.showEventDetail = showEventDetail;
+// Stage 8.3: Email Queue, Handouts
+window.sendEmailNow = sendEmailNow;
+window.queueEmail = queueEmail;
+window.shareHandout = shareHandout;
+window.hideHandout = hideHandout;
+window.showHandoutDetail = showHandoutDetail;
