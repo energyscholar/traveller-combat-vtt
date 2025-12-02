@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://traveller-vtt.example.com/schemas/character.schema.json",
+  "title": "Traveller Character",
+  "description": "Schema for Traveller character data",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Character name"
+    },
+    "species": {
+      "type": "string",
+      "default": "Human",
+      "description": "Character species (Human, Vargr, Aslan, etc.)"
+    },
+    "homeworld": {
+      "type": "string",
+      "description": "Character's homeworld"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 18,
+      "maximum": 150,
+      "description": "Character age in years"
+    },
+    "upp": {
+      "type": "string",
+      "pattern": "^[0-9A-Fa-f]{6,7}$",
+      "description": "Universal Personality Profile (hex string, e.g., 789A87)"
+    },
+    "stats": {
+      "type": "object",
+      "description": "Character statistics",
+      "properties": {
+        "str": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "dex": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "end": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "int": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "edu": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "soc": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "psi": { "type": "integer", "minimum": 0, "maximum": 15 }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 6
+      },
+      "description": "Skill name to level mapping"
+    },
+    "careers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "specialty": { "type": "string" },
+          "terms": { "type": "integer", "minimum": 1 },
+          "rank": { "type": "integer", "minimum": 0 },
+          "rankTitle": { "type": "string" }
+        }
+      },
+      "description": "Career history"
+    },
+    "equipment": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "General equipment list"
+    },
+    "weapons": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Weapons carried"
+    },
+    "armor": {
+      "type": "string",
+      "description": "Armor worn"
+    },
+    "credits": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Credits on hand"
+    },
+    "shipShares": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Ship shares accumulated"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Player/GM notes"
+    },
+    "importConfidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Parser confidence score (0-100)"
+    },
+    "importRawText": {
+      "type": "string",
+      "description": "Original import text if confidence < 80"
+    }
+  }
+}

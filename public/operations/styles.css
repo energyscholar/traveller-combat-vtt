@@ -1968,6 +1968,153 @@ input[type="checkbox"] {
   border-top: 1px solid var(--border-color);
 }
 
+/* Character Import paste section */
+.import-paste-section textarea {
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.9rem;
+  background: var(--bg-darker);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  resize: vertical;
+}
+
+.import-paste-section #btn-parse-character {
+  margin-top: var(--space-sm);
+}
+
+.parse-status {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  display: none;
+}
+
+.parse-status.success {
+  display: block;
+  background: rgba(0, 200, 100, 0.2);
+  border: 1px solid var(--success-color);
+  color: var(--success-color);
+}
+
+.parse-status.warning {
+  display: block;
+  background: rgba(255, 200, 0, 0.2);
+  border: 1px solid var(--warning-color);
+  color: var(--warning-color);
+}
+
+.parse-status.error {
+  display: block;
+  background: rgba(255, 100, 100, 0.2);
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+}
+
+.import-divider {
+  border: none;
+  border-top: 1px dashed var(--border-color);
+  margin: var(--space-lg) 0;
+}
+
+/* Stage 9.3: Mail Inbox */
+.mail-inbox {
+  min-height: 300px;
+}
+
+.mail-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.mail-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-darker);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mail-item:hover {
+  background: var(--bg-lighter);
+}
+
+.mail-item.unread {
+  border-left: 3px solid var(--accent-color);
+}
+
+.mail-item .mail-from {
+  flex: 1;
+  font-weight: 500;
+}
+
+.mail-item .mail-subject {
+  flex: 2;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mail-item .mail-date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.mail-detail, .mail-compose {
+  padding: var(--space-md);
+}
+
+.mail-detail-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+}
+
+.mail-detail-subject {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: var(--space-md);
+  color: var(--text-primary);
+}
+
+.mail-detail-body {
+  white-space: pre-wrap;
+  line-height: 1.6;
+  margin-bottom: var(--space-lg);
+}
+
+.mail-detail-actions, .mail-compose-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+/* Handout Viewer */
+.handout-viewer {
+  min-height: 400px;
+}
+
+.handout-content {
+  padding: var(--space-md);
+  background: var(--bg-darker);
+  border-radius: var(--radius-sm);
+  line-height: 1.7;
+}
+
+.handout-content img {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Skill/Stat inputs in modal */
 .skill-inputs,
 .stat-inputs {
@@ -3545,6 +3692,17 @@ input[type="checkbox"] {
   text-align: center;
 }
 
+.mail-menu-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: var(--accent-blue);
+  color: white;
+  min-width: 18px;
+  text-align: center;
+  margin-left: auto;
+}
+
 .menu-section-feedback {
   margin-top: auto;
   border-top: 1px solid var(--border-color);
@@ -3657,6 +3815,200 @@ input[type="checkbox"] {
 .mail-detail-body {
   color: var(--text-primary);
   line-height: 1.6;
+}
+
+/* Mail Reply Compose (Stage 9.3) */
+.mail-compose-reply {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.mail-compose-reply textarea {
+  width: 100%;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: var(--space-sm);
+  font-family: var(--font-sans);
+  resize: vertical;
+}
+
+.mail-compose-reply textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+/* ==================== Handout Viewer (Stage 9.3) ==================== */
+
+.handout-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.handout-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--space-sm);
+}
+
+.handout-content {
+  color: var(--text-primary);
+  line-height: 1.7;
+  font-size: 15px;
+}
+
+.handout-content img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin: var(--space-sm) 0;
+}
+
+.handout-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--space-sm);
+}
+
+/* ==================== Role Panel Enhancements (Stage 9.4) ==================== */
+
+/* Turret Station Assignment */
+.turret-station {
+  text-align: center;
+  padding: var(--space-md);
+  background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-panel-light) 100%);
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-md);
+}
+
+.turret-badge {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-orange);
+  font-family: var(--font-mono);
+  letter-spacing: 2px;
+}
+
+.turret-weapon {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+}
+
+.weapon-item.assigned {
+  border-left: 3px solid var(--accent-orange);
+  background: rgba(249, 115, 22, 0.1);
+}
+
+/* Pilot ETA Display */
+.eta-display {
+  color: var(--accent-yellow);
+  font-family: var(--font-mono);
+}
+
+/* ==================== Sensor Contacts Display (Stage 11.2) ==================== */
+
+.sensor-contacts-section {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sensor-contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.contact-category {
+  margin-bottom: var(--space-sm);
+}
+
+.category-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.sensor-contact {
+  padding: var(--space-sm);
+  background: var(--bg-dark);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--border-color);
+}
+
+.sensor-contact.undetected { border-left-color: var(--text-muted); }
+.sensor-contact.passive { border-left-color: var(--accent-green); }
+.sensor-contact.active { border-left-color: var(--accent-yellow); }
+.sensor-contact.deep { border-left-color: var(--accent-blue); }
+.sensor-contact.celestial { border-left-color: var(--text-secondary); opacity: 0.7; }
+
+.contact-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+}
+
+.contact-designator {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.contact-range {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  background: var(--bg-panel-light);
+  border-radius: var(--radius-sm);
+}
+
+.contact-details {
+  display: flex;
+  gap: var(--space-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contact-type {
+  font-style: italic;
+}
+
+.contact-bearing {
+  font-family: var(--font-mono);
+}
+
+.contact-scan-level {
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.scan-undetected { background: var(--bg-panel-light); color: var(--text-muted); }
+.scan-passive { background: rgba(42, 170, 74, 0.2); color: var(--accent-green); }
+.scan-active { background: rgba(234, 179, 8, 0.2); color: var(--accent-yellow); }
+.scan-deep { background: rgba(58, 138, 255, 0.2); color: var(--accent-blue); }
+
+.contact-tonnage {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}
+
+.btn-tiny {
+  font-size: 10px;
+  padding: 2px 6px;
+  margin-top: var(--space-xs);
 }
 
 /* ==================== NPC Contacts Modal (Autorun 6) ==================== */
@@ -4157,4 +4509,191 @@ input[type="checkbox"] {
     border: 1px solid var(--border-color);
     padding: var(--space-sm) var(--space-md);
   }
+}
+
+/* ==================== Crew Roster (Stage 11.4) ==================== */
+
+.crew-roster-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.crew-roster-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.crew-roster-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-md);
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent-green);
+}
+
+.crew-roster-item.relieved {
+  border-left-color: var(--accent-yellow);
+  opacity: 0.7;
+}
+
+.crew-roster-item.injured {
+  border-left-color: var(--accent-red);
+}
+
+.crew-item-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crew-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.crew-role {
+  font-size: 0.85em;
+  color: var(--accent-blue);
+  text-transform: capitalize;
+}
+
+.crew-item-details {
+  display: flex;
+  gap: var(--space-md);
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+
+.crew-skill {
+  padding: 2px 8px;
+  background: var(--bg-panel);
+  border-radius: var(--radius-sm);
+}
+
+.crew-personality {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.crew-status {
+  text-transform: capitalize;
+}
+
+.crew-item-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+/* ==================== Combat Screen (Autorun 12) ==================== */
+
+#combat-screen {
+  background: var(--bg-dark);
+  display: flex;
+  flex-direction: column;
+}
+
+.combat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md);
+  background: var(--accent-red);
+  color: white;
+}
+
+.combat-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  animation: combat-pulse 2s infinite;
+}
+
+@keyframes combat-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+#combat-main {
+  flex: 1;
+  padding: var(--space-lg);
+  overflow-y: auto;
+}
+
+.combat-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(220, 38, 38, 0.2);
+  border: 1px solid var(--accent-red);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-lg);
+}
+
+.combat-status-icon {
+  font-size: 2rem;
+}
+
+.combat-status-text {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--accent-red);
+}
+
+.combat-combatants {
+  margin-bottom: var(--space-lg);
+}
+
+.combat-combatants h3 {
+  margin-bottom: var(--space-md);
+}
+
+.combatant-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.combatant-item {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--accent-red);
+}
+
+.combatant-name {
+  font-weight: 600;
+  min-width: 150px;
+}
+
+.combatant-type {
+  color: var(--text-secondary);
+}
+
+.combatant-range {
+  color: var(--accent-yellow);
+}
+
+.combatant-tonnage {
+  color: var(--text-muted);
+}
+
+.combat-placeholder {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-muted);
+}
+
+.combat-gm-controls {
+  margin-top: var(--space-lg);
+  text-align: center;
 }

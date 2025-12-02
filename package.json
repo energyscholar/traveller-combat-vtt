@@ -21,11 +21,15 @@
     "security:fix:force": "npm audit fix --force",
     "db:reset": "node lib/operations/reset-db.js",
     "db:reset:full": "node lib/operations/reset-db.js --full",
-    "db:seed": "node lib/operations/seed-dorannia.js"
+    "db:seed": "node lib/operations/seed-dorannia.js",
+    "validate-adventure": "node scripts/validate-adventure.js"
   },
   "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "better-sqlite3": "^12.5.0",
     "express": "^4.18.2",
+    "jszip": "^3.10.1",
     "socket.io": "^4.7.2",
     "winston": "^3.18.3"
   },

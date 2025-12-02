@@ -1,7 +1,7 @@
 # Technical Debt Tracker
 
-**Last Updated:** 2025-11-09
-**Current Stage:** 10 Complete (Ready for Stage 11)
+**Last Updated:** 2025-12-01
+**Current Stage:** AR-10 Complete (Ready for AR-11)
 
 ---
 
@@ -72,6 +72,30 @@
 - **Effort:** 6 hours (integration + migration)
 
 ### MEDIUM PRIORITY (Nice to have)
+
+#### TD-008: Operations Socket Handlers Growing
+- **Location:** `lib/socket-handlers/operations.handlers.js`
+- **Issue:** ~2500 LOC, many event handlers in one file
+- **Impact:** MEDIUM - Becoming unwieldy to maintain
+- **Recommendation:** Split by domain (mail, contacts, campaign, bridge)
+- **Effort:** 3-4 hours
+- **Defer To:** Post AR-12
+
+#### TD-009: Client-side app.js Large
+- **Location:** `public/operations/app.js`
+- **Issue:** ~4000 LOC
+- **Impact:** MEDIUM - Bundle size, maintainability
+- **Recommendation:** Continue modularization (started with role-panels.js, utils.js)
+- **Effort:** 4-6 hours
+- **Defer To:** Post AR-12
+
+#### TD-010: Duplicate CSS Selectors
+- **Location:** `public/operations/styles.css`, `public/combat/styles.css`
+- **Issue:** Some overlap in common styles
+- **Impact:** LOW - Style inconsistency risk
+- **Recommendation:** Extract common components to shared CSS
+- **Effort:** 2-3 hours
+- **Defer To:** Post v1.0
 
 #### 3. **Test Constants - Reduce Duplication**
 - **Location:** All test files in `tests/unit/`
@@ -175,6 +199,26 @@
 ---
 
 ## Technical Debt RESOLVED
+
+### AR-9/AR-10 Completions (2025-12-01)
+
+#### ✅ JSON Schema Validation Added
+- **Was:** No JSON Schema validation (Item #3 above partially resolved)
+- **Now:** `ajv` + `ajv-formats` with schemas in `schemas/`
+- **Benefit:** Adventure packages and characters validate against schema
+
+#### ✅ Combat AI Extraction Complete
+- **Location:** `lib/combat/ai/` - Strategy Pattern (4 strategies)
+- **Benefit:** Clean AI architecture, testable strategies
+
+#### ✅ Combat Commands Extraction Complete
+- **Location:** `lib/combat/commands/` - Command Pattern (6 commands)
+- **Benefit:** Clean command architecture
+
+#### ✅ server.js Reduced to 414 LOC
+- **Was:** >800 LOC
+- **Now:** 414 LOC (target was <500)
+- **Benefit:** Maintainable entry point
 
 ### Stage 8.1A Improvements
 

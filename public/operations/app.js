@@ -570,6 +570,45 @@ function initSocket() {
     handleScanResult(data);
   });
 
+  // Autorun 11: Handle targeted scan results
+  state.socket.on('ops:scanContactResult', (data) => {
+    if (data.success) {
+      // Update contact in state
+      const idx = state.contacts.findIndex(c => c.id === data.contactId);
+      if (idx >= 0 && data.contact) {
+        state.contacts[idx] = data.contact;
+      }
+      renderContacts();
+      renderRoleDetailPanel(state.role);
+      showNotification(data.message || 'Scan complete', 'success');
+    } else {
+      showNotification(data.message || 'Scan failed', 'error');
+    }
+  });
+
+  // Autorun 12: Combat mode events
+  state.socket.on('ops:combatStarted', (data) => {
+    state.inCombat = true;
+    state.combatState = data;
+    showNotification('COMBAT STATIONS! Tactical mode engaged.', 'warning');
+    showCombatScreen(data);
+  });
+
+  state.socket.on('ops:combatEnded', (data) => {
+    state.inCombat = false;
+    state.combatState = null;
+    showNotification(`Combat ended: ${data.outcome}`, 'info');
+    hideCombatScreen();
+  });
+
+  state.socket.on('ops:combatState', (data) => {
+    state.inCombat = data.inCombat;
+    state.combatState = data;
+    if (data.inCombat) {
+      showCombatScreen(data);
+    }
+  });
+
   // Autorun 5: Handle weapons authorization
   state.socket.on('ops:weaponsAuthorized', (data) => {
     handleWeaponsAuthorized(data);
@@ -605,20 +644,34 @@ function initSocket() {
 
   // Autorun 6: Mail system handlers
   state.socket.on('ops:mailList', (data) => {
+    state.unreadMailCount = data.unreadCount || 0;
+    updateMailBadge();
     showMailModal(data.mail, data.unreadCount);
   });
 
   state.socket.on('ops:newMail', (data) => {
     if (data.recipientId === state.accountId || data.recipientId === 'all') {
       showNotification(`New mail from ${data.senderName}: ${data.subject}`, 'info');
-      // Update mail badge in menu
+      // Increment unread count and update badge
+      state.unreadMailCount = (state.unreadMailCount || 0) + 1;
       updateMailBadge();
     }
   });
 
+  // Stage 9.3: Handout viewer
+  state.socket.on('ops:showHandout', (data) => {
+    showHandoutModal(data.handout);
+    showNotification(`${data.handout.sharedBy} shared a handout with you`, 'info');
+  });
+
   // Autorun 6: NPC contacts handlers
   state.socket.on('ops:npcContactsList', (data) => {
-    showNPCContactsModal(data.contacts, data.isGM);
+    // If compose modal is waiting for contacts, populate it
+    if (state.pendingComposeContacts) {
+      populateComposeContacts(data.contacts);
+    } else {
+      showNPCContactsModal(data.contacts, data.isGM);
+    }
   });
 
   state.socket.on('ops:npcContactsRefresh', () => {
@@ -766,6 +819,53 @@ function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(`${screenId}-screen`).classList.add('active');
   state.currentScreen = screenId;
+}
+
+// ==================== Combat Screen (Autorun 12) ====================
+
+function showCombatScreen(combatState) {
+  // Switch to combat screen
+  showScreen('combat');
+
+  // Populate combat screen with combatants
+  const combatMain = document.getElementById('combat-main');
+  if (!combatMain) return;
+
+  const combatants = combatState.combatants || [];
+
+  combatMain.innerHTML = `
+    <div class="combat-indicator">
+      <span class="combat-status-icon">⚔️</span>
+      <span class="combat-status-text">TACTICAL COMBAT MODE</span>
+    </div>
+    <div class="combat-combatants">
+      <h3>Engaged Contacts (${combatants.length})</h3>
+      <div class="combatant-list">
+        ${combatants.map(c => `
+          <div class="combatant-item">
+            <span class="combatant-name">${c.name || '???'}</span>
+            <span class="combatant-type">${c.type || 'Unknown'}</span>
+            <span class="combatant-range">${c.range_band || '---'}</span>
+            ${c.tonnage ? `<span class="combatant-tonnage">${c.tonnage} dT</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="combat-placeholder">
+      <p>Full tactical combat system integration in progress...</p>
+      <p><em>This screen will link to the existing space combat VTT</em></p>
+    </div>
+    ${state.isGM ? `
+      <div class="combat-gm-controls">
+        <button class="btn btn-danger" onclick="document.getElementById('btn-exit-combat').click()">End Combat</button>
+      </div>
+    ` : ''}
+  `;
+}
+
+function hideCombatScreen() {
+  // Return to bridge screen
+  showScreen('bridge');
 }
 
 // ==================== Login Screen ====================
@@ -1391,10 +1491,23 @@ function initGMControls() {
   });
 
   document.getElementById('btn-gm-combat').addEventListener('click', () => {
-    if (confirm('Start combat mode?')) {
-      state.socket.emit('ops:startCombat', {
-        campaignId: state.campaign.id
+    // Get targetable contacts
+    const targetable = state.contacts?.filter(c => c.is_targetable) || [];
+    if (targetable.length === 0) {
+      showNotification('No targetable contacts for combat', 'error');
+      return;
+    }
+    if (confirm(`Start combat mode with ${targetable.length} contact(s)?`)) {
+      state.socket.emit('ops:enterCombat', {
+        selectedContacts: targetable.map(c => c.id)
       });
+    }
+  });
+
+  // Exit combat button
+  document.getElementById('btn-exit-combat')?.addEventListener('click', () => {
+    if (confirm('End combat and return to bridge operations?')) {
+      state.socket.emit('ops:exitCombat', { outcome: 'disengaged' });
     }
   });
 
@@ -2049,6 +2162,13 @@ function handleScanResult(data) {
   renderRoleDetailPanel(state.role);
 }
 
+// Scan a specific contact to increase detection level
+function scanContact(contactId, targetLevel) {
+  const scanType = targetLevel === 2 ? 'active' : 'deep';
+  state.socket.emit('ops:scanContact', { contactId, scanType });
+  showNotification(`Targeting contact for ${scanType} scan...`, 'info');
+}
+
 // ==================== News & Mail Display (Autorun 5) ====================
 
 function showNewsMailModal(systemName) {
@@ -2507,6 +2627,65 @@ function showModal(templateId) {
   }
 
   if (templateId === 'template-character-import') {
+    // Parse button - extract data from pasted text
+    document.getElementById('btn-parse-character').addEventListener('click', () => {
+      const text = document.getElementById('char-paste').value.trim();
+      const statusEl = document.getElementById('parse-status');
+
+      if (!text) {
+        statusEl.textContent = 'Please paste character data first';
+        statusEl.className = 'parse-status warning';
+        return;
+      }
+
+      // Parse the text
+      const parsed = parseCharacterText(text);
+
+      // Populate form fields
+      if (parsed.name) {
+        document.getElementById('char-name').value = parsed.name;
+      }
+
+      // Map skills to form fields
+      const skillMap = {
+        'Pilot': 'skill-pilot',
+        'Astrogation': 'skill-astrogation',
+        'Engineer': 'skill-engineer',
+        'Gunnery': 'skill-gunnery',
+        'Sensors': 'skill-sensors',
+        'Electronics': 'skill-sensors',
+        'Leadership': 'skill-leadership',
+        'Tactics': 'skill-tactics'
+      };
+
+      for (const [skillName, inputId] of Object.entries(skillMap)) {
+        if (parsed.skills[skillName] !== undefined) {
+          const el = document.getElementById(inputId);
+          if (el) el.value = parsed.skills[skillName];
+        }
+      }
+
+      // Map stats
+      if (parsed.stats.dex) document.getElementById('stat-dex').value = parsed.stats.dex;
+      if (parsed.stats.int) document.getElementById('stat-int').value = parsed.stats.int;
+      if (parsed.stats.edu) document.getElementById('stat-edu').value = parsed.stats.edu;
+
+      // Show status
+      const found = [];
+      if (parsed.name) found.push('name');
+      if (Object.keys(parsed.skills).length > 0) found.push(`${Object.keys(parsed.skills).length} skills`);
+      if (parsed.stats.dex || parsed.stats.int || parsed.stats.edu) found.push('stats');
+
+      if (found.length > 0) {
+        statusEl.textContent = `Parsed: ${found.join(', ')}. Review and edit below.`;
+        statusEl.className = 'parse-status success';
+      } else {
+        statusEl.textContent = 'Could not parse any data. Please enter manually.';
+        statusEl.className = 'parse-status warning';
+      }
+    });
+
+    // Save button
     document.getElementById('btn-save-character').addEventListener('click', () => {
       const character = {
         name: document.getElementById('char-name').value.trim(),
@@ -2528,9 +2707,9 @@ function showModal(templateId) {
 
       if (character.name) {
         state.socket.emit('ops:importCharacter', {
-          playerId: state.player.id,
-          character
+          characterData: character
         });
+        closeModal();
       }
     });
   }
@@ -2930,6 +3109,109 @@ function closeModal() {
 }
 
 // ==================== Utilities (imported from modules/utils.js) ====================
+
+// Parse character text (client-side version of lib/operations/characters.js parsers)
+function parseCharacterText(text) {
+  const result = {
+    name: null,
+    stats: {},
+    skills: {}
+  };
+
+  // Try to parse as JSON first
+  if (text.trim().startsWith('{')) {
+    try {
+      const json = JSON.parse(text);
+      if (json.name) result.name = json.name;
+      if (json.stats) result.stats = json.stats;
+      if (json.skills) result.skills = json.skills;
+      if (json.upp) {
+        const parsed = parseUPP(json.upp);
+        if (parsed) result.stats = { ...result.stats, ...parsed };
+      }
+      return result;
+    } catch (e) {
+      // Not valid JSON, continue with text parsing
+    }
+  }
+
+  // Extract name (first non-empty line that doesn't look like a data field)
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  for (const line of lines) {
+    if (!line.includes(':') && !line.match(/^[A-F0-9]{6,7}$/i)) {
+      result.name = line;
+      break;
+    }
+  }
+
+  // Extract UPP
+  const uppMatch = text.match(/UPP[:\s]*([A-F0-9]{6,7})/i) ||
+                   text.match(/\b([A-F0-9]{6,7})\b/);
+  if (uppMatch) {
+    const parsed = parseUPP(uppMatch[1]);
+    if (parsed) result.stats = parsed;
+  }
+
+  // Extract skills
+  result.skills = parseSkills(text);
+
+  return result;
+}
+
+// Parse UPP string (e.g., "789A87" -> stats object)
+function parseUPP(upp) {
+  if (!upp || typeof upp !== 'string') return null;
+  const clean = upp.replace(/[^0-9A-Fa-f]/g, '').toUpperCase();
+  if (clean.length < 6) return null;
+
+  const STAT_ORDER = ['str', 'dex', 'end', 'int', 'edu', 'soc'];
+  const stats = {};
+  const chars = clean.split('');
+
+  for (let i = 0; i < 6 && i < chars.length; i++) {
+    const val = parseInt(chars[i], 16);
+    if (isNaN(val)) return null;
+    stats[STAT_ORDER[i]] = val;
+  }
+
+  if (chars.length >= 7) {
+    const psi = parseInt(chars[6], 16);
+    if (!isNaN(psi)) stats.psi = psi;
+  }
+
+  return stats;
+}
+
+// Parse skills from text
+function parseSkills(text) {
+  if (!text || typeof text !== 'string') return {};
+  const skills = {};
+
+  // Patterns to match skill entries
+  const patterns = [
+    /([A-Za-z][A-Za-z\s]+?)\s*[-:]\s*(\d+)/g,  // "Pilot-2" or "Pilot: 2"
+    /([A-Za-z][A-Za-z\s]+?)\s+(\d+)(?=[,;\n]|$)/g,  // "Pilot 2"
+    /([A-Za-z][A-Za-z\s]+?)\s*\((\d+)\)/g  // "Pilot (2)"
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      let skillName = match[1].trim();
+      const level = parseInt(match[2], 10);
+
+      // Normalize skill name (capitalize first letter of each word)
+      skillName = skillName.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+      // Skip if already found (prefer first match)
+      if (skills[skillName] === undefined) {
+        skills[skillName] = level;
+      }
+    }
+  }
+
+  return skills;
+}
 
 // ==================== SHIP-6: ASCII Art (imported from modules/ascii-art.js) ====================
 
@@ -3555,7 +3837,7 @@ function handleMenuFeature(feature) {
       break;
 
     case 'crew-roster':
-      showNotification('Crew Roster - Planned feature', 'info');
+      showCrewRoster();
       break;
 
     case 'medical':
@@ -3701,17 +3983,418 @@ function showMailDetailModal(mail) {
           ${mail.body.split('\n').join('<br>')}
         </div>
       </div>
+      <div class="mail-compose-reply hidden" id="mail-compose-reply">
+        <textarea id="mail-reply-body" placeholder="Type your reply..." rows="4"></textarea>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="state.socket.emit('ops:getMail')">Back to Inbox</button>
+      <button class="btn btn-primary" id="btn-mail-reply" data-mail-id="${mail.id}" data-sender="${mail.sender_name}" data-subject="${mail.subject}">Reply</button>
+      <button class="btn btn-warning" id="btn-mail-archive" data-mail-id="${mail.id}">Archive</button>
+      <button class="btn btn-secondary" data-close-modal>Close</button>
+    </div>
+  `;
+  showModalContent(html);
+
+  // Reply button handler
+  document.getElementById('btn-mail-reply').addEventListener('click', (e) => {
+    const composeDiv = document.getElementById('mail-compose-reply');
+    const replyBtn = e.target;
+
+    if (composeDiv.classList.contains('hidden')) {
+      // Show compose area
+      composeDiv.classList.remove('hidden');
+      replyBtn.textContent = 'Send Reply';
+      document.getElementById('mail-reply-body').focus();
+    } else {
+      // Send reply
+      const body = document.getElementById('mail-reply-body').value.trim();
+      if (!body) {
+        showError('Please enter a reply message');
+        return;
+      }
+      state.socket.emit('ops:replyToMail', {
+        originalMailId: replyBtn.dataset.mailId,
+        subject: `Re: ${replyBtn.dataset.subject}`,
+        body
+      });
+      showMessage('Reply sent');
+      state.socket.emit('ops:getMail');
+    }
+  });
+
+  // Archive button handler
+  document.getElementById('btn-mail-archive').addEventListener('click', (e) => {
+    const mailId = e.target.dataset.mailId;
+    state.socket.emit('ops:archiveMail', { mailId });
+    showMessage('Mail archived');
+    state.socket.emit('ops:getMail');
+  });
+}
+
+function updateMailBadge() {
+  const badge = document.getElementById('mail-badge');
+  if (!badge) return;
+
+  const unreadCount = state.unreadMailCount || 0;
+  if (unreadCount > 0) {
+    badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+// ==================== Crew Roster (Stage 11.4) ====================
+
+function showCrewRoster() {
+  const npcCrew = state.ship?.npcCrew || [];
+  const isGM = state.isGM;
+
+  let html = `
+    <div class="modal-header">
+      <h2>Crew Roster</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body crew-roster-body">
+  `;
+
+  if (npcCrew.length === 0) {
+    html += '<p class="text-muted">No NPC crew members assigned to this ship.</p>';
+  } else {
+    html += '<div class="crew-roster-list">';
+    for (const crew of npcCrew) {
+      const statusClass = crew.status === 'active' ? 'active' :
+                         crew.status === 'relieved' ? 'relieved' :
+                         crew.status === 'injured' ? 'injured' : '';
+      html += `
+        <div class="crew-roster-item ${statusClass}" data-crew-id="${crew.id}">
+          <div class="crew-item-main">
+            <span class="crew-name">${crew.name}</span>
+            <span class="crew-role">${crew.role}</span>
+          </div>
+          <div class="crew-item-details">
+            <span class="crew-skill">${getSkillLabel(crew.skill_level)}</span>
+            ${crew.personality ? `<span class="crew-personality">${crew.personality}</span>` : ''}
+            <span class="crew-status">${crew.status || 'active'}</span>
+          </div>
+          ${isGM ? `
+            <div class="crew-item-actions">
+              <button class="btn btn-sm btn-secondary" data-edit-crew="${crew.id}">Edit</button>
+              <button class="btn btn-sm btn-danger" data-delete-crew="${crew.id}">Remove</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+    html += '</div>';
+  }
+
+  html += `
+    </div>
+    <div class="modal-footer">
+      ${isGM ? '<button class="btn btn-primary" id="btn-add-crew">Add Crew Member</button>' : ''}
+      <button class="btn btn-secondary" data-close-modal>Close</button>
+    </div>
+  `;
+
+  showModalContent(html);
+
+  // GM actions
+  if (isGM) {
+    document.getElementById('btn-add-crew')?.addEventListener('click', () => showAddCrewModal());
+
+    document.querySelectorAll('[data-edit-crew]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const crewId = e.target.dataset.editCrew;
+        const crew = npcCrew.find(c => c.id === crewId);
+        if (crew) showEditCrewModal(crew);
+      });
+    });
+
+    document.querySelectorAll('[data-delete-crew]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const crewId = e.target.dataset.deleteCrew;
+        if (confirm('Remove this crew member?')) {
+          state.socket.emit('ops:deleteNPCCrew', { crewId });
+          showNotification('Crew member removed', 'info');
+          setTimeout(() => showCrewRoster(), 500);
+        }
+      });
+    });
+  }
+}
+
+function getSkillLabel(level) {
+  switch (level) {
+    case 0: return 'Green';
+    case 1: return 'Average';
+    case 2: return 'Veteran';
+    case 3: return 'Elite';
+    default: return 'Unknown';
+  }
+}
+
+function showAddCrewModal() {
+  const html = `
+    <div class="modal-header">
+      <h2>Add Crew Member</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="crew-name" class="form-control" placeholder="Crew member name">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="crew-role" class="form-control">
+          <option value="pilot">Pilot</option>
+          <option value="astrogator">Astrogator</option>
+          <option value="engineer">Engineer</option>
+          <option value="medic">Medic</option>
+          <option value="gunner">Gunner</option>
+          <option value="sensor_operator">Sensor Operator</option>
+          <option value="steward">Steward</option>
+          <option value="marine">Marine</option>
+          <option value="deckhand">Deckhand</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Skill Level</label>
+        <select id="crew-skill" class="form-control">
+          <option value="0">Green (+0)</option>
+          <option value="1" selected>Average (+1)</option>
+          <option value="2">Veteran (+2)</option>
+          <option value="3">Elite (+3)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Personality (optional)</label>
+        <input type="text" id="crew-personality" class="form-control" placeholder="Brief personality">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-back-roster">Back</button>
+      <button class="btn btn-primary" id="btn-save-crew">Add Crew</button>
+    </div>
+  `;
+
+  showModalContent(html);
+
+  document.getElementById('btn-back-roster').addEventListener('click', () => showCrewRoster());
+  document.getElementById('btn-save-crew').addEventListener('click', () => {
+    const name = document.getElementById('crew-name').value.trim();
+    const role = document.getElementById('crew-role').value;
+    const skillLevel = parseInt(document.getElementById('crew-skill').value);
+    const personality = document.getElementById('crew-personality').value.trim();
+
+    if (!name) {
+      showNotification('Please enter a name', 'error');
+      return;
+    }
+
+    state.socket.emit('ops:addNPCCrew', {
+      shipId: state.ship.id,
+      name,
+      role,
+      skillLevel,
+      personality
+    });
+
+    showNotification('Crew member added', 'success');
+    setTimeout(() => showCrewRoster(), 500);
+  });
+}
+
+function showEditCrewModal(crew) {
+  const html = `
+    <div class="modal-header">
+      <h2>Edit Crew: ${crew.name}</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="crew-name" class="form-control" value="${crew.name}">
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="crew-role" class="form-control">
+          <option value="pilot" ${crew.role === 'pilot' ? 'selected' : ''}>Pilot</option>
+          <option value="astrogator" ${crew.role === 'astrogator' ? 'selected' : ''}>Astrogator</option>
+          <option value="engineer" ${crew.role === 'engineer' ? 'selected' : ''}>Engineer</option>
+          <option value="medic" ${crew.role === 'medic' ? 'selected' : ''}>Medic</option>
+          <option value="gunner" ${crew.role === 'gunner' ? 'selected' : ''}>Gunner</option>
+          <option value="sensor_operator" ${crew.role === 'sensor_operator' ? 'selected' : ''}>Sensor Operator</option>
+          <option value="steward" ${crew.role === 'steward' ? 'selected' : ''}>Steward</option>
+          <option value="marine" ${crew.role === 'marine' ? 'selected' : ''}>Marine</option>
+          <option value="deckhand" ${crew.role === 'deckhand' ? 'selected' : ''}>Deckhand</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Skill Level</label>
+        <select id="crew-skill" class="form-control">
+          <option value="0" ${crew.skill_level === 0 ? 'selected' : ''}>Green (+0)</option>
+          <option value="1" ${crew.skill_level === 1 ? 'selected' : ''}>Average (+1)</option>
+          <option value="2" ${crew.skill_level === 2 ? 'selected' : ''}>Veteran (+2)</option>
+          <option value="3" ${crew.skill_level === 3 ? 'selected' : ''}>Elite (+3)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Personality</label>
+        <input type="text" id="crew-personality" class="form-control" value="${crew.personality || ''}">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="crew-status" class="form-control">
+          <option value="active" ${crew.status === 'active' ? 'selected' : ''}>Active</option>
+          <option value="relieved" ${crew.status === 'relieved' ? 'selected' : ''}>Relieved</option>
+          <option value="injured" ${crew.status === 'injured' ? 'selected' : ''}>Injured</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btn-back-roster">Back</button>
+      <button class="btn btn-primary" id="btn-update-crew">Update</button>
+    </div>
+  `;
+
+  showModalContent(html);
+
+  document.getElementById('btn-back-roster').addEventListener('click', () => showCrewRoster());
+  document.getElementById('btn-update-crew').addEventListener('click', () => {
+    const name = document.getElementById('crew-name').value.trim();
+    const role = document.getElementById('crew-role').value;
+    const skillLevel = parseInt(document.getElementById('crew-skill').value);
+    const personality = document.getElementById('crew-personality').value.trim();
+    const status = document.getElementById('crew-status').value;
+
+    if (!name) {
+      showNotification('Please enter a name', 'error');
+      return;
+    }
+
+    state.socket.emit('ops:updateNPCCrew', {
+      crewId: crew.id,
+      updates: { name, role, skill_level: skillLevel, personality, status }
+    });
+
+    showNotification('Crew member updated', 'success');
+    setTimeout(() => showCrewRoster(), 500);
+  });
+}
+
+// ==================== Handout Viewer (Stage 9.3) ====================
+
+function showHandoutModal(handout) {
+  const html = `
+    <div class="modal-header">
+      <h2>Handout</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="handout-viewer">
+        <div class="handout-title">${handout.title}</div>
+        <div class="handout-content">
+          ${handout.content}
+        </div>
+        ${handout.sharedBy ? `<div class="handout-meta">Shared by: ${handout.sharedBy}</div>` : ''}
+      </div>
+    </div>
+    <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Close</button>
     </div>
   `;
   showModalContent(html);
 }
 
-function updateMailBadge() {
-  // TODO: Update mail badge count in hamburger menu
+// ==================== Mail Compose Modal (Stage 11.1) ====================
+
+function showComposeMailModal() {
+  // Request known contacts for recipient picker
+  state.socket.emit('ops:getNPCContacts');
+
+  // Show modal with loading state, will be populated when contacts arrive
+  const html = `
+    <div class="modal-header">
+      <h2>Compose Message</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="mail-compose-form">
+        <div class="form-group">
+          <label for="compose-recipient">To:</label>
+          <select id="compose-recipient" class="compose-select">
+            <option value="">Loading contacts...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="compose-subject">Subject:</label>
+          <input type="text" id="compose-subject" class="compose-input" placeholder="Message subject">
+        </div>
+        <div class="form-group">
+          <label for="compose-body">Message:</label>
+          <textarea id="compose-body" class="compose-textarea" rows="6" placeholder="Type your message..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" id="btn-send-compose">Send</button>
+    </div>
+  `;
+  showModalContent(html);
+
+  // Store a flag to populate contacts when they arrive
+  state.pendingComposeContacts = true;
+
+  // Send button handler
+  document.getElementById('btn-send-compose').addEventListener('click', () => {
+    const recipientId = document.getElementById('compose-recipient').value;
+    const recipientName = document.getElementById('compose-recipient').selectedOptions[0]?.text || 'Unknown';
+    const subject = document.getElementById('compose-subject').value.trim();
+    const body = document.getElementById('compose-body').value.trim();
+
+    if (!recipientId) {
+      showError('Please select a recipient');
+      return;
+    }
+    if (!subject) {
+      showError('Please enter a subject');
+      return;
+    }
+    if (!body) {
+      showError('Please enter a message');
+      return;
+    }
+
+    state.socket.emit('ops:playerSendMail', {
+      recipientId,
+      recipientName,
+      subject,
+      body
+    });
+    showMessage('Message sent');
+    hideModal();
+  });
+}
+
+// Populate compose contacts when received
+function populateComposeContacts(contacts) {
+  if (!state.pendingComposeContacts) return;
+  state.pendingComposeContacts = false;
+
+  const select = document.getElementById('compose-recipient');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">-- Select recipient --</option>';
+  for (const contact of contacts) {
+    const option = document.createElement('option');
+    option.value = contact.id;
+    option.textContent = contact.name + (contact.title ? ` (${contact.title})` : '');
+    select.appendChild(option);
+  }
 }
 
 // ==================== NPC Contacts Modal (Autorun 6) ====================

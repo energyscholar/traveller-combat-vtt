@@ -447,9 +447,10 @@
       <div class="menu-content">
         <div class="menu-section">
           <h4>Communications</h4>
-          <button class="menu-item" data-feature="mail">
+          <button class="menu-item" data-feature="mail" id="menu-mail">
             <span class="menu-icon">📧</span>
             <span class="menu-label">Ship Mail</span>
+            <span class="mail-menu-badge hidden" id="mail-badge">0</span>
           </button>
           <button class="menu-item" data-feature="contacts">
             <span class="menu-icon">👥</span>
@@ -527,6 +528,21 @@
       <button class="btn-close" data-close-modal>×</button>
     </div>
     <div class="modal-body">
+      <!-- Paste Import Section -->
+      <div class="form-group import-paste-section">
+        <label for="char-paste">Paste Character Text or JSON:</label>
+        <textarea id="char-paste" rows="6" placeholder="Paste character sheet text here...
+Example:
+Marcus Cole
+UPP: 789A87
+Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
+        <button class="btn btn-secondary" id="btn-parse-character">Parse</button>
+        <div id="parse-status" class="parse-status"></div>
+      </div>
+
+      <hr class="import-divider">
+
+      <!-- Manual Entry Section -->
       <div class="form-group">
         <label for="char-name">Character Name:</label>
         <input type="text" id="char-name" required>
@@ -1039,6 +1055,60 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Cancel</button>
       <button id="btn-set-system" class="btn btn-primary" disabled>Set as Current Location</button>
+    </div>
+  </template>
+
+  <!-- Stage 9.3: Player Mail Inbox Template -->
+  <template id="template-player-mail">
+    <div class="modal-header">
+      <h2>Ship Mail</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body mail-inbox">
+      <div class="mail-list" id="player-mail-list">
+        <p class="placeholder">No messages</p>
+      </div>
+      <div class="mail-detail hidden" id="mail-detail">
+        <div class="mail-detail-header">
+          <span class="mail-from" id="mail-detail-from"></span>
+          <span class="mail-date" id="mail-detail-date"></span>
+        </div>
+        <div class="mail-detail-subject" id="mail-detail-subject"></div>
+        <div class="mail-detail-body" id="mail-detail-body"></div>
+        <div class="mail-detail-actions">
+          <button class="btn btn-secondary" id="btn-mail-back">Back</button>
+          <button class="btn btn-primary" id="btn-mail-reply">Reply</button>
+          <button class="btn btn-warning" id="btn-mail-archive">Archive</button>
+        </div>
+      </div>
+      <div class="mail-compose hidden" id="mail-compose">
+        <div class="form-group">
+          <label>To: <span id="compose-to"></span></label>
+        </div>
+        <div class="form-group">
+          <label for="compose-subject">Subject:</label>
+          <input type="text" id="compose-subject">
+        </div>
+        <div class="form-group">
+          <label for="compose-body">Message:</label>
+          <textarea id="compose-body" rows="5"></textarea>
+        </div>
+        <div class="mail-compose-actions">
+          <button class="btn btn-secondary" id="btn-compose-cancel">Cancel</button>
+          <button class="btn btn-primary" id="btn-compose-send">Send</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Stage 9.3: Handout Viewer Template -->
+  <template id="template-handout-viewer">
+    <div class="modal-header">
+      <h2 id="handout-title">Handout</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body handout-viewer">
+      <div id="handout-content" class="handout-content"></div>
     </div>
   </template>
 

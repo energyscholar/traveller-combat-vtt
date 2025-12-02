@@ -122,17 +122,18 @@ export function renderSystemStatusItem(name, status) {
  */
 export function getRoleDetailContent(role, context) {
   const { shipState = {}, template = {}, systemStatus = {}, damagedSystems = [],
-          fuelStatus, jumpStatus = {}, campaign, contacts = [], crewOnline = [], ship } = context;
+          fuelStatus, jumpStatus = {}, campaign, contacts = [], crewOnline = [], ship,
+          roleInstance = 1 } = context;
 
   switch (role) {
     case 'pilot':
-      return getPilotPanel(shipState, template);
+      return getPilotPanel(shipState, template, campaign);
 
     case 'engineer':
       return getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus);
 
     case 'gunner':
-      return getGunnerPanel(shipState, template, contacts);
+      return getGunnerPanel(shipState, template, contacts, roleInstance);
 
     case 'captain':
       return getCaptainPanel(shipState, template, ship, crewOnline, contacts);
@@ -158,21 +159,44 @@ export function getRoleDetailContent(role, context) {
 
 // ==================== Individual Role Panel Functions ====================
 
-function getPilotPanel(shipState, template) {
+function getPilotPanel(shipState, template, campaign) {
+  const hasDestination = shipState.destination || campaign?.destination;
+  const destination = shipState.destination || campaign?.destination || 'None set';
+  const eta = shipState.eta || campaign?.eta || null;
+
   return `
     <div class="detail-section">
-      <h4>Thrust Status</h4>
+      <h4>Helm Control</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Speed:</span>
+          <span class="stat-value">${shipState.currentThrust || template.thrust || 2}G</span>
+        </div>
+        <div class="stat-row">
+          <span>Course:</span>
+          <span class="stat-value">${shipState.heading || shipState.vector || 'Holding'}</span>
+        </div>
+        <div class="stat-row">
+          <span>Destination:</span>
+          <span class="stat-value">${destination}</span>
+        </div>
+        ${eta ? `
+        <div class="stat-row">
+          <span>ETA:</span>
+          <span class="stat-value eta-display">${eta}</span>
+        </div>
+        ` : ''}
+      </div>
+    </div>
+    <div class="detail-section">
+      <h4>Drive Status</h4>
       <div class="detail-stats">
         <div class="stat-row">
           <span>Thrust Rating:</span>
-          <span class="stat-value">${template.thrust || 2}G</span>
+          <span class="stat-value">${template.thrust || 2}G max</span>
         </div>
         <div class="stat-row">
-          <span>Current Vector:</span>
-          <span class="stat-value">${shipState.vector || 'Stationary'}</span>
-        </div>
-        <div class="stat-row">
-          <span>Maneuver Drive:</span>
+          <span>M-Drive:</span>
           <span class="stat-value ${shipState.mDriveStatus === 'damaged' ? 'text-warning' : ''}">${shipState.mDriveStatus || 'Operational'}</span>
         </div>
       </div>
@@ -284,9 +308,14 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
   `;
 }
 
-function getGunnerPanel(shipState, template, contacts) {
+function getGunnerPanel(shipState, template, contacts, roleInstance = 1) {
   const weapons = template.weapons || [];
   const ammo = shipState.ammo || {};
+
+  // Determine turret assignment based on roleInstance
+  const turretCount = weapons.filter(w => w.type === 'turret' || !w.type).length;
+  const assignedTurret = roleInstance <= turretCount ? roleInstance : null;
+  const turretInfo = assignedTurret ? weapons[assignedTurret - 1] : null;
 
   // Filter to authorized targets only
   const authorizedTargets = contacts?.filter(c => c.is_targetable && c.weapons_free) || [];
@@ -294,11 +323,18 @@ function getGunnerPanel(shipState, template, contacts) {
   const hasWeapons = weapons.length > 0;
 
   return `
+    ${assignedTurret ? `
+    <div class="detail-section turret-station">
+      <h4>Station Assignment</h4>
+      <div class="turret-badge">TURRET ${assignedTurret}</div>
+      <div class="turret-weapon">${turretInfo?.name || 'Standard Turret'}</div>
+    </div>
+    ` : ''}
     <div class="detail-section">
       <h4>Weapons Status</h4>
       <div class="weapons-list">
         ${hasWeapons ? weapons.map((w, i) => `
-          <div class="weapon-item">
+          <div class="weapon-item ${assignedTurret === i + 1 ? 'assigned' : ''}">
             <span class="weapon-name">${w.name || w.id || 'Weapon ' + (i + 1)}</span>
             <span class="weapon-status">${shipState.weaponStatus?.[i] || 'Ready'}</span>
           </div>
@@ -456,7 +492,41 @@ function getSensorOperatorPanel(shipState, contacts) {
   const celestials = contacts?.filter(c => c.celestial) || [];
   const stations = contacts?.filter(c => !c.celestial && c.type && ['Station', 'Starport', 'Base'].includes(c.type)) || [];
   const ships = contacts?.filter(c => !c.celestial && c.type && ['Ship', 'Patrol'].includes(c.type)) || [];
-  const other = contacts?.filter(c => !c.celestial && (!c.type || !['Station', 'Starport', 'Base', 'Ship', 'Patrol'].includes(c.type))) || [];
+  const unknowns = contacts?.filter(c => !c.celestial && (!c.type || c.type === 'unknown')) || [];
+
+  // Scan level labels
+  const scanLevelLabels = ['Unknown', 'Passive', 'Active', 'Deep'];
+
+  // Render a single contact with detection-based fog of war
+  const renderContact = (c) => {
+    const scanLevel = c.scan_level || 0;
+    const scanClass = scanLevel === 0 ? 'undetected' : scanLevel === 1 ? 'passive' : scanLevel === 2 ? 'active' : 'deep';
+
+    // What info to show based on scan level
+    const showType = scanLevel >= 1;
+    const showName = scanLevel >= 2;
+    const showDetails = scanLevel >= 3;
+
+    return `
+      <div class="sensor-contact ${scanClass}" data-contact-id="${c.id}">
+        <div class="contact-header">
+          <span class="contact-designator">${showName ? escapeHtml(c.name || c.transponder || 'Unknown') : `Contact ${c.id?.slice(0,4) || '???'}`}</span>
+          <span class="contact-range">${c.range_band || 'Unknown'}</span>
+        </div>
+        <div class="contact-details">
+          ${showType ? `<span class="contact-type">${c.type || 'Unknown'}</span>` : '<span class="contact-type">???</span>'}
+          <span class="contact-bearing">${c.bearing || 0}°</span>
+          <span class="contact-scan-level scan-${scanClass}">${scanLevelLabels[scanLevel]}</span>
+        </div>
+        ${showDetails && c.tonnage ? `<div class="contact-tonnage">${c.tonnage} dT</div>` : ''}
+        ${scanLevel < 3 ? `
+          <button class="btn btn-tiny" onclick="scanContact('${c.id}', ${scanLevel + 1})">
+            ${scanLevel < 2 ? 'Active Scan' : 'Deep Scan'}
+          </button>
+        ` : ''}
+      </div>
+    `;
+  };
 
   return `
     <div class="detail-section">
@@ -468,34 +538,47 @@ function getSensorOperatorPanel(shipState, contacts) {
         <button onclick="performScan('active')" class="btn btn-small btn-warning" title="Full sweep - may reveal our position!">
           Active Scan
         </button>
+        <button onclick="performScan('deep')" class="btn btn-small btn-danger" title="Deep scan - definitely detected!">
+          Deep Scan
+        </button>
       </div>
       <div class="sensor-scan-note">
-        <small>Active scans reveal our position to other ships</small>
+        <small>Active/Deep scans reveal our position to other ships</small>
       </div>
     </div>
-    <div class="detail-section">
-      <h4>Contact Summary</h4>
-      <div class="detail-stats">
-        <div class="stat-row">
-          <span>Celestial:</span>
-          <span class="stat-value">${celestials.length}</span>
-        </div>
-        <div class="stat-row">
-          <span>Stations:</span>
-          <span class="stat-value">${stations.length}</span>
-        </div>
-        <div class="stat-row">
-          <span>Ships:</span>
-          <span class="stat-value">${ships.length}</span>
-        </div>
-        <div class="stat-row">
-          <span>Other:</span>
-          <span class="stat-value">${other.length}</span>
-        </div>
-        <div class="stat-row total">
-          <span>Total:</span>
-          <span class="stat-value">${contacts?.length || 0}</span>
-        </div>
+    <div class="detail-section sensor-contacts-section">
+      <h4>Contacts (${contacts?.length || 0})</h4>
+      <div class="sensor-contacts-list">
+        ${ships.length > 0 ? `
+          <div class="contact-category">
+            <div class="category-header">Ships (${ships.length})</div>
+            ${ships.map(renderContact).join('')}
+          </div>
+        ` : ''}
+        ${stations.length > 0 ? `
+          <div class="contact-category">
+            <div class="category-header">Stations (${stations.length})</div>
+            ${stations.map(renderContact).join('')}
+          </div>
+        ` : ''}
+        ${unknowns.length > 0 ? `
+          <div class="contact-category">
+            <div class="category-header">Unidentified (${unknowns.length})</div>
+            ${unknowns.map(renderContact).join('')}
+          </div>
+        ` : ''}
+        ${celestials.length > 0 ? `
+          <div class="contact-category">
+            <div class="category-header">Celestial (${celestials.length})</div>
+            ${celestials.map(c => `
+              <div class="sensor-contact celestial">
+                <span class="contact-designator">${escapeHtml(c.name || 'Body')}</span>
+                <span class="contact-type">${c.type || 'Planet'}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${(!contacts || contacts.length === 0) ? '<div class="placeholder">No contacts detected</div>' : ''}
       </div>
     </div>
     <div id="scan-result-display" class="scan-result-display" style="display: none;">
