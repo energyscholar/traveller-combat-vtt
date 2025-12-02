@@ -4028,8 +4028,11 @@ function loadPrepData() {
   if (state.campaign?.id) {
     state.socket.emit('ops:getPrepData', { campaignId: state.campaign.id });
   }
-  // For now, render with current state
+  // Render all prep tabs
   renderPrepReveals();
+  renderPrepNpcs();
+  renderPrepLocations();
+  renderPrepEvents();
 }
 
 // ==================== Reveals (Stage 8.1) ====================
@@ -4270,6 +4273,258 @@ function showPlayerRevealModal(data) {
   showModalContent(html);
 }
 
+// ==================== NPCs (Stage 8.2) ====================
+
+function renderPrepNpcs() {
+  const list = document.getElementById('npcs-list');
+  const count = document.getElementById('npcs-count');
+  const npcs = state.prepNpcs || [];
+
+  if (count) count.textContent = `${npcs.length} NPC${npcs.length !== 1 ? 's' : ''}`;
+  if (!list) return;
+
+  if (npcs.length === 0) {
+    list.innerHTML = '<p class="placeholder">No NPCs prepared</p>';
+    return;
+  }
+
+  list.innerHTML = npcs.map(npc => `
+    <div class="prep-item" data-npc-id="${npc.id}">
+      <div class="prep-item-header">
+        <span class="prep-item-title">${escapeHtml(npc.name)}</span>
+        <span class="prep-item-status ${npc.visibility}">${npc.visibility}</span>
+      </div>
+      <div class="prep-item-desc">
+        ${npc.title ? `<strong>${escapeHtml(npc.title)}</strong> - ` : ''}
+        ${escapeHtml(npc.role || 'neutral')}
+        ${npc.location_text ? ` @ ${escapeHtml(npc.location_text)}` : ''}
+      </div>
+      <div class="prep-item-meta">
+        <span>Status: ${npc.current_status || 'alive'}</span>
+        ${npc.motivation_hidden ? '<span>Has hidden motivation</span>' : ''}
+      </div>
+      <div class="prep-item-actions">
+        ${npc.visibility === 'hidden' ?
+          `<button class="btn btn-primary" onclick="revealNpc('${npc.id}')">Reveal</button>` :
+          `<button class="btn" onclick="hideNpc('${npc.id}')">Hide</button>`
+        }
+        <button class="btn" onclick="showNpcDetail('${npc.id}')">Detail</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function revealNpc(npcId) {
+  state.socket.emit('ops:revealNPC', { npcId });
+  // Optimistic update
+  const npc = state.prepNpcs.find(n => n.id === npcId);
+  if (npc) {
+    npc.visibility = 'revealed';
+    renderPrepNpcs();
+  }
+  showNotification('NPC revealed to players', 'success');
+}
+
+function hideNpc(npcId) {
+  // Would need ops:hideNPC handler - for now just update locally
+  const npc = state.prepNpcs.find(n => n.id === npcId);
+  if (npc) {
+    npc.visibility = 'hidden';
+    renderPrepNpcs();
+  }
+}
+
+function showNpcDetail(npcId) {
+  const npc = state.prepNpcs.find(n => n.id === npcId);
+  if (!npc) return;
+
+  const html = `
+    <div class="modal-header">
+      <h2>${escapeHtml(npc.name)}</h2>
+      <button class="btn-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      ${npc.title ? `<p><strong>Title:</strong> ${escapeHtml(npc.title)}</p>` : ''}
+      <p><strong>Role:</strong> ${escapeHtml(npc.role || 'neutral')}</p>
+      <p><strong>Status:</strong> ${escapeHtml(npc.current_status || 'alive')}</p>
+      ${npc.location_text ? `<p><strong>Location:</strong> ${escapeHtml(npc.location_text)}</p>` : ''}
+      ${npc.personality ? `<p><strong>Personality:</strong> ${escapeHtml(npc.personality)}</p>` : ''}
+      ${npc.motivation_public ? `<p><strong>Public Motivation:</strong> ${escapeHtml(npc.motivation_public)}</p>` : ''}
+      ${npc.motivation_hidden ? `<p><strong>Hidden Motivation:</strong> <em>${escapeHtml(npc.motivation_hidden)}</em></p>` : ''}
+      ${npc.background ? `<p><strong>Background:</strong> ${escapeHtml(npc.background)}</p>` : ''}
+      ${npc.notes ? `<p><strong>GM Notes:</strong> ${escapeHtml(npc.notes)}</p>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Close</button>
+      ${npc.visibility === 'hidden' ?
+        `<button class="btn btn-primary" onclick="revealNpc('${npc.id}'); closeModal();">Reveal</button>` : ''
+      }
+    </div>
+  `;
+  showModalContent(html);
+}
+
+// ==================== Locations (Stage 8.2) ====================
+
+function renderPrepLocations() {
+  const list = document.getElementById('locations-list');
+  const count = document.getElementById('locations-count');
+  const locations = state.prepLocations || [];
+
+  if (count) count.textContent = `${locations.length} location${locations.length !== 1 ? 's' : ''}`;
+  if (!list) return;
+
+  if (locations.length === 0) {
+    list.innerHTML = '<p class="placeholder">No locations prepared</p>';
+    return;
+  }
+
+  // Build tree structure
+  const rootLocs = locations.filter(l => !l.parent_id);
+  const childMap = {};
+  locations.forEach(l => {
+    if (l.parent_id) {
+      if (!childMap[l.parent_id]) childMap[l.parent_id] = [];
+      childMap[l.parent_id].push(l);
+    }
+  });
+
+  function renderLoc(loc, depth = 0) {
+    const children = childMap[loc.id] || [];
+    const indent = depth * 16;
+    return `
+      <div class="prep-item" style="margin-left: ${indent}px" data-location-id="${loc.id}">
+        <div class="prep-item-header">
+          <span class="prep-item-title">${escapeHtml(loc.name)}</span>
+          <span class="prep-item-status ${loc.visibility}">${loc.visibility}</span>
+        </div>
+        <div class="prep-item-desc">
+          ${escapeHtml(loc.location_type || 'scene')}
+          ${loc.uwp ? ` (${escapeHtml(loc.uwp)})` : ''}
+        </div>
+        <div class="prep-item-actions">
+          ${loc.visibility === 'hidden' ?
+            `<button class="btn btn-primary btn-sm" onclick="revealLocation('${loc.id}')">Reveal</button>` :
+            `<button class="btn btn-sm" onclick="hideLocation('${loc.id}')">Hide</button>`
+          }
+        </div>
+      </div>
+      ${children.map(c => renderLoc(c, depth + 1)).join('')}
+    `;
+  }
+
+  list.innerHTML = rootLocs.map(loc => renderLoc(loc)).join('');
+}
+
+function revealLocation(locationId) {
+  state.socket.emit('ops:revealLocation', { locationId });
+  const loc = state.prepLocations.find(l => l.id === locationId);
+  if (loc) {
+    loc.visibility = 'revealed';
+    renderPrepLocations();
+  }
+  showNotification('Location revealed', 'success');
+}
+
+function hideLocation(locationId) {
+  const loc = state.prepLocations.find(l => l.id === locationId);
+  if (loc) {
+    loc.visibility = 'hidden';
+    renderPrepLocations();
+  }
+}
+
+// ==================== Events (Stage 8.2) ====================
+
+function renderPrepEvents() {
+  const list = document.getElementById('events-list');
+  const count = document.getElementById('events-count');
+  const events = state.prepEvents || [];
+
+  if (count) count.textContent = `${events.length} event${events.length !== 1 ? 's' : ''}`;
+  if (!list) return;
+
+  if (events.length === 0) {
+    list.innerHTML = '<p class="placeholder">No events prepared</p>';
+    return;
+  }
+
+  // Sort by trigger_date if available
+  const sorted = [...events].sort((a, b) => {
+    if (a.trigger_date && b.trigger_date) return a.trigger_date.localeCompare(b.trigger_date);
+    if (a.trigger_date) return -1;
+    if (b.trigger_date) return 1;
+    return 0;
+  });
+
+  list.innerHTML = sorted.map(event => `
+    <div class="prep-item" data-event-id="${event.id}">
+      <div class="prep-item-header">
+        <span class="prep-item-title">${escapeHtml(event.name)}</span>
+        <span class="prep-item-status ${event.status}">${event.status}</span>
+      </div>
+      <div class="prep-item-desc">${escapeHtml(event.description || '')}</div>
+      <div class="prep-item-meta">
+        <span>Type: ${event.event_type || 'manual'}</span>
+        ${event.trigger_date ? `<span>Date: ${event.trigger_date}</span>` : ''}
+        ${event.reveals_to_trigger?.length ? `<span>Reveals: ${event.reveals_to_trigger.length}</span>` : ''}
+        ${event.npcs_to_reveal?.length ? `<span>NPCs: ${event.npcs_to_reveal.length}</span>` : ''}
+      </div>
+      <div class="prep-item-actions">
+        ${event.status === 'pending' ?
+          `<button class="btn btn-primary" onclick="triggerEvent('${event.id}')">Trigger</button>` :
+          `<span class="text-muted">Triggered</span>`
+        }
+        <button class="btn" onclick="showEventDetail('${event.id}')">Detail</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function triggerEvent(eventId) {
+  state.socket.emit('ops:triggerEvent', {
+    campaignId: state.campaign.id,
+    eventId,
+    gameDate: state.gameDate
+  });
+  const event = state.prepEvents.find(e => e.id === eventId);
+  if (event) {
+    event.status = 'triggered';
+    renderPrepEvents();
+  }
+  showNotification('Event triggered', 'success');
+}
+
+function showEventDetail(eventId) {
+  const event = state.prepEvents.find(e => e.id === eventId);
+  if (!event) return;
+
+  const html = `
+    <div class="modal-header">
+      <h2>${escapeHtml(event.name)}</h2>
+      <button class="btn-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>Type:</strong> ${escapeHtml(event.event_type || 'manual')}</p>
+      <p><strong>Status:</strong> ${escapeHtml(event.status)}</p>
+      ${event.trigger_date ? `<p><strong>Trigger Date:</strong> ${escapeHtml(event.trigger_date)}</p>` : ''}
+      ${event.description ? `<p><strong>Description:</strong> ${escapeHtml(event.description)}</p>` : ''}
+      ${event.player_text ? `<p><strong>Player Text:</strong> ${escapeHtml(event.player_text)}</p>` : ''}
+      ${event.reveals_to_trigger?.length ? `<p><strong>Reveals:</strong> ${event.reveals_to_trigger.length} linked</p>` : ''}
+      ${event.npcs_to_reveal?.length ? `<p><strong>NPCs to reveal:</strong> ${event.npcs_to_reveal.length}</p>` : ''}
+      ${event.emails_to_send?.length ? `<p><strong>Emails to send:</strong> ${event.emails_to_send.length}</p>` : ''}
+      ${event.notes ? `<p><strong>GM Notes:</strong> ${escapeHtml(event.notes)}</p>` : ''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Close</button>
+      ${event.status === 'pending' ?
+        `<button class="btn btn-primary" onclick="triggerEvent('${event.id}'); closeModal();">Trigger Now</button>` : ''
+      }
+    </div>
+  `;
+  showModalContent(html);
+}
+
 // ==================== Global Exports for onclick handlers ====================
 // ES6 modules scope functions, but onclick handlers need global access
 window.attemptRepair = attemptRepair;
@@ -4306,3 +4561,11 @@ window.editReveal = editReveal;
 window.updateReveal = updateReveal;
 window.deleteReveal = deleteReveal;
 window.submitReveal = submitReveal;
+// Stage 8.2: NPCs, Locations, Events
+window.revealNpc = revealNpc;
+window.hideNpc = hideNpc;
+window.showNpcDetail = showNpcDetail;
+window.revealLocation = revealLocation;
+window.hideLocation = hideLocation;
+window.triggerEvent = triggerEvent;
+window.showEventDetail = showEventDetail;

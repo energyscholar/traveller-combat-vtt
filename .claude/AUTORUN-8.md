@@ -10,11 +10,11 @@
 | Stage | Status | LOC Added |
 |-------|--------|-----------|
 | 8.1   | COMPLETE | ~850 |
-| 8.2   | PENDING | 0 |
+| 8.2   | COMPLETE | ~310 |
 | 8.3   | PENDING | 0 |
 | 8.4   | PENDING | 0 |
 | 8.5   | PENDING | 0 |
-| **TOTAL** | - | **~850** |
+| **TOTAL** | - | **~1160** |
 <!-- END_LOC_METRICS -->
 
 ## Execution Protocol
