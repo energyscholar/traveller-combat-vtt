@@ -123,7 +123,7 @@ export function renderSystemStatusItem(name, status) {
 export function getRoleDetailContent(role, context) {
   const { shipState = {}, template = {}, systemStatus = {}, damagedSystems = [],
           fuelStatus, jumpStatus = {}, campaign, contacts = [], crewOnline = [], ship,
-          roleInstance = 1 } = context;
+          roleInstance = 1, shipWeapons = [], combatLog = [] } = context;
 
   switch (role) {
     case 'pilot':
@@ -133,7 +133,7 @@ export function getRoleDetailContent(role, context) {
       return getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus);
 
     case 'gunner':
-      return getGunnerPanel(shipState, template, contacts, roleInstance);
+      return getGunnerPanel(shipState, template, contacts, roleInstance, shipWeapons, combatLog);
 
     case 'captain':
       return getCaptainPanel(shipState, template, ship, crewOnline, contacts);
@@ -308,94 +308,151 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
   `;
 }
 
-function getGunnerPanel(shipState, template, contacts, roleInstance = 1) {
-  const weapons = template.weapons || [];
+function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWeapons = [], combatLog = []) {
+  // Use ship_weapons from database if available, else fall back to template
+  const weapons = shipWeapons.length > 0 ? shipWeapons : (template.weapons || []);
   const ammo = shipState.ammo || {};
 
   // Determine turret assignment based on roleInstance
-  const turretCount = weapons.filter(w => w.type === 'turret' || !w.type).length;
+  const turretCount = weapons.filter(w => w.mount === 'turret' || w.type === 'turret' || !w.mount).length;
   const assignedTurret = roleInstance <= turretCount ? roleInstance : null;
-  const turretInfo = assignedTurret ? weapons[assignedTurret - 1] : null;
+  const turretWeapons = assignedTurret ? weapons.filter((w, i) => i === assignedTurret - 1) : weapons;
 
-  // Filter to authorized targets only
-  const authorizedTargets = contacts?.filter(c => c.is_targetable && c.weapons_free) || [];
-  const hasTargets = authorizedTargets.length > 0;
+  // Filter to authorized/hostile targets
+  const hostileContacts = contacts?.filter(c =>
+    c.is_targetable && (c.weapons_free || c.disposition === 'hostile')
+  ) || [];
+  const hasTargets = hostileContacts.length > 0;
   const hasWeapons = weapons.length > 0;
 
+  // Selected target (from state or first available)
+  const selectedTargetId = shipState.lockedTarget || (hostileContacts[0]?.id);
+  const selectedTarget = hostileContacts.find(c => c.id === selectedTargetId);
+
+  // Weapon status classes
+  const getWeaponStatusClass = (status) => {
+    switch (status) {
+      case 'ready': return 'weapon-ready';
+      case 'fired': return 'weapon-fired';
+      case 'damaged': return 'weapon-damaged';
+      case 'destroyed': return 'weapon-destroyed';
+      default: return 'weapon-ready';
+    }
+  };
+
+  // Range band DM display
+  const getRangeDM = (band) => {
+    const dms = { adjacent: '+1', close: '+0', short: '+0', medium: '-1', long: '-2', extreme: '-4', distant: '-6' };
+    return dms[band] || '-4';
+  };
+
   return `
-    ${assignedTurret ? `
-    <div class="detail-section turret-station">
-      <h4>Station Assignment</h4>
-      <div class="turret-badge">TURRET ${assignedTurret}</div>
-      <div class="turret-weapon">${turretInfo?.name || 'Standard Turret'}</div>
-    </div>
-    ` : ''}
-    <div class="detail-section">
-      <h4>Weapons Status</h4>
-      <div class="weapons-list">
-        ${hasWeapons ? weapons.map((w, i) => `
-          <div class="weapon-item ${assignedTurret === i + 1 ? 'assigned' : ''}">
-            <span class="weapon-name">${w.name || w.id || 'Weapon ' + (i + 1)}</span>
-            <span class="weapon-status">${shipState.weaponStatus?.[i] || 'Ready'}</span>
-          </div>
-        `).join('') : '<div class="placeholder">No weapons configured</div>'}
+    <div class="detail-section gunner-header">
+      <h4>GUNNER STATION ${assignedTurret ? `- TURRET ${assignedTurret}` : ''}</h4>
+      <div class="gunner-status-badge ${hasTargets ? 'weapons-free' : 'weapons-hold'}">
+        ${hasTargets ? 'WEAPONS FREE' : 'WEAPONS HOLD'}
       </div>
     </div>
-    <div class="detail-section">
-      <h4>Fire Control</h4>
+
+    <div class="detail-section target-section">
+      <h4>TARGET</h4>
       ${!hasTargets ? `
-        <div class="gunner-blocked">
-          <div class="blocked-message">WEAPONS HOLD</div>
-          <div class="blocked-reason">Awaiting Captain's authorization to fire</div>
-          <small>Captain must authorize weapons on a contact before you can engage</small>
+        <div class="no-target-locked">
+          <div class="locked-icon">○</div>
+          <div class="no-target-text">No Target Locked</div>
+          <small>Awaiting hostile contacts or Captain authorization</small>
         </div>
       ` : `
-        <div class="fire-control-ready">
-          <div class="ready-message">WEAPONS FREE</div>
-          <div class="target-select-group">
-            <label for="fire-target-select">Target:</label>
-            <select id="fire-target-select" class="fire-select">
-              ${authorizedTargets.map(c => `
-                <option value="${c.id}">${escapeHtml(c.name || 'Unknown')} - ${c.range_band || 'Unknown'} ${c.health !== undefined ? `(${c.health}%)` : ''}</option>
-              `).join('')}
-            </select>
-          </div>
-          ${hasWeapons ? `
-            <div class="weapon-select-group">
-              <label for="fire-weapon-select">Weapon:</label>
-              <select id="fire-weapon-select" class="fire-select" onchange="updateFireButton()">
-                ${weapons.map((w, i) => `
-                  <option value="${i}">${w.name || w.id || 'Weapon ' + (i + 1)} (${w.damage || '1d6'})</option>
-                `).join('')}
-              </select>
+        <div class="target-list">
+          ${hostileContacts.map(c => `
+            <div class="target-item ${c.id === selectedTargetId ? 'selected' : ''}"
+                 onclick="lockTarget('${c.id}')" data-contact-id="${c.id}">
+              <div class="target-header">
+                <span class="target-indicator">${c.id === selectedTargetId ? '◉' : '○'}</span>
+                <span class="target-name">${escapeHtml(c.name || 'Unknown')}</span>
+                <span class="target-disposition ${c.disposition || 'unknown'}">${c.disposition || '?'}</span>
+              </div>
+              <div class="target-details">
+                <span class="target-range">${c.range_band || 'Unknown'} (${getRangeDM(c.range_band)} DM)</span>
+                <span class="target-distance">${c.range_km || '?'}km</span>
+              </div>
+              <div class="target-health-bar">
+                <div class="health-fill" style="width: ${Math.max(0, (c.health / (c.max_health || 100)) * 100)}%"></div>
+                <span class="health-text">${c.health || 0}/${c.max_health || 100}</span>
+              </div>
             </div>
-            <button onclick="fireAtTarget()" class="btn btn-danger" id="fire-button">
-              FIRE ${weapons[0]?.name || 'Weapon'}!
-            </button>
-          ` : `
-            <div class="placeholder">No weapons available to fire</div>
-          `}
+          `).join('')}
         </div>
       `}
     </div>
-    <div id="fire-result-display" class="fire-result-display" style="display: none;">
-      <!-- Populated by fire results -->
-    </div>
-    <div class="detail-section">
-      <h4>Ammunition</h4>
-      <div class="detail-stats">
-        <div class="stat-row">
-          <span>Missiles:</span>
-          <span class="stat-value">${ammo.missiles ?? 12}</span>
-        </div>
-        <div class="stat-row">
-          <span>Sandcaster:</span>
-          <span class="stat-value">${ammo.sandcaster ?? 20}</span>
-        </div>
+
+    <div class="detail-section weapons-section">
+      <h4>WEAPONS</h4>
+      <div class="weapons-grid">
+        ${hasWeapons ? weapons.map((w, i) => {
+          const isAssigned = assignedTurret === null || i === assignedTurret - 1;
+          const status = w.status || 'ready';
+          const hasAmmo = w.ammo_max === null || (w.ammo_current > 0);
+          return `
+            <div class="weapon-card ${isAssigned ? 'assigned' : 'unassigned'} ${getWeaponStatusClass(status)}">
+              <div class="weapon-header">
+                <input type="radio" name="weapon-select" value="${w.id || i}"
+                       ${i === 0 ? 'checked' : ''} ${!isAssigned ? 'disabled' : ''}
+                       onchange="selectWeapon('${w.id || i}')">
+                <span class="weapon-name">${w.name || 'Weapon ' + (i + 1)}</span>
+                <span class="weapon-mount">${w.mount || 'Turret'}</span>
+              </div>
+              <div class="weapon-stats">
+                <span class="weapon-range">Range: ${w.range || 'Medium'}</span>
+                <span class="weapon-damage">Damage: ${w.damage || '2d6'}</span>
+              </div>
+              ${w.ammo_max !== null && w.ammo_max !== undefined ? `
+                <div class="weapon-ammo">
+                  <span class="ammo-label">Ammo:</span>
+                  <span class="ammo-count ${w.ammo_current <= 3 ? 'ammo-low' : ''}">${w.ammo_current}/${w.ammo_max}</span>
+                </div>
+              ` : ''}
+              <div class="weapon-status-indicator">${status.toUpperCase()}</div>
+            </div>
+          `;
+        }).join('') : '<div class="placeholder">No weapons configured</div>'}
       </div>
     </div>
+
+    <div class="detail-section fire-control-section">
+      <div class="fire-buttons">
+        <button onclick="fireWeapon()" class="btn btn-danger btn-fire"
+                ${!hasTargets || !hasWeapons ? 'disabled' : ''}>
+          FIRE!
+        </button>
+        <button onclick="togglePointDefense()" class="btn btn-warning btn-point-defense"
+                ${!hasWeapons ? 'disabled' : ''}>
+          Point Defense
+        </button>
+      </div>
+    </div>
+
+    <div class="detail-section combat-log-section">
+      <h4>FIRE LOG</h4>
+      <div class="combat-log-list" id="gunner-combat-log">
+        ${combatLog.length > 0 ? combatLog.slice(0, 10).map(entry => {
+          const time = entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+          const isHit = entry.action === 'hit' || (entry.roll_data?.hit === true);
+          const isMiss = entry.action === 'miss' || (entry.roll_data?.hit === false);
+          return `
+            <div class="log-entry ${isHit ? 'log-hit' : ''} ${isMiss ? 'log-miss' : ''}">
+              <span class="log-time">[${time}]</span>
+              <span class="log-message">${escapeHtml(entry.result || entry.action || '')}</span>
+            </div>
+          `;
+        }).join('') : `
+          <div class="log-entry log-empty">No combat actions recorded</div>
+        `}
+      </div>
+    </div>
+
     <div class="detail-section gunner-skill-note">
-      <small><em>Your Gunner skill affects attack accuracy. Roll 8+ to hit.</em></small>
+      <small>Attack: 2D6 + Gunnery skill + Range DM >= 8 to hit</small>
     </div>
   `;
 }

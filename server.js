@@ -76,6 +76,17 @@ function executeAITurn(combat, io) {
   return executeAITurnBase(combat, io, activeCombats);
 }
 
+// SECURITY: Basic security headers
+app.use((req, res, next) => {
+  // CSP: Allow self, inline scripts/styles (for onclick handlers), data URLs for images
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
+    "img-src 'self' data: https:; connect-src 'self' ws: wss:; font-src 'self'"
+  );
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+});
+
 // Serve static files - Operations VTT is the main interface
 // Redirect root to operations
 app.get('/', (req, res) => {

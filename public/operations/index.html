@@ -262,6 +262,11 @@
             <span id="role-quirk-display" class="role-quirk-display" title="Your station quirk"></span>
             <button id="btn-edit-role-personality" class="btn btn-small btn-secondary" title="Customize your title and quirk">Edit</button>
             <button id="btn-leave-role" class="btn btn-small btn-warning" title="Go off-duty - NPC will take over your station">Leave</button>
+            <div class="panel-expand-controls">
+              <button id="btn-expand-half" class="btn btn-icon btn-expand" title="Expand to half screen (claims sensor area)">⬆</button>
+              <button id="btn-expand-full" class="btn btn-icon btn-expand" title="Expand to full screen [F]">⛶</button>
+              <button id="btn-collapse-panel" class="btn btn-icon btn-expand hidden" title="Collapse panel [Esc]">✕</button>
+            </div>
           </div>
           <div id="role-actions" class="role-actions">
             <!-- Populated based on role -->
@@ -311,6 +316,7 @@
           <button class="prep-tab" data-tab="events">Events</button>
           <button class="prep-tab" data-tab="email">Email</button>
           <button class="prep-tab" data-tab="handouts">Handouts</button>
+          <button class="prep-tab" data-tab="contacts">Contacts</button>
         </nav>
 
         <!-- Reveals Tab -->
@@ -379,6 +385,17 @@
           </div>
         </div>
 
+        <!-- Contacts Tab (Autorun 14) -->
+        <div id="prep-tab-contacts" class="prep-tab-content">
+          <div class="prep-list-header">
+            <span class="prep-count" id="contacts-count">0 contacts</span>
+            <button id="btn-add-combat-contact" class="btn btn-small btn-danger">+ Add Hostile</button>
+          </div>
+          <div id="combat-contacts-list" class="prep-list">
+            <p class="placeholder">No combat contacts in sensor range</p>
+          </div>
+        </div>
+
         <!-- Import/Export Footer -->
         <div class="prep-panel-footer">
           <button id="btn-export-adventure" class="btn btn-small" title="Export adventure prep to JSON">Export</button>
@@ -432,6 +449,41 @@
       </div>
       <div id="tooltip-content" class="tooltip-body">
         <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Full-Screen Email App (Stage 13.4) -->
+    <div id="email-app" class="email-app hidden">
+      <header class="email-app-header">
+        <h1>Ship Mail</h1>
+        <span id="email-unread-count" class="email-unread-badge"></span>
+        <div class="email-app-actions">
+          <button id="btn-compose-email" class="btn btn-primary btn-small">Compose</button>
+          <button id="btn-close-email-app" class="btn btn-icon" title="Close [Esc]">✕</button>
+        </div>
+      </header>
+      <div class="email-app-body">
+        <aside class="email-sidebar">
+          <div id="email-inbox-list" class="email-inbox-list">
+            <p class="placeholder">No messages</p>
+          </div>
+        </aside>
+        <main class="email-content">
+          <div id="email-message-view" class="email-message-view">
+            <p class="placeholder">Select a message to read</p>
+          </div>
+          <div id="email-compose-view" class="email-compose-view hidden">
+            <div class="compose-header">
+              <span class="compose-to">To: <span id="compose-recipient"></span></span>
+            </div>
+            <input type="text" id="compose-subject-input" class="compose-subject" placeholder="Subject">
+            <textarea id="compose-body-input" class="compose-body" placeholder="Write your message..."></textarea>
+            <div class="compose-actions">
+              <button id="btn-cancel-compose" class="btn btn-secondary">Cancel</button>
+              <button id="btn-send-email" class="btn btn-primary">Send</button>
+            </div>
+          </div>
+        </main>
       </div>
     </div>
 
