@@ -1,10 +1,27 @@
 #!/usr/bin/env node
 // Test Runner - Runs all unit tests in sequence
 // Run with: node tests/run-all-tests.js
+//
+// AR-18 Optimizations:
+//   --unit         Run unit tests only
+//   --integration  Run integration tests only
+//   --security     Run security tests only
+//   --file=NAME    Run single test file (partial match)
+//   --timing       Show per-suite timing breakdown
 
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+
+// AR-18.8: Parse CLI flags
+const args = process.argv.slice(2);
+const flags = {
+  unitOnly: args.includes('--unit'),
+  integrationOnly: args.includes('--integration'),
+  securityOnly: args.includes('--security'),
+  showTiming: args.includes('--timing') || process.env.TEST_TIMING === 'true',
+  fileFilter: args.find(a => a.startsWith('--file='))?.split('=')[1] || null
+};
 
 const COLORS = {
   reset: '\x1b[0m',
@@ -15,6 +32,10 @@ const COLORS = {
   cyan: '\x1b[36m',
   bold: '\x1b[1m'
 };
+
+// AR-18.10: Start timing
+const startTime = Date.now();
+const suiteTimes = [];
 
 console.log(`${COLORS.cyan}${COLORS.bold}========================================`);
 console.log(`TRAVELLER COMBAT VTT - TEST SUITE`);
@@ -51,7 +72,8 @@ const unitTests = [
   'tests/contacts.test.js',  // Contacts CRUD and visibility tests
   'tests/ship-systems.test.js',  // Ship systems damage and repair (18 tests)
   'tests/jump.test.js',  // Jump travel and date utilities (23 tests)
-  'tests/operations-refueling.test.js'  // Refueling system tests (25 tests)
+  'tests/operations-refueling.test.js',  // Refueling system tests (25 tests)
+  'tests/combat-engine.test.js'  // Combat engine tests (31 tests) - AUTORUN-14
 ];
 
 // Integration tests
@@ -61,13 +83,38 @@ const integrationTests = [
   'tests/integration/space-combat-resolution.test.js'   // Stage 8.8
 ];
 
+// Security tests (AR-16) - Jest format, run with: npx jest tests/security/
+// Excluded from main runner until validators.js merged from security branch
+const securityTests = [
+  // 'tests/security/validation.test.js',  // Needs lib/operations/validators.js
+  // 'tests/security/rate-limit.test.js'   // Jest format (describe/test)
+];
+
 let totalPassed = 0;
 let totalFailed = 0;
 let suitesRun = 0;
 let suitesFailed = 0;
 
-// Run all tests (unit + integration)
-const allTests = [...unitTests, ...integrationTests];
+// AR-18.8: Select tests based on flags
+let allTests;
+if (flags.unitOnly) {
+  allTests = unitTests;
+  console.log(`${COLORS.yellow}Running unit tests only${COLORS.reset}\n`);
+} else if (flags.integrationOnly) {
+  allTests = integrationTests;
+  console.log(`${COLORS.yellow}Running integration tests only${COLORS.reset}\n`);
+} else if (flags.securityOnly) {
+  allTests = securityTests;
+  console.log(`${COLORS.yellow}Running security tests only${COLORS.reset}\n`);
+} else {
+  allTests = [...unitTests, ...integrationTests, ...securityTests];
+}
+
+// AR-18.8: Filter by file name if specified
+if (flags.fileFilter) {
+  allTests = allTests.filter(t => t.toLowerCase().includes(flags.fileFilter.toLowerCase()));
+  console.log(`${COLORS.yellow}Filtering to: ${flags.fileFilter} (${allTests.length} matches)${COLORS.reset}\n`);
+}
 
 for (const testFile of allTests) {
   const testPath = path.join(__dirname, '..', testFile);
@@ -82,6 +129,9 @@ for (const testFile of allTests) {
   console.log(`${'─'.repeat(50)}`);
 
   try {
+    // AR-18.10: Track suite timing
+    const suiteStart = Date.now();
+
     // Run in quiet mode for minimal output
     const output = execSync(`node ${testPath}`, {
       cwd: path.join(__dirname, '..'),
@@ -89,6 +139,9 @@ for (const testFile of allTests) {
       stdio: 'pipe',
       env: { ...process.env, TEST_QUIET: 'true' }
     });
+
+    const suiteTime = Date.now() - suiteStart;
+    suiteTimes.push({ name: testName, time: suiteTime });
 
     // Show compact output
     console.log(output.trim());
@@ -125,6 +178,9 @@ for (const testFile of allTests) {
   }
 }
 
+// AR-18.10: Calculate total time
+const totalTime = Date.now() - startTime;
+
 console.log(`${COLORS.cyan}${COLORS.bold}========================================`);
 console.log(`TEST SUMMARY`);
 console.log(`========================================${COLORS.reset}`);
@@ -132,6 +188,18 @@ console.log(`Test suites: ${suitesRun} total, ${suitesFailed} failed, ${suitesRu
 
 if (totalPassed > 0 || totalFailed > 0) {
   console.log(`Individual tests: ${totalPassed + totalFailed} total, ${totalFailed} failed, ${totalPassed} passed`);
+}
+
+// AR-18.10: Show timing
+console.log(`Total time: ${(totalTime / 1000).toFixed(2)}s`);
+
+// Show slowest suites if --timing flag or more than 5 suites
+if (flags.showTiming && suiteTimes.length > 0) {
+  const sorted = [...suiteTimes].sort((a, b) => b.time - a.time);
+  console.log(`\n${COLORS.yellow}Slowest suites:${COLORS.reset}`);
+  sorted.slice(0, 5).forEach((s, i) => {
+    console.log(`  ${i + 1}. ${s.name}: ${s.time}ms`);
+  });
 }
 
 if (suitesFailed > 0) {
