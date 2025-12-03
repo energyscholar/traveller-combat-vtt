@@ -36,7 +36,7 @@
           <div id="campaign-list" class="campaign-list">
             <!-- Populated dynamically -->
           </div>
-          <button id="btn-create-campaign" class="btn btn-success">
+          <button id="btn-create-campaign" class="btn btn-success" title="Create a new campaign - You'll be the Game Master">
             + Create New Campaign
           </button>
           <button id="btn-back-login" class="btn btn-link">Back</button>
@@ -104,7 +104,7 @@
           </div>
           <div class="add-slot-form">
             <input type="text" id="new-slot-name" placeholder="Player name">
-            <button id="btn-add-player-slot" class="btn btn-success">+ Add Slot</button>
+            <button id="btn-add-player-slot" class="btn btn-success" title="Reserve a player slot - Players join with this name">+ Add Slot</button>
           </div>
         </section>
 
@@ -113,7 +113,7 @@
           <div id="gm-ships-list" class="ships-list">
             <!-- Populated dynamically -->
           </div>
-          <button id="btn-add-ship" class="btn btn-success">+ Add Ship</button>
+          <button id="btn-add-ship" class="btn btn-success" title="Add a ship to campaign - Select from templates">+ Add Ship</button>
         </section>
 
         <section class="setup-section">
@@ -135,7 +135,7 @@
         </section>
 
         <div class="setup-actions">
-          <button id="btn-start-session" class="btn btn-primary btn-large">
+          <button id="btn-start-session" class="btn btn-primary btn-large" title="Launch bridge view - Players can then join their stations">
             Start Session
           </button>
         </div>
@@ -156,8 +156,8 @@
             <p class="placeholder">No character imported</p>
           </div>
           <div class="character-actions">
-            <button id="btn-import-character" class="btn btn-secondary">Import Character</button>
-            <button id="btn-quick-character" class="btn btn-link">Quick Create</button>
+            <button id="btn-import-character" class="btn btn-secondary" title="Import character from JSON, text, or paste from character sheet">Import Character</button>
+            <button id="btn-quick-character" class="btn btn-link" title="Create a basic character with default skills">Quick Create</button>
           </div>
         </section>
 
@@ -176,7 +176,7 @@
         </section>
 
         <div class="setup-actions">
-          <button id="btn-join-bridge" class="btn btn-primary btn-large" disabled>
+          <button id="btn-join-bridge" class="btn btn-primary btn-large" disabled title="Select a role and join the bridge crew">
             Join Bridge
           </button>
         </div>
@@ -208,6 +208,7 @@
           <span class="user-ship-badge" id="bridge-user-ship">Ship</span>
         </div>
         <div class="header-actions">
+          <button id="btn-fullscreen" class="btn btn-icon" title="Toggle Fullscreen (F)">⛶</button>
           <button id="btn-bridge-menu" class="btn btn-icon" title="Menu">☰</button>
           <button id="btn-bridge-logout" class="btn btn-link">Logout</button>
         </div>

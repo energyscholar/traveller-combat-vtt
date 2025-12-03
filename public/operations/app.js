@@ -1582,6 +1582,9 @@ function initBridgeScreen() {
     collapseRolePanel();
   });
 
+  // AR-15.9: Browser fullscreen toggle
+  document.getElementById('btn-fullscreen')?.addEventListener('click', toggleBrowserFullscreen);
+
   // Keyboard shortcuts for panel expansion
   document.addEventListener('keydown', (e) => {
     if (state.currentScreen !== 'bridge') return;
@@ -1902,7 +1905,10 @@ function renderShipStatus() {
   const maxHull = template.hull || 100;
   const currentHull = shipState.hull ?? maxHull;
   const hullPercent = Math.round((currentHull / maxHull) * 100);
-  document.getElementById('hull-bar').style.width = `${hullPercent}%`;
+  const hullBar = document.getElementById('hull-bar');
+  hullBar.style.width = `${hullPercent}%`;
+  // AR-15.9: Dynamic gradient position (100% = green, 0% = red)
+  hullBar.style.backgroundPosition = `${hullPercent}% 0`;
   document.getElementById('hull-value').textContent = `${hullPercent}%`;
 
   // Fuel
@@ -1912,9 +1918,11 @@ function renderShipStatus() {
   document.getElementById('fuel-bar').style.width = `${fuelPercent}%`;
   document.getElementById('fuel-value').textContent = `${currentFuel}/${maxFuel}`;
 
-  // Power
+  // Power - AR-15.9: Dynamic gradient (green→yellow→red as power decreases)
   const powerPercent = shipState.powerPercent ?? 100;
-  document.getElementById('power-bar').style.width = `${powerPercent}%`;
+  const powerBar = document.getElementById('power-bar');
+  powerBar.style.width = `${powerPercent}%`;
+  powerBar.style.backgroundPosition = `${powerPercent}% 0`;
   document.getElementById('power-value').textContent = `${powerPercent}%`;
 
   // Location (UI-5: Better location display)
@@ -2114,8 +2122,9 @@ function renderCrewList() {
     const hasCharClass = c.characterData ? 'has-character' : '';
     // Show relieve button if: can relieve AND not NPC AND not self AND has a role
     const showRelieveBtn = canRelieve && !c.isNPC && !c.isYou && c.role && c.accountId;
+    // AR-15.10: Descriptive tooltip with name and role
     const relieveBtn = showRelieveBtn
-      ? `<button class="btn-relieve" data-action="relieve" data-account-id="${escapeHtml(c.accountId)}" data-name="${escapeHtml(c.name)}" data-role="${escapeHtml(c.role)}" title="Relieve from duty">✕</button>`
+      ? `<button class="btn-relieve" data-action="relieve" data-account-id="${escapeHtml(c.accountId)}" data-name="${escapeHtml(c.name)}" data-role="${escapeHtml(c.role)}" title="Relieve ${escapeHtml(c.name)} from ${formatRoleName(c.role)}">✕</button>`
       : '';
     // Show assign button if: GM AND not NPC AND not self AND (no role OR we want reassign option)
     const showAssignBtn = state.isGM && !c.isNPC && !c.isYou && c.accountId;
@@ -2812,8 +2821,102 @@ function selectJumpDestination(element) {
 // Initialize jump map when astrogator panel is rendered
 function initJumpMapIfNeeded() {
   if (state.selectedRole === 'astrogator' && state.campaign?.current_sector) {
-    setTimeout(() => updateJumpMap(), 100);
+    setTimeout(() => {
+      updateJumpMap();
+      initMapInteractions();
+      restoreMapSize();
+    }, 100);
   }
+}
+
+// AR-15.7: Map size control with localStorage persistence
+function setMapSize(size) {
+  const container = document.getElementById('jump-map-container');
+  if (!container) return;
+
+  container.dataset.size = size;
+  localStorage.setItem('ops-map-size', size);
+
+  // Update select to match
+  const select = document.getElementById('jump-map-size');
+  if (select) select.value = size;
+}
+
+function restoreMapSize() {
+  const saved = localStorage.getItem('ops-map-size');
+  if (saved) {
+    setMapSize(saved);
+  }
+}
+
+// AR-15.7: Map drag-to-pan and keyboard navigation
+function initMapInteractions() {
+  const container = document.getElementById('jump-map-container');
+  const img = document.getElementById('jump-map-image');
+  if (!container || !img) return;
+
+  let isDragging = false;
+  let startX, startY, scrollLeft, scrollTop;
+
+  // Mouse drag to pan
+  container.addEventListener('mousedown', (e) => {
+    if (e.target !== img && e.target !== container) return;
+    isDragging = true;
+    container.style.cursor = 'grabbing';
+    startX = e.pageX - container.offsetLeft;
+    startY = e.pageY - container.offsetTop;
+    scrollLeft = container.scrollLeft;
+    scrollTop = container.scrollTop;
+    e.preventDefault();
+  });
+
+  container.addEventListener('mouseleave', () => {
+    isDragging = false;
+    container.style.cursor = 'grab';
+  });
+
+  container.addEventListener('mouseup', () => {
+    isDragging = false;
+    container.style.cursor = 'grab';
+  });
+
+  container.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const x = e.pageX - container.offsetLeft;
+    const y = e.pageY - container.offsetTop;
+    const walkX = (x - startX) * 1.5;
+    const walkY = (y - startY) * 1.5;
+    container.scrollLeft = scrollLeft - walkX;
+    container.scrollTop = scrollTop - walkY;
+  });
+
+  // Set initial cursor
+  container.style.cursor = 'grab';
+
+  // Keyboard navigation when container is focused
+  container.tabIndex = 0; // Make focusable
+  container.addEventListener('keydown', (e) => {
+    const step = 50;
+    switch (e.key) {
+      case 'ArrowLeft':
+        container.scrollLeft -= step;
+        e.preventDefault();
+        break;
+      case 'ArrowRight':
+        container.scrollLeft += step;
+        e.preventDefault();
+        break;
+      case 'ArrowUp':
+        container.scrollTop -= step;
+        e.preventDefault();
+        break;
+      case 'ArrowDown':
+        container.scrollTop += step;
+        e.preventDefault();
+        break;
+    }
+  });
 }
 
 // ==================== Refueling ====================
@@ -6221,6 +6324,35 @@ function restoreRolePanelExpansion() {
   }
 }
 
+/**
+ * AR-15.9: Toggle browser fullscreen mode using Fullscreen API
+ */
+function toggleBrowserFullscreen() {
+  const btn = document.getElementById('btn-fullscreen');
+
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().then(() => {
+      if (btn) btn.textContent = '⛶';
+      if (btn) btn.title = 'Exit Fullscreen (Esc)';
+    }).catch(err => {
+      console.warn('Fullscreen request failed:', err);
+    });
+  } else {
+    document.exitFullscreen().then(() => {
+      if (btn) btn.textContent = '⛶';
+      if (btn) btn.title = 'Toggle Fullscreen (F)';
+    });
+  }
+}
+
+// Update fullscreen button on fullscreen change (e.g., Esc key)
+document.addEventListener('fullscreenchange', () => {
+  const btn = document.getElementById('btn-fullscreen');
+  if (btn) {
+    btn.title = document.fullscreenElement ? 'Exit Fullscreen (Esc)' : 'Toggle Fullscreen (F)';
+  }
+});
+
 // ==================== Global Exports for onclick handlers ====================
 // ES6 modules scope functions, but onclick handlers need global access
 window.attemptRepair = attemptRepair;
@@ -6255,6 +6387,8 @@ window.executeProcessFuel = executeProcessFuel;
 // Stage 6: Jump map functions
 window.updateJumpMap = updateJumpMap;
 window.selectJumpDestination = selectJumpDestination;
+// AR-15.7: Map controls
+window.setMapSize = setMapSize;
 // Autorun 6: Mail, NPC contacts, and Feedback
 window.showAddNPCContactForm = showAddNPCContactForm;
 window.submitNPCContact = submitNPCContact;
