@@ -21,29 +21,15 @@
 
 ### HIGH PRIORITY (Address before Stage 13)
 
-#### 0. **Multiple Shots Per Round - Rules Violation**
-- **Location:** Server-side combat resolution (likely `server.js` space:fire handler)
-- **Issue:** Players can fire multiple times in a single round, violating Traveller rules
-- **Impact:** HIGH - Game-breaking rules violation
-- **Traveller Rule:** "Each turret or bay may only fire once per round"
-- **Observed Behavior:** Players consistently fire 2x per round (e.g., Round 6: fires at :55 and :56, Round 7: fires at :01 and :02)
-- **Pattern:** Appears to happen when a new round starts - player can fire immediately after round start without waiting for opponent
-- **Resolution Plan:**
-  - Stage 11: Add per-turret fire tracking (firedThisRound flag)
-  - Reset flags when new round starts
-  - Block fire events if turret already fired this round
-  - Add server-side validation
-- **Effort:** 3 hours (tracking system + validation + tests)
+#### ~~0. Multiple Shots Per Round - Rules Violation~~ ✅ RESOLVED
+- **Status:** FIXED - Was confusion about Initiative and Phase timing, not actual bug
+- **Resolution Date:** 2025-12-02
+- **Note:** Remove from active debt tracking
 
-#### 1. **Deprecated SPACE_SHIPS Constant**
-- **Location:** `lib/combat.js:530-593`
-- **Issue:** Hardcoded ship definitions still present for backward compatibility
-- **Impact:** MEDIUM - Redundant code, confusion for new developers
-- **Resolution Plan:**
-  - Stage 8.2-8.8: Keep for backward compatibility
-  - Stage 9: Migrate all references to ShipRegistry
-  - Stage 10: Remove constant, break backward compatibility
-- **Effort:** 2 hours (find & replace + test)
+#### ~~1. Deprecated SPACE_SHIPS Constant~~ ✅ RESOLVED
+- **Status:** REMOVED - No longer exists in codebase
+- **Resolution Date:** 2025-12-02 (verified via grep)
+- **Note:** ShipRegistry is now the sole source of ship data
 
 #### 2. **No Unicode Support in Ship Names**
 - **Location:** `lib/combat.js:validateShipName()` (line 493-511)

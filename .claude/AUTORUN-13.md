@@ -242,6 +242,79 @@ Email should be a full-screen application experience.
 
 ---
 
+## Stage 13.5: Guest Login Completion
+**Risk:** LOW | **LOC:** ~100 | **Commit after**
+
+Complete the incomplete guest login feature (TODO in app.js:1027).
+
+### Current State:
+```javascript
+// TODO: Complete guest login implementation in future autorun
+```
+
+### Tasks:
+| Task | Description | Est. LOC |
+|------|-------------|----------|
+| 13.5.1 | Investigate current guest login flow | ~0 |
+| 13.5.2 | Implement guest session creation | ~40 |
+| 13.5.3 | Guest-specific UI (limited features) | ~30 |
+| 13.5.4 | Guest cleanup on disconnect | ~20 |
+| 13.5.5 | Test guest flow with Puppeteer | ~10 |
+
+**Deliverable:** Guests can join bridge with limited access, no account required.
+
+---
+
+## Stage 13.6: Operations File Modularization
+**Risk:** MEDIUM | **LOC:** ~200 (refactor) | **Commit after**
+
+Split large operations files, identify missing Design Patterns.
+
+### Current State:
+| File | LOC | Issue |
+|------|-----|-------|
+| `public/operations/app.js` | 5,655 | Monolithic client |
+| `lib/socket-handlers/operations.handlers.js` | 3,362 | Growing handlers |
+
+### Risk Mitigation:
+- **Scaffolding tests first** - Add integration tests before refactoring
+- **Incremental extraction** - One module at a time
+- **No behavior changes** - Pure refactor, tests must pass
+
+### Design Pattern Analysis:
+Look for opportunities to apply:
+- **Command Pattern** - Socket event handlers → command objects
+- **Observer Pattern** - UI updates on state changes
+- **State Pattern** - Screen/mode management
+- **Mediator Pattern** - Component communication
+- **Module Pattern** - Logical groupings
+
+### Tasks:
+| Task | Description | Est. LOC |
+|------|-------------|----------|
+| 13.6.1 | Add scaffolding tests for critical paths | ~50 |
+| 13.6.2 | Analyze app.js for extraction candidates | ~0 |
+| 13.6.3 | Extract mail module from handlers | ~30 |
+| 13.6.4 | Extract contacts module from handlers | ~30 |
+| 13.6.5 | Extract bridge module from handlers | ~30 |
+| 13.6.6 | Document Design Pattern opportunities | ~0 |
+| 13.6.7 | Apply 1-2 patterns if low-risk | ~60 |
+
+### Extraction Candidates (handlers):
+```
+operations.handlers.js (3,362 LOC) →
+  ├── mail.handlers.js (~400 LOC)
+  ├── contacts.handlers.js (~300 LOC)
+  ├── campaign.handlers.js (~400 LOC)
+  ├── bridge.handlers.js (~600 LOC)
+  ├── prep.handlers.js (~500 LOC) - already exists!
+  └── operations.handlers.js (~1,000 LOC) - core
+```
+
+**Deliverable:** Handlers split into domain modules, Design Patterns documented.
+
+---
+
 ## Total Estimates
 
 | Stage | LOC | Risk |
@@ -251,7 +324,9 @@ Email should be a full-screen application experience.
 | ~~13.2 MVC Extraction~~ | ~~300~~ | ✅ DONE |
 | 13.3 Expandable Panels | ~200 | LOW |
 | 13.4 Full-Screen Email | ~250 | LOW |
-| **Total** | **~1050+** | **MEDIUM** |
+| 13.5 Guest Login | ~100 | LOW |
+| 13.6 File Modularization | ~200 | MEDIUM |
+| **Total** | **~1350+** | **MEDIUM** |
 
 ---
 
@@ -262,16 +337,23 @@ Email should be a full-screen application experience.
           │               │
           ▼               │
 13.1 (Bug Fixes) ─────────┤
-                          ├──→ Final Commit
-13.3 (Expandable Panels) ─┤
                           │
-13.4 (Full-Screen Email) ─┘
+13.3 (Expandable Panels) ─┤
+                          ├──→ Final Commit
+13.4 (Full-Screen Email) ─┤
+                          │
+13.5 (Guest Login) ───────┤
+                          │
+13.6 (Modularization) ────┘
+          ↑
+    [Scaffolding tests first!]
 ```
 
 **Execution Order:**
 1. **13.0 first** - Creates tests, discovers bugs
 2. **13.1 second** - Fixes bugs found by 13.0
-3. **13.3-13.4** - Independent, any order
+3. **13.3-13.5** - Independent UI/feature work
+4. **13.6 last** - Refactoring after features stable
 
 *Note: 13.2 (MVC Extraction) already complete - skipped*
 
