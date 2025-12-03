@@ -65,6 +65,18 @@ Create comprehensive Puppeteer tests for each crew role to systematically discov
 | 13.0.11 | Steward/Marine/DC role tests | ~30 |
 | 13.0.12 | Run all tests, generate bug report | ~30 |
 
+### Test Modes:
+```javascript
+// Headless (default) - fast, CI-friendly
+node tests/e2e/puppeteer-role-tests.js
+
+// Visible - for debugging, watch tests run
+node tests/e2e/puppeteer-role-tests.js --visible
+
+// Single role - quick iteration
+node tests/e2e/puppeteer-role-tests.js --role=captain --visible
+```
+
 ### Test Pattern for Each Role:
 ```javascript
 async function testRole(page, roleName) {
@@ -276,10 +288,14 @@ Split large operations files, identify missing Design Patterns.
 | `public/operations/app.js` | 5,655 | Monolithic client |
 | `lib/socket-handlers/operations.handlers.js` | 3,362 | Growing handlers |
 
-### Risk Mitigation:
-- **Scaffolding tests first** - Add integration tests before refactoring
-- **Incremental extraction** - One module at a time
-- **No behavior changes** - Pure refactor, tests must pass
+### Risk Mitigation (AGGRESSIVE with HEAVY COVERAGE):
+- **Strangler Fig Pattern** - Wrap old code, route to new modules gradually
+- **Branch by Abstraction** - Create abstraction layer, swap implementations
+- **Scaffolding tests first** - Integration tests BEFORE any refactoring
+- **Characterization tests** - Capture current behavior, even if "wrong"
+- **Feature toggles** - Switch between old/new code paths safely
+- **Incremental extraction** - One module at a time, verify after each
+- **No behavior changes** - Pure refactor, all tests must pass
 
 ### Design Pattern Analysis:
 Look for opportunities to apply:
@@ -349,11 +365,12 @@ operations.handlers.js (3,362 LOC) →
     [Scaffolding tests first!]
 ```
 
-**Execution Order:**
+**Execution Order (PARALLEL STRATEGY):**
 1. **13.0 first** - Creates tests, discovers bugs
-2. **13.1 second** - Fixes bugs found by 13.0
-3. **13.3-13.5** - Independent UI/feature work
-4. **13.6 last** - Refactoring after features stable
+2. **13.1 + 13.3-13.5 in parallel** - Fix bugs WHILE doing UI features
+   - Critical bugs block related features
+   - Non-critical bugs can be fixed alongside feature work
+3. **13.6 last** - Refactoring after features stable (with Strangler Fig)
 
 *Note: 13.2 (MVC Extraction) already complete - skipped*
 
