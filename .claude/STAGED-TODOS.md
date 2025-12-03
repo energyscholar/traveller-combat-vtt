@@ -1,13 +1,25 @@
 # Staged TODOs for Operations VTT
 
 **Created:** 2025-11-30
-**Last Updated:** 2025-11-30
+**Last Updated:** 2025-12-02
+
+---
+
+## Known Bugs (AUTORUN-13 Stage 13.1)
+
+| Bug | Description | Severity | Status |
+|-----|-------------|----------|--------|
+| GM as Crew | GM appears in crew list with relieve button | HIGH | AUTORUN-13 |
+| Captain Conflict | "Role captain already taken" error on reconnect | HIGH | AUTORUN-13 |
+| Relieve UI Missing | Relieve button not showing for some crew | MEDIUM | AUTORUN-13 |
+
+Screenshots: `screenshots/Bug_GM_shows_as_crew*.png`, `screenshots/relieve_of_duty*.png`
 
 ---
 
 ## Stage 2: Combat Handler Extraction (MVC Phase 2)
 **Risk:** MEDIUM | **Time:** 2-3 hours | **Priority:** HIGH
-**Autorun:** Not yet created - complex dependencies need design first
+**Status:** AUTORUN-13 (Stage 13.2)
 
 ### Tasks:
 1. Create `lib/combat/ai.js` - Extract AI decision logic
@@ -161,3 +173,91 @@ Need to support both precise imports and "best effort" fuzzy imports.
 - ~~`.claude/TODO-solo-mode-escape.md`~~ (DELETED - Autorun 4)
 - ~~`.claude/TODO-solo-ai-not-attacking.md`~~ (DELETED - Autorun 4)
 - ~~`.claude/TODO-solo-missile-freeze.md`~~ (DELETED - Autorun 4)
+
+---
+
+## UI/UX Enhancements (2025-12-02)
+
+### TODO 1: Bridge View Title
+**Risk:** LOW | **Time:** 15 min | **Priority:** LOW
+
+Add "Bridge View" title top center, just to the right of the alert indicator.
+
+---
+
+### TODO 2: Expandable Role Panels
+**Risk:** MEDIUM | **Time:** 2-3 hours | **Priority:** HIGH
+**Status:** AUTORUN-13 (Stage 13.3)
+
+Crew role panels need expansion options for data-heavy roles:
+- **Problem:** Role panel often too small. Astrogator plotting Jump-6 needs large map display.
+- **Solution:**
+  1. **Claim Sensor Display** - Role panel expands into sensor area (half-screen)
+  2. **Full Screen** - Role panel takes entire viewport
+
+**Affected Roles:**
+- Astrogator (jump maps) - PRIMARY
+- Sensors (contact analysis)
+- Captain (tactical overview)
+- Engineer (system diagnostics)
+- Medic (medical records)
+
+**Implementation:**
+1. Add expand/collapse button to role panel header
+2. CSS for expanded states (full-screen, half-screen)
+3. Keyboard shortcut (Escape to collapse, F for fullscreen)
+4. Remember expansion state per role
+
+---
+
+### TODO 3: Full-Screen Email App
+**Risk:** LOW | **Time:** 2-3 hours | **Priority:** HIGH
+**Status:** AUTORUN-13 (Stage 13.4)
+
+Email popups don't persist. Should be a full-screen app experience.
+
+**Current Problem:**
+- Email appears as popup/modal
+- Closes on interaction
+- Feels like notification, not app
+
+**Solution:**
+- Full-screen email client UI
+- Inbox list on left, message view on right
+- Persists until user explicitly closes
+- Read/unread status indicators
+- Compose new message (to GM or crew)
+
+**Implementation:**
+1. Create full-screen email container (new app layer)
+2. Inbox list with read/unread indicators
+3. Message view pane
+4. Close with X button or Escape key
+5. Mark messages as read on view
+
+---
+
+### TODO 4: Shared Traveller Map View
+**Risk:** MEDIUM | **Time:** 3-4 hours | **Priority:** HIGH
+
+GM-controlled shared map display for all players.
+
+**Features:**
+- GM can display Traveller Map centered on any system
+- GM controls zoom level
+- All players see same center point and scale
+- Players can interact (hover for info, click for details)
+- Like Astrogator PLOT JUMP but without astrogation controls
+
+**Implementation:**
+1. New "Map View" panel (or Captain/GM tool)
+2. Socket events: `setMapCenter`, `setMapZoom`, `mapStateSync`
+3. Store map state in session (center coords, zoom level)
+4. Read-only player view (GM is authority)
+5. Optional: Allow GM to "hand off" control to Astrogator
+
+**Use Cases:**
+- "We're here, heading there" tactical briefing
+- Planning routes as a group
+- Showing players what's in sensor range
+- Dramatic "you've arrived at..." reveals

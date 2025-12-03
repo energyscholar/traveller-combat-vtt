@@ -182,10 +182,21 @@ function initSocket() {
     state.player = data.account;
     state.ships = data.ships;
     state.isGuest = false;
-    // Auto-select default ship and role from account preferences
-    if (data.account.ship_id) {
+
+    // Get available party ships
+    const partyShips = (data.ships || []).filter(s => s.is_party_ship && s.visible_to_players);
+
+    // Auto-select default ship from account preferences (if still valid)
+    if (data.account.ship_id && partyShips.some(s => s.id === data.account.ship_id)) {
       state.selectedShipId = data.account.ship_id;
+    } else if (partyShips.length === 1) {
+      // Auto-select if only one party ship available
+      state.selectedShipId = partyShips[0].id;
+    } else {
+      state.selectedShipId = null;
     }
+
+    // Auto-select role from account preferences
     if (data.account.role) {
       state.selectedRole = data.account.role;
     }
@@ -246,7 +257,22 @@ function initSocket() {
   // Confirmation when Captain/Medic relieves someone
   state.socket.on('ops:crewMemberRelieved', (data) => {
     showNotification(`${data.slotName} has been relieved of ${formatRoleName(data.previousRole)} duty`, 'success');
-    renderCrewStatus();
+    renderCrewList();
+  });
+
+  // Confirmation when GM assigns role
+  state.socket.on('ops:gmRoleAssigned', (data) => {
+    showNotification(`${data.slotName} assigned to ${formatRoleName(data.role)}`, 'success');
+    renderCrewList();
+  });
+
+  // Player notified when GM assigns them a role
+  state.socket.on('ops:roleAssignedByGM', (data) => {
+    state.selectedRole = data.role;
+    state.selectedRoleInstance = data.roleInstance || 1;
+    showNotification(`GM assigned you to ${formatRoleName(data.role)}`, 'info');
+    updateBridgeHeader();
+    renderRolePanel();
   });
 
   // Character events
@@ -324,7 +350,7 @@ function initSocket() {
           }
         }
       }
-      renderCrewStatus();
+      renderCrewList();
     }
   });
 
@@ -695,6 +721,19 @@ function initSocket() {
     showNotification(`Feedback marked as ${data.status}`, 'success');
   });
 
+  // Hail response handler
+  state.socket.on('ops:hailResult', (data) => {
+    if (data.success) {
+      showNotification(data.message, 'success');
+      // Refresh NPC contacts if a new contact was created
+      if (data.newContact) {
+        state.socket.emit('ops:getNPCContacts');
+      }
+    } else {
+      showNotification(data.message || 'Hail failed', 'error');
+    }
+  });
+
   // AUTORUN-8: Prep Panel events
   state.socket.on('ops:prepData', (data) => {
     state.prepReveals = data.reveals || [];
@@ -811,6 +850,66 @@ function initSocket() {
   // Error handling
   state.socket.on('ops:error', (error) => {
     showNotification(error.message, 'error');
+  });
+
+  // ==================== Puppetry Debug System ====================
+  // Quick-and-dirty eval-based puppetry for debugging
+  // Server can send commands to manipulate DOM, click buttons, etc.
+  state.socket.on('puppetry:eval', (data) => {
+    const { code, requestId } = data;
+    console.log('[PUPPETRY] Executing:', code);
+    try {
+      // eslint-disable-next-line no-eval
+      const result = eval(code);
+      const response = { requestId, success: true, result: String(result) };
+      state.socket.emit('puppetry:result', response);
+      console.log('[PUPPETRY] Result:', result);
+    } catch (error) {
+      const response = { requestId, success: false, error: error.message };
+      state.socket.emit('puppetry:result', response);
+      console.error('[PUPPETRY] Error:', error);
+    }
+  });
+
+  // Named action registry for puppetry (safer alternative to eval)
+  state.socket.on('puppetry:action', (data) => {
+    const { action, params, requestId } = data;
+    console.log('[PUPPETRY] Action:', action, params);
+    try {
+      let result;
+      switch (action) {
+        case 'click':
+          document.querySelector(params.selector).click();
+          result = 'clicked';
+          break;
+        case 'type':
+          const input = document.querySelector(params.selector);
+          input.value = params.text;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          result = 'typed';
+          break;
+        case 'select':
+          const select = document.querySelector(params.selector);
+          select.value = params.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          result = 'selected';
+          break;
+        case 'getText':
+          result = document.querySelector(params.selector)?.textContent || null;
+          break;
+        case 'getState':
+          result = JSON.stringify(state);
+          break;
+        case 'screenshot':
+          result = document.body.innerHTML.substring(0, 5000);
+          break;
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+      state.socket.emit('puppetry:result', { requestId, success: true, result });
+    } catch (error) {
+      state.socket.emit('puppetry:result', { requestId, success: false, error: error.message });
+    }
   });
 }
 
@@ -1791,15 +1890,23 @@ function renderCrewList() {
     'gm': 0  // GM always first
   };
 
-  // Add online players
+  // Add online players (filter out GM from player views)
   state.crewOnline.forEach(c => {
+    // Skip GM entries when viewing as a player (non-GM)
+    if (c.role === 'gm' && state.selectedRole !== 'gm' && !state.isGM) {
+      return;
+    }
+    // Determine if this is the current user - must have matching IDs (not undefined)
+    const playerId = state.player?.id;
+    const playerAccountId = state.player?.accountId;
+    const isYou = (playerId && c.id === playerId) || (playerAccountId && c.accountId === playerAccountId);
     allCrew.push({
       name: c.character_name || c.slot_name || c.name,
       role: c.role,
       isNPC: false,
       isOnline: true,
-      isYou: c.id === state.player?.id || c.accountId === state.player?.accountId,
-      accountId: c.accountId,
+      isYou: isYou,
+      accountId: c.id || c.accountId,  // Server sends 'id', map to accountId
       characterData: c.character_data
     });
   });
@@ -1826,8 +1933,8 @@ function renderCrewList() {
     return priorityA - priorityB;
   });
 
-  // Check if current user can relieve crew (Captain or Medic)
-  const canRelieve = state.selectedRole === 'captain' || state.selectedRole === 'medic';
+  // Check if current user can relieve crew (Captain, Medic, or GM)
+  const canRelieve = state.selectedRole === 'captain' || state.selectedRole === 'medic' || state.isGM;
 
   container.innerHTML = allCrew.map(c => {
     const charDataAttr = c.characterData ? `data-character='${JSON.stringify(c.characterData).replace(/'/g, '&#39;')}'` : '';
@@ -1835,24 +1942,74 @@ function renderCrewList() {
     // Show relieve button if: can relieve AND not NPC AND not self AND has a role
     const showRelieveBtn = canRelieve && !c.isNPC && !c.isYou && c.role && c.accountId;
     const relieveBtn = showRelieveBtn
-      ? `<button class="btn-relieve" onclick="relieveCrewMember('${c.accountId}', '${escapeHtml(c.name)}')" title="Relieve from duty">✕</button>`
+      ? `<button class="btn-relieve" onclick="relieveCrewMember('${c.accountId}', '${escapeHtml(c.name)}', '${c.role}')" title="Relieve from duty">✕</button>`
+      : '';
+    // Show assign button if: GM AND not NPC AND not self AND (no role OR we want reassign option)
+    const showAssignBtn = state.isGM && !c.isNPC && !c.isYou && c.accountId;
+    const assignBtn = showAssignBtn
+      ? `<button class="btn-assign" onclick="gmAssignRole('${c.accountId}', '${escapeHtml(c.name)}')" title="Assign role">⚙</button>`
       : '';
     return `
     <div class="crew-member ${c.isNPC ? 'npc' : ''} ${c.isYou ? 'is-you' : ''}">
       <span class="online-indicator ${c.isOnline ? 'online' : ''}"></span>
       <span class="crew-name ${hasCharClass}" ${charDataAttr}>${escapeHtml(c.name)}${c.isYou ? ' (You)' : ''}</span>
       <span class="crew-role">${formatRoleName(c.role)}</span>
-      ${relieveBtn}
+      ${assignBtn}${relieveBtn}
     </div>`;
   }).join('') || '<p class="placeholder">No crew</p>';
 }
 
-// Relieve crew member from duty (Captain or Medic only)
-function relieveCrewMember(accountId, name) {
-  if (!confirm(`Relieve ${name} from duty? They will return to role selection.`)) {
+// Relieve crew member from duty (Captain, Medic, or GM)
+function relieveCrewMember(accountId, name, role) {
+  const roleName = formatRoleName(role);
+  if (!confirm(`Relieve ${name} from duty as ${roleName}?`)) {
     return;
   }
   state.socket.emit('ops:relieveCrewMember', { accountId });
+}
+
+// GM assigns role to crew member
+function gmAssignRole(accountId, name) {
+  // Get list of available roles
+  const roles = [
+    { id: 'captain', name: 'Captain' },
+    { id: 'pilot', name: 'Pilot' },
+    { id: 'astrogator', name: 'Astrogator' },
+    { id: 'engineer', name: 'Engineer' },
+    { id: 'sensor_operator', name: 'Sensors' },
+    { id: 'gunner', name: 'Gunner' },
+    { id: 'damage_control', name: 'Damage Control' },
+    { id: 'medic', name: 'Medical Officer' },
+    { id: 'marines', name: 'Marines' },
+    { id: 'steward', name: 'Steward' },
+    { id: 'cargo_master', name: 'Cargo Master' },
+    { id: 'observer', name: 'Observer' }
+  ];
+
+  // Simple prompt for now - could be upgraded to a modal later
+  const roleOptions = roles.map(r => r.name).join(', ');
+  const input = prompt(`Assign ${name} to which role?\n\nAvailable: ${roleOptions}`);
+
+  if (!input) return;
+
+  // Find matching role
+  const inputLower = input.toLowerCase().trim();
+  const role = roles.find(r =>
+    r.id === inputLower ||
+    r.name.toLowerCase() === inputLower ||
+    r.name.toLowerCase().startsWith(inputLower)
+  );
+
+  if (!role) {
+    showNotification(`Unknown role: ${input}`, 'error');
+    return;
+  }
+
+  state.socket.emit('ops:gmAssignRole', {
+    accountId,
+    role: role.id,
+    roleInstance: 1
+  });
 }
 
 function renderContacts() {
@@ -1878,8 +2035,15 @@ function renderContacts() {
     const authorizedIndicator = c.weapons_free ? '<span class="authorized-indicator" title="Weapons Authorized">🎯</span>' : '';
     const authorizedClass = c.weapons_free ? 'weapons-authorized' : '';
 
+    // Build tooltip text for contact
+    let tooltipParts = [c.name || c.type];
+    if (c.type && c.type !== c.name) tooltipParts.push(`Type: ${c.type}`);
+    if (c.uwp) tooltipParts.push(`UWP: ${c.uwp}`);
+    if (c.transponder) tooltipParts.push(`Transponder: ${c.transponder}`);
+    const contactTooltip = tooltipParts.join(' | ');
+
     return `
-      <div class="contact-item ${rangeClass} ${authorizedClass}" data-contact-id="${c.id}">
+      <div class="contact-item ${rangeClass} ${authorizedClass}" data-contact-id="${c.id}" title="${escapeHtml(contactTooltip)}">
         <span class="contact-icon">${getContactIcon(c.type)}${authorizedIndicator}</span>
         <div class="contact-info">
           <div class="contact-name">${escapeHtml(c.name || c.type)}</div>
@@ -2307,6 +2471,20 @@ function fireAtTarget() {
 
   state.socket.emit('ops:fireAtContact', { contactId, weaponIndex });
   showNotification(`Firing at ${targetName}...`, 'warning');
+}
+
+/**
+ * Update fire button text when weapon selection changes
+ */
+function updateFireButton() {
+  const weaponSelect = document.getElementById('fire-weapon-select');
+  const fireButton = document.getElementById('fire-button');
+  if (weaponSelect && fireButton) {
+    const selectedOption = weaponSelect.options[weaponSelect.selectedIndex];
+    // Extract weapon name from option text (format: "Pulse Laser (2d6)")
+    const weaponName = selectedOption?.text.split(' (')[0] || 'Weapon';
+    fireButton.textContent = `FIRE ${weaponName}!`;
+  }
 }
 
 function handleFireResult(data) {
@@ -3643,6 +3821,25 @@ function showContactTooltip(contactId, targetElement) {
     }
   }
 
+  // Hail button for ships/stations with transponders (Captain or Sensor Operator)
+  const canHail = (state.selectedRole === 'captain' || state.selectedRole === 'sensor_operator' || state.isGM);
+  const isHailable = contact.transponder && contact.transponder !== 'NONE' &&
+    (contact.type === 'Free Trader' || contact.type === 'Far Trader' ||
+     contact.type === 'Station' || contact.type === 'starport' || contact.type === 'Starport' ||
+     contact.type === 'orbital' || contact.type === 'System Defense Boat' ||
+     contact.type?.toLowerCase().includes('ship') || contact.type?.toLowerCase().includes('trader') ||
+     contact.type?.toLowerCase().includes('station') || contact.transponder?.toLowerCase().includes('starport'));
+
+  if (canHail && isHailable) {
+    content += `
+      <div class="tooltip-actions">
+        <button class="btn btn-primary btn-hail" onclick="hailContact('${contactId}')">
+          📡 Hail ${contact.transponder}
+        </button>
+      </div>
+    `;
+  }
+
   contentEl.innerHTML = content;
 
   // Position tooltip near target element
@@ -3674,6 +3871,30 @@ function hideContactTooltip() {
   tooltip.classList.add('hidden');
   document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('selected'));
   state.pinnedContactId = null;
+}
+
+/**
+ * Hail a contact (ship/station)
+ * Creates comms log entry and may create NPC contact if they respond
+ * @param {string} contactId - Contact ID to hail
+ */
+function hailContact(contactId) {
+  const contact = state.contacts.find(c => c.id === contactId);
+  if (!contact) {
+    showNotification('Contact not found', 'error');
+    return;
+  }
+
+  if (!contact.transponder || contact.transponder === 'NONE') {
+    showNotification('Cannot hail - no transponder signal', 'error');
+    return;
+  }
+
+  // Emit hail event to server
+  state.socket.emit('ops:hailContact', { contactId });
+
+  // Close tooltip
+  hideContactTooltip();
 }
 
 function showNotification(message, type = 'info') {
@@ -4376,7 +4597,10 @@ function showComposeMailModal() {
       body
     });
     showMessage('Message sent');
-    hideModal();
+    // Clear form instead of closing modal so user can send multiple messages
+    document.getElementById('compose-subject').value = '';
+    document.getElementById('compose-body').value = '';
+    // Keep recipient selected for convenience
   });
 }
 
@@ -4509,10 +4733,6 @@ function showModalContent(html) {
   modalContent.querySelectorAll('[data-close-modal]').forEach(btn => {
     btn.addEventListener('click', closeModal);
   });
-}
-
-function closeModal() {
-  document.getElementById('modal-overlay')?.classList.add('hidden');
 }
 
 // ==================== Feedback Form (Autorun 6) ====================
@@ -5392,6 +5612,7 @@ window.initiateJumpFromPlot = initiateJumpFromPlot;
 window.performScan = performScan;
 window.authorizeWeapons = authorizeWeapons;
 window.fireAtTarget = fireAtTarget;
+window.updateFireButton = updateFireButton;
 window.skipToJumpExit = skipToJumpExit;
 window.showNewsMailModal = showNewsMailModal;
 window.closeNewsMailModal = closeNewsMailModal;
@@ -5406,7 +5627,9 @@ window.selectJumpDestination = selectJumpDestination;
 // Autorun 6: Mail, NPC contacts, and Feedback
 window.showAddNPCContactForm = showAddNPCContactForm;
 window.submitNPCContact = submitNPCContact;
+window.hailContact = hailContact;
 window.closeModal = closeModal;
+window.relieveCrewMember = relieveCrewMember;
 window.submitFeedback = submitFeedback;
 window.showFeedbackReview = showFeedbackReview;
 window.copyLogAsTodo = copyLogAsTodo;

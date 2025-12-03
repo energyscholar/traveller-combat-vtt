@@ -253,6 +253,39 @@ async function testTimeAdvanceSyncs() {
   }
 }
 
+async function testGMRelievesCrewMember() {
+  // Player1 needs to have a role assigned first
+  if (!testShipId) {
+    log('Skipping: No ship available');
+    pass('GM relieves crew member (skipped - no ship)');
+    return;
+  }
+
+  // Ensure player1 has a role (should be pilot from previous test)
+  // Now GM relieves them
+  const relievePromise = waitForEvent(gmSocket, 'ops:crewMemberRelieved', 5000);
+
+  gmSocket.emit('ops:relieveCrewMember', {
+    accountId: asaoAccountId,
+    reason: 'Integration test'
+  });
+
+  try {
+    const result = await relievePromise;
+    if (result.accountId !== asaoAccountId) {
+      throw new Error('Wrong account relieved');
+    }
+    if (result.previousRole !== 'pilot') {
+      log(`Expected role 'pilot', got '${result.previousRole}'`);
+    }
+    pass('GM relieves crew member');
+  } catch (e) {
+    // If it fails, log the error for debugging
+    log('Relieve failed: ' + e.message);
+    throw e;
+  }
+}
+
 async function cleanup() {
   // Delete test campaign if created
   if (testCampaignId && gmSocket) {
@@ -279,7 +312,8 @@ async function runTests() {
     testPlayerSelectsSlot,
     testMultiplePlayersSeeCrew,
     testAlertStatusPropagates,
-    testTimeAdvanceSyncs
+    testTimeAdvanceSyncs,
+    testGMRelievesCrewMember
   ];
 
   for (const test of tests) {

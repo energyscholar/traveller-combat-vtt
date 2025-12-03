@@ -1636,6 +1636,29 @@ input[type="checkbox"] {
   color: white;
 }
 
+/* Assign role button (GM only) */
+.btn-assign {
+  background: transparent;
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.2s ease;
+  padding: 0;
+  line-height: 1;
+  margin-left: 4px;
+}
+
+.btn-assign:hover {
+  opacity: 1;
+  background: var(--accent-cyan);
+  color: var(--bg-darker);
+}
+
 /* Ship Log */
 .ship-log {
   flex: 1;

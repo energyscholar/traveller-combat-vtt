@@ -145,7 +145,7 @@ export function getRoleDetailContent(role, context) {
       return getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemStatus);
 
     case 'damage_control':
-      return getDamageControlPanel(shipState, template);
+      return getDamageControlPanel(shipState, template, systemStatus, damagedSystems);
 
     default:
       return `
@@ -363,14 +363,14 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1) {
           ${hasWeapons ? `
             <div class="weapon-select-group">
               <label for="fire-weapon-select">Weapon:</label>
-              <select id="fire-weapon-select" class="fire-select">
+              <select id="fire-weapon-select" class="fire-select" onchange="updateFireButton()">
                 ${weapons.map((w, i) => `
                   <option value="${i}">${w.name || w.id || 'Weapon ' + (i + 1)} (${w.damage || '1d6'})</option>
                 `).join('')}
               </select>
             </div>
-            <button onclick="fireAtTarget()" class="btn btn-danger">
-              FIRE!
+            <button onclick="fireAtTarget()" class="btn btn-danger" id="fire-button">
+              FIRE ${weapons[0]?.name || 'Weapon'}!
             </button>
           ` : `
             <div class="placeholder">No weapons available to fire</div>
@@ -723,7 +723,7 @@ function getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemSta
   `;
 }
 
-function getDamageControlPanel(shipState, template) {
+function getDamageControlPanel(shipState, template, systemStatus = {}, damagedSystems = []) {
   return `
     <div class="detail-section">
       <h4>Hull Integrity</h4>
@@ -739,13 +739,38 @@ function getDamageControlPanel(shipState, template) {
       </div>
     </div>
     <div class="detail-section">
-      <h4>Damage Report</h4>
-      <div class="damage-list">
-        ${(shipState.criticals || []).length > 0 ?
-          shipState.criticals.map(c => `<div class="damage-item text-warning">${c}</div>`).join('') :
-          '<div class="placeholder">No damage reported</div>'
-        }
+      <h4>System Status</h4>
+      <div class="system-status-grid">
+        ${renderSystemStatusItem('M-Drive', systemStatus.mDrive)}
+        ${renderSystemStatusItem('Power Plant', systemStatus.powerPlant)}
+        ${renderSystemStatusItem('J-Drive', systemStatus.jDrive)}
+        ${renderSystemStatusItem('Sensors', systemStatus.sensors)}
+        ${renderSystemStatusItem('Computer', systemStatus.computer)}
+        ${renderSystemStatusItem('Armour', systemStatus.armour)}
+        ${renderSystemStatusItem('Weapons', systemStatus.weapon)}
+        ${renderSystemStatusItem('Hull', systemStatus.hull)}
+        ${renderSystemStatusItem('Fuel', systemStatus.fuel)}
+        ${renderSystemStatusItem('Cargo', systemStatus.cargo)}
       </div>
     </div>
+    ${damagedSystems.length > 0 ? `
+    <div class="detail-section">
+      <h4>Repair Actions</h4>
+      <div class="repair-controls">
+        <select id="repair-target" class="repair-select">
+          ${damagedSystems.map(s => `<option value="${s}">${formatSystemName(s)}</option>`).join('')}
+        </select>
+        <button onclick="attemptRepair()" class="btn btn-small">Attempt Repair</button>
+      </div>
+      <div class="repair-info">
+        <small>Repair check (8+) with DM = -Severity</small>
+      </div>
+    </div>
+    ` : `
+    <div class="detail-section">
+      <h4>Repair Actions</h4>
+      <div class="placeholder">All systems operational</div>
+    </div>
+    `}
   `;
 }
