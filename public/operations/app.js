@@ -2269,38 +2269,28 @@ function renderContacts() {
   container.innerHTML = state.contacts.map(c => {
     const rangeClass = getRangeClass(c.range_band);
     const gmControls = state.isGM ? `
-      <div class="contact-gm-controls">
-        <button class="btn btn-icon btn-delete-contact" data-id="${c.id}" title="Delete">✕</button>
-      </div>
-    ` : '';
-    // GM notes only visible to GM
-    const gmNotes = state.isGM && c.gm_notes ? `
-      <div class="contact-gm-notes">${escapeHtml(c.gm_notes)}</div>
+      <button class="btn btn-icon btn-delete-contact" data-id="${c.id}" title="Delete">✕</button>
     ` : '';
     // Authorized target indicator (weapons_free)
     const authorizedIndicator = c.weapons_free ? '<span class="authorized-indicator" title="Weapons Authorized">🎯</span>' : '';
     const authorizedClass = c.weapons_free ? 'weapons-authorized' : '';
 
-    // Build tooltip text for contact
-    let tooltipParts = [c.name || c.type];
-    if (c.type && c.type !== c.name) tooltipParts.push(`Type: ${c.type}`);
-    if (c.uwp) tooltipParts.push(`UWP: ${c.uwp}`);
-    if (c.transponder) tooltipParts.push(`Transponder: ${c.transponder}`);
-    const contactTooltip = tooltipParts.join(' | ');
+    // Build hover details (shown on hover only)
+    const hoverDetails = [];
+    if (c.type && c.type !== c.name) hoverDetails.push(`Type: ${c.type}`);
+    if (c.transponder) hoverDetails.push(`ID: ${c.transponder}`);
+    if (c.uwp) hoverDetails.push(`UWP: ${c.uwp}`);
+    if (c.range_km) hoverDetails.push(`Range: ${formatRange(c.range_km)}`);
+    if (state.isGM && c.gm_notes) hoverDetails.push(`Notes: ${c.gm_notes}`);
 
     return `
-      <div class="contact-item ${rangeClass} ${authorizedClass}" data-contact-id="${c.id}" title="${escapeHtml(contactTooltip)}">
+      <div class="contact-item compact ${rangeClass} ${authorizedClass}" data-contact-id="${c.id}">
         <span class="contact-icon">${getContactIcon(c.type)}${authorizedIndicator}</span>
-        <div class="contact-info">
-          <div class="contact-name">${escapeHtml(c.name || c.type)}</div>
-          <div class="contact-details">Bearing: ${c.bearing}° · ${c.transponder || 'No transponder'}</div>
-          ${gmNotes}
-        </div>
-        <div class="contact-range">
-          <div>${formatRange(c.range_km)}</div>
-          <div class="range-band">${formatRangeBand(c.range_band)}</div>
-        </div>
+        <span class="contact-name">${escapeHtml(c.name || c.type)}</span>
+        <span class="contact-bearing">${c.bearing}°</span>
+        <span class="contact-range-band">${formatRangeBand(c.range_band)}</span>
         ${gmControls}
+        <div class="contact-hover-details">${hoverDetails.join(' · ')}</div>
       </div>
     `;
   }).join('');

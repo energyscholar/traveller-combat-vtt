@@ -1976,6 +1976,72 @@ input[type="checkbox"] {
   border-left: 2px solid var(--accent-orange);
 }
 
+/* Compact sensor contacts - halved vertical space, two columns */
+#sensor-contacts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-xs);
+}
+
+.contact-item.compact {
+  padding: 2px var(--space-sm);
+  margin-bottom: 0;
+  font-size: 11px;
+  gap: var(--space-xs);
+  position: relative;
+}
+
+.contact-item.compact .contact-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 14px;
+}
+
+.contact-item.compact .contact-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+.contact-bearing {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  min-width: 28px;
+}
+
+.contact-range-band {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+}
+
+/* Hover details - hidden by default */
+.contact-hover-details {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 100;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 10px;
+  color: var(--accent-orange);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  max-width: 300px;
+}
+
+.contact-item.compact:hover .contact-hover-details {
+  display: block;
+}
+
 /* Damage Modal */
 .damage-effects-preview {
   margin-top: var(--space-md);
