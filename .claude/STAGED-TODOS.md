@@ -239,25 +239,50 @@ Email popups don't persist. Should be a full-screen app experience.
 
 ### TODO 4: Shared Traveller Map View
 **Risk:** MEDIUM | **Time:** 3-4 hours | **Priority:** HIGH
+**Status:** Moved to AR-14 (Stage 14.4)
 
 GM-controlled shared map display for all players.
 
-**Features:**
-- GM can display Traveller Map centered on any system
-- GM controls zoom level
-- All players see same center point and scale
-- Players can interact (hover for info, click for details)
-- Like Astrogator PLOT JUMP but without astrogation controls
+---
 
-**Implementation:**
-1. New "Map View" panel (or Captain/GM tool)
-2. Socket events: `setMapCenter`, `setMapZoom`, `mapStateSync`
-3. Store map state in session (center coords, zoom level)
-4. Read-only player view (GM is authority)
-5. Optional: Allow GM to "hand off" control to Astrogator
+### TODO 5: Add All Known Ships to Library
+**Risk:** LOW | **Time:** 20-40 hours | **Priority:** LOW
+**Status:** Future (ask before starting)
 
-**Use Cases:**
-- "We're here, heading there" tactical briefing
-- Planning routes as a group
-- Showing players what's in sensor range
-- Dramatic "you've arrived at..." reveals
+Add ALL known Traveller ships to `data/ships/`:
+- Core Rulebook ships (complete set)
+- High Guard ships
+- Small craft (launches, pinnaces, cutters, shuttles)
+- Fighters (light, medium, heavy)
+- Special cases (system defense boats, etc.)
+
+**Note:** This is a HUGE task. Ask before starting.
+
+---
+
+### TODO 6: Comprehensive Crew Role Tests
+**Risk:** MEDIUM | **Time:** 8-12 hours | **Priority:** MEDIUM
+**Dependency:** AR-13 Stage 13.3 (Expandable Role Panels)
+
+Complete Puppeteer test suite for all 11 crew roles:
+- Test every role's panel UI
+- Test role-specific actions
+- Test role interactions
+- Regression tests for role bugs
+
+**Goal:** Very detailed crew role actions that make gameplay fun.
+
+---
+
+### TODO 7: Ship Builder System
+**Risk:** HIGH | **Time:** 56-81 hours | **Priority:** LOW
+**Status:** AR-14 scope (Stages 14.1-14.3)
+**Reference:** `.claude/TODO-ship-builder-system.md`
+
+Full CRUD ship customization with High Guard rules:
+- Ship list management
+- Component picker UI
+- Rules validation
+- Import/Export
+
+**Test Case:** Gorram (600-ton X-Carrier) - `data/ships/gorram.json`

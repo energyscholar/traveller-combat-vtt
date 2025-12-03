@@ -15,6 +15,14 @@
       "tonnage": 200,
       "role": "trading",
       "file": "free_trader.json"
+    },
+    {
+      "id": "gorram",
+      "name": "Gorram",
+      "class": "Trojan Horse X-Carrier",
+      "tonnage": 600,
+      "role": "military",
+      "file": "gorram.json"
     }
   ]
 }

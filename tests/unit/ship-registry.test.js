@@ -244,15 +244,17 @@ test('Instance mutation does not affect template', () => {
   assertTrue(instance2.crew.pilot === null);
 });
 
-runner.section('INDEX & SEARCH (6 tests)');
+runner.section('INDEX & SEARCH (7 tests)');
 
 test('List all ships from index', () => {
   const registry = new ShipRegistry();
   const ships = registry.listShips();
 
-  assertEqual(ships.length, 2);
-  assertEqual(ships[0].id, 'scout');
-  assertEqual(ships[1].id, 'free_trader');
+  // Index includes: scout, free_trader, gorram
+  assertTrue(ships.length >= 3, `Expected at least 3 ships, got ${ships.length}`);
+  assertTrue(ships.some(s => s.id === 'scout'), 'Scout should be in index');
+  assertTrue(ships.some(s => s.id === 'free_trader'), 'Free Trader should be in index');
+  assertTrue(ships.some(s => s.id === 'gorram'), 'Gorram should be in index');
 });
 
 test('Search by role', () => {
@@ -274,9 +276,11 @@ test('Search by tonnage range', () => {
   assertEqual(small.length, 1);
   assertEqual(small[0].id, 'scout');
 
+  // Large ships: free_trader (200t), gorram (600t)
   const large = registry.searchShips({ minTonnage: 150 });
-  assertEqual(large.length, 1);
-  assertEqual(large[0].id, 'free_trader');
+  assertTrue(large.length >= 2, `Expected at least 2 large ships, got ${large.length}`);
+  assertTrue(large.some(s => s.id === 'free_trader'), 'Free Trader should be in large ships');
+  assertTrue(large.some(s => s.id === 'gorram'), 'Gorram should be in large ships');
 });
 
 test('Search by name substring', () => {
@@ -306,8 +310,18 @@ test('Search with multiple criteria', () => {
 test('Return empty array for no matches', () => {
   const registry = new ShipRegistry();
 
-  const results = registry.searchShips({ role: 'military' });
+  // Search for a role that doesn't exist
+  const results = registry.searchShips({ role: 'nonexistent_role_xyz' });
   assertEqual(results.length, 0);
+});
+
+test('Search for military ships', () => {
+  const registry = new ShipRegistry();
+
+  // Gorram is a military ship
+  const results = registry.searchShips({ role: 'military' });
+  assertTrue(results.length >= 1, 'Should find at least one military ship');
+  assertTrue(results.some(s => s.id === 'gorram'), 'Gorram should be a military ship');
 });
 
 runner.finish();

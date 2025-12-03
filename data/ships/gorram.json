@@ -1,0 +1,122 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "gorram",
+  "type": "x_carrier",
+  "name": "Gorram",
+  "class": "Trojan Horse",
+  "tonnage": 600,
+  "role": "military",
+  "hull": 240,
+  "armour": 1,
+  "armourType": "Bonded Super Dense",
+  "thrust": 3,
+  "jump": 3,
+  "fuel": 183,
+  "cargo": 117,
+  "passengers": 12,
+  "lowBerths": 12,
+  "turrets": [
+    {
+      "id": "turret1",
+      "type": "triple",
+      "popup": true,
+      "weapons": ["pulse_laser", "pulse_laser", "sandcaster"]
+    },
+    {
+      "id": "turret2",
+      "type": "triple",
+      "popup": true,
+      "weapons": ["pulse_laser", "pulse_laser", "missile_rack"]
+    },
+    {
+      "id": "turret3",
+      "type": "triple",
+      "popup": true,
+      "weapons": ["pulse_laser", "pulse_laser", "sandcaster"]
+    },
+    {
+      "id": "turret4",
+      "type": "triple",
+      "popup": true,
+      "weapons": ["pulse_laser", "pulse_laser", "missile_rack"]
+    }
+  ],
+  "barbettes": [
+    {
+      "id": "barbette1",
+      "type": "ion",
+      "range": "medium",
+      "tonnage": 5,
+      "power": 10
+    },
+    {
+      "id": "barbette2",
+      "type": "particle",
+      "range": "very_long",
+      "tonnage": 5,
+      "power": 15
+    }
+  ],
+  "hardpoints": 6,
+  "hardpointsUsed": 6,
+  "smallCraft": [
+    {
+      "id": "fighter1",
+      "type": "light_fighter",
+      "tonnage": 10,
+      "quantity": 6,
+      "hangarTonnage": 60
+    },
+    {
+      "id": "pinnace1",
+      "type": "pinnace",
+      "tonnage": 40,
+      "quantity": 1,
+      "hangarTonnage": 40
+    }
+  ],
+  "crewRequirements": {
+    "pilot": 3,
+    "astrogator": 1,
+    "gunner": 6,
+    "engineer": 3,
+    "sensors": 1,
+    "steward": 1,
+    "medic": 1,
+    "marines": 0,
+    "fighterPilots": 6
+  },
+  "crewMinimum": {
+    "pilot": 1,
+    "engineer": 1,
+    "gunner": 6
+  },
+  "computer": "Computer/25",
+  "computerTL": 13,
+  "software": ["Jump Control/3", "Manoeuvre/0", "Library"],
+  "sensors": "Improved",
+  "sensorStation": true,
+  "drones": {
+    "probe": 5,
+    "repair": 5
+  },
+  "specialFeatures": {
+    "radShielding": true,
+    "reflectShield": true,
+    "jumpNet": true,
+    "fuelScoops": true,
+    "fuelProcessor": 20,
+    "collapsibleTank": 1
+  },
+  "powerPlant": {
+    "rating": 32,
+    "output": 548
+  },
+  "techLevel": 13,
+  "cost": 265400000,
+  "description": "A Q-ship disguised as a bulk freighter. Carries 6 light fighters in concealed hangars, a pinnace, and heavy weapons including ion and particle barbettes. Popup turrets remain hidden until combat. Perfect for ambush operations or convoy escort.",
+  "notes": {
+    "designIssue": "Original design shows 620 tons used in 600 ton hull - may need adjustment",
+    "source": "Player custom design for campaign transition from Type-S Scout"
+  }
+}
