@@ -5736,17 +5736,16 @@ function showSharedMap() {
   overlay.id = 'shared-map-overlay';
   overlay.className = 'shared-map-overlay';
 
-  // Build TravellerMap poster API URL (static image - avoids third-party cookie issues)
-  // Using poster API instead of iframe embed due to browser security restrictions
-  let mapUrl = 'https://travellermap.com/api/poster?sector=Spinward+Marches&scale=32&style=poster&options=41975';
+  // Build poster API URL via local proxy (avoids browser XSS/CORS issues)
+  let mapUrl = '/api/map/poster?sector=Spinward+Marches&scale=32&style=poster&options=41975';
   if (state.campaign?.current_sector) {
     const sector = encodeURIComponent(state.campaign.current_sector);
     if (state.campaign?.current_hex) {
       // Jump map centered on current location
-      mapUrl = `https://travellermap.com/api/jumpmap?sector=${sector}&hex=${state.campaign.current_hex}&jump=4&style=poster`;
+      mapUrl = `/api/map/poster?sector=${sector}&hex=${state.campaign.current_hex}&jump=4&style=poster`;
     } else {
       // Sector poster
-      mapUrl = `https://travellermap.com/api/poster?sector=${sector}&scale=32&style=poster&options=41975`;
+      mapUrl = `/api/map/poster?sector=${sector}&scale=32&style=poster&options=41975`;
     }
   }
 
@@ -5915,14 +5914,14 @@ function updateSharedMapFrame(data) {
   const mapImage = document.getElementById('shared-map-image');
   if (!mapImage || !data) return;
 
-  // Build poster API URL from shared state
-  let mapUrl = 'https://travellermap.com/api/poster?sector=Spinward+Marches&scale=32&style=poster&options=41975';
+  // Build poster API URL via local proxy
+  let mapUrl = '/api/map/poster?sector=Spinward+Marches&scale=32&style=poster&options=41975';
   if (data.sector && data.hex) {
     // Jump map centered on location
-    mapUrl = `https://travellermap.com/api/jumpmap?sector=${encodeURIComponent(data.sector)}&hex=${data.hex}&jump=4&style=poster`;
+    mapUrl = `/api/map/poster?sector=${encodeURIComponent(data.sector)}&hex=${data.hex}&jump=4&style=poster`;
   } else if (data.sector) {
     // Sector poster
-    mapUrl = `https://travellermap.com/api/poster?sector=${encodeURIComponent(data.sector)}&scale=32&style=poster&options=41975`;
+    mapUrl = `/api/map/poster?sector=${encodeURIComponent(data.sector)}&scale=32&style=poster&options=41975`;
   }
 
   // Only update if URL changed (compare without query params that might differ)

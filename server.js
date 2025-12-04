@@ -110,6 +110,46 @@ app.get('/api/map/tile', async (req, res) => {
   }
 });
 
+// Poster/JumpMap proxy - same pattern as tile proxy
+app.get('/api/map/poster', async (req, res) => {
+  try {
+    const { sector, hex, jump, scale, style, options } = req.query;
+
+    if (!sector) {
+      return res.status(400).json({ error: 'Missing sector parameter' });
+    }
+
+    // Build TravellerMap URL based on whether it's a jumpmap or sector poster
+    let mapUrl;
+    if (hex) {
+      // Jump map centered on a hex
+      mapUrl = `https://travellermap.com/api/jumpmap?sector=${encodeURIComponent(sector)}&hex=${hex}&jump=${jump || 2}&style=${style || 'poster'}`;
+    } else {
+      // Sector poster
+      mapUrl = `https://travellermap.com/api/poster?sector=${encodeURIComponent(sector)}&scale=${scale || 32}&style=${style || 'poster'}`;
+      if (options) mapUrl += `&options=${options}`;
+    }
+
+    // Fetch from TravellerMap
+    const response = await fetch(mapUrl, {
+      headers: { 'User-Agent': 'TravellerCombatVTT/1.0 (polite-cache)' }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: `TravellerMap returned ${response.status}` });
+    }
+
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=259200'); // 72 hours
+    res.send(imageBuffer);
+  } catch (error) {
+    serverLog.error('[POSTER-PROXY] Error:', error.message);
+    res.status(502).json({ error: 'Failed to fetch poster', message: error.message });
+  }
+});
+
 app.get('/api/map/cache/status', (req, res) => {
   res.json({
     stats: tileProxy.getStats(),
