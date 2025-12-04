@@ -12,7 +12,7 @@ This is a **free, open-source** implementation of Traveller 2nd Edition combat m
 
 ### Intellectual Property Acknowledgment
 
-**Traveller** is a registered trademark of **Far Future Enterprises** and is used under license by **Mongoose Publishing Ltd.**
+**Traveller** is a registered trademark of **Far Future Enterprises** (with gratitude to Marc Miller, creator of Traveller) and is used under license by **Mongoose Publishing Ltd.**
 
 All Traveller rules, game mechanics, setting elements, and terminology referenced in this software are:
 - © 2008-2024 Mongoose Publishing Ltd.
@@ -102,7 +102,7 @@ This project is my small attempt to give back to the game that shaped my love of
 
 This is an independent, fan-created project. It is **NOT** endorsed by, affiliated with, or sponsored by:
 - Mongoose Publishing Ltd.
-- Far Future Enterprises
+- Far Future Enterprises (with gratitude to Marc Miller, creator of Traveller)
 - Marc Miller
 
 All trademarks, copyrights, and intellectual property belong to their respective owners.

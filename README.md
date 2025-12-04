@@ -224,7 +224,7 @@ Contributions welcome! Please:
 **Code:** [GNU General Public License v3.0](LICENSE)
 
 **Traveller Content:**
-- **Traveller** is a registered trademark of **Far Future Enterprises**
+- **Traveller** is a registered trademark of **Far Future Enterprises** (with gratitude to Marc Miller, creator of Traveller)
 - Used under license by **Mongoose Publishing Ltd.**
 - This is an unofficial fan project, not affiliated with or endorsed by Mongoose Publishing or Far Future Enterprises
 
@@ -233,7 +233,7 @@ Contributions welcome! Please:
 ## Acknowledgments
 
 - **Mongoose Publishing** - Mongoose Traveller 2nd Edition
-- **Far Future Enterprises** - Original Traveller game system
+- **Far Future Enterprises** - Original Traveller game system (with gratitude to Marc Miller, creator of Traveller)
 - **[TravellerMap](https://travellermap.com/)** - Jump map data and API (Thanks Joshua Bell!)
 - **Anthropic Claude Code** - AI-assisted development
 
