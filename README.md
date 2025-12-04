@@ -20,7 +20,34 @@ Traveller VTT is a web-based virtual tabletop for **Mongoose Traveller 2nd Editi
 - **Ship Template Editor** - Build and customize ships with High Guard rules
 - **339 Passing Tests** across 31 test suites
 
-**Version:** 0.32
+**Version:** 1.0.0
+
+---
+
+## Repository Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Total Lines of Code** | ~107,000 |
+| JavaScript | 61,819 |
+| Test Code | 18,097 |
+| JSON | 12,162 |
+| CSS | 7,839 |
+| HTML | 1,729 |
+| **Total Files** | 430+ |
+| JavaScript files | 219 |
+| Test files | 64 |
+| TypeScript files | 26 |
+| Directories | 72 |
+| **Git Stats** | |
+| Total commits | 259 |
+| Contributors | 3 |
+| Branches | 22 |
+| Tags/Releases | 12 |
+| Project age | ~5 weeks |
+| **Dependencies** | |
+| Runtime | 7 |
+| Dev | 4 |
 
 ---
 
@@ -113,7 +140,7 @@ curl http://localhost:3000/health
 - **Alert Status** - Normal, Yellow, Red alert with visual indicators
 - **Jump Maps** - Astrogator jump plotting with TravellerMap API
 
-### Shared TravellerMap (NEW)
+### Shared TravellerMap
 - GM can share sector maps with all players
 - Disk-based tile caching (72h TTL)
 - Rate limiting (polite to TravellerMap servers)
@@ -124,7 +151,7 @@ curl http://localhost:3000/health
 - Build ships using High Guard 2022 rules
 - Component validation and cost calculation
 - Export/import ship templates as JSON
-- 7 pre-built ship templates included
+- 10 pre-built ship templates included
 
 ### Technical Infrastructure
 - **SQLite Database** - Persistent campaign and character storage
@@ -140,8 +167,10 @@ curl http://localhost:3000/health
 - **[Node.js](https://nodejs.org/)** (≥18.0.0) - JavaScript runtime
 - **[Express](https://expressjs.com/)** (4.18.2) - Web application framework
 - **[Socket.io](https://socket.io/)** (4.7.2) - Real-time WebSocket communication
-- **[better-sqlite3](https://github.com/WiseLibs/better-sqlite3)** - SQLite database
-- **[Winston](https://github.com/winstonjs/winston)** - Structured logging
+- **[better-sqlite3](https://github.com/WiseLibs/better-sqlite3)** (12.5.0) - SQLite database
+- **[Winston](https://github.com/winstonjs/winston)** (3.18.3) - Structured logging
+- **[AJV](https://ajv.js.org/)** (8.17.1) - JSON Schema validation
+- **[JSZip](https://stuk.github.io/jszip/)** (3.10.1) - ZIP file handling
 
 ### Frontend
 - **Vanilla JavaScript** - No framework dependencies
@@ -149,9 +178,9 @@ curl http://localhost:3000/health
 - **WebSockets** - Real-time bidirectional communication
 
 ### Testing
-- **[Jest](https://jestjs.io/)** - Testing framework
-- **[Puppeteer](https://pptr.dev/)** - Browser automation for E2E tests
-- **339 tests** across 31 test suites
+- **[Jest](https://jestjs.io/)** (29.7.0) - Testing framework
+- **[Puppeteer](https://pptr.dev/)** (24.29.1) - Browser automation for E2E tests
+- **339 tests** across 31 test suites (~1.7s runtime)
 
 ---
 
@@ -161,11 +190,14 @@ curl http://localhost:3000/health
 # All tests (339 tests across 31 suites)
 npm test
 
-# Smoke tests (fast, ~2s)
+# Smoke tests (fast, ~0.5s)
 npm run test:smoke
 
 # Watch mode
 npm run test:watch
+
+# Cleanup zombie processes
+npm run cleanup
 ```
 
 ---
@@ -174,7 +206,7 @@ npm run test:watch
 
 ```
 traveller-combat-vtt/
-├── lib/                      # Core game logic
+├── lib/                      # Core game logic (98 files)
 │   ├── operations/           # Operations layer (campaigns, accounts, database)
 │   ├── socket-handlers/      # Socket.io event handlers
 │   │   └── ops/              # Modular operation handlers
@@ -182,13 +214,16 @@ traveller-combat-vtt/
 │   └── ship-*.js             # Ship validation modules
 ├── data/
 │   ├── campaigns/            # SQLite database
-│   ├── ships/v2/             # Ship templates (JSON)
+│   ├── ships/v2/             # Ship templates (10 templates)
 │   ├── map-cache/            # TravellerMap tile cache
 │   └── map-fixtures/         # Test fixtures for maps
 ├── public/
 │   └── operations/           # Operations VTT UI
 ├── scripts/                  # Utility scripts
 ├── tests/                    # 339 tests across 31 suites
+├── schemas/                  # JSON validation schemas
+├── config/                   # Environment configurations
+├── aws/                      # AWS deployment configs
 ├── server.js                 # Express + Socket.io
 ├── Dockerfile                # Multi-stage production build
 └── package.json
@@ -239,7 +274,7 @@ Contributions welcome! Please:
 
 ---
 
-**Version:** 0.32
+**Version:** 1.0.0
 **Tests:** 339 passing (31 suites)
 **Last Updated:** 2025-12-04
 **Created by:** Bruce Stephenson
