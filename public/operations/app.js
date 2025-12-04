@@ -5737,7 +5737,8 @@ function showSharedMap() {
   overlay.className = 'shared-map-overlay';
 
   // Build poster API URL via local proxy (avoids browser XSS/CORS issues)
-  let mapUrl = '/api/map/poster?sector=Spinward+Marches&scale=32&style=poster&options=41975';
+  // TODO: Track party coordinates in DB - defaults to Caladbolg (1815) for now
+  let mapUrl = '/api/map/poster?sector=Spinward+Marches&hex=1815&jump=4&style=poster';
   if (state.campaign?.current_sector) {
     const sector = encodeURIComponent(state.campaign.current_sector);
     if (state.campaign?.current_hex) {
@@ -5914,8 +5915,8 @@ function updateSharedMapFrame(data) {
   const mapImage = document.getElementById('shared-map-image');
   if (!mapImage || !data) return;
 
-  // Build poster API URL via local proxy
-  let mapUrl = '/api/map/poster?sector=Spinward+Marches&scale=32&style=poster&options=41975';
+  // Build poster API URL via local proxy - defaults to Caladbolg (1815)
+  let mapUrl = '/api/map/poster?sector=Spinward+Marches&hex=1815&jump=4&style=poster';
   if (data.sector && data.hex) {
     // Jump map centered on location
     mapUrl = `/api/map/poster?sector=${encodeURIComponent(data.sector)}&hex=${data.hex}&jump=4&style=poster`;
