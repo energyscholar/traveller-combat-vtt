@@ -318,6 +318,52 @@ input[type="checkbox"] {
   box-shadow: 0 0 10px rgba(58, 138, 255, 0.3);
 }
 
+/* AR-21: Campaign CRUD */
+.campaign-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.campaign-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.campaign-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.campaign-actions {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: var(--space-sm);
+}
+
+.campaign-actions .btn-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.campaign-actions .btn-icon:hover {
+  opacity: 1;
+}
+
+.campaign-actions .btn-delete:hover {
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+.campaign-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
 /* Legacy link - subtle link to old combat interface */
 .legacy-link {
   margin-top: var(--space-xl);
@@ -2020,25 +2066,47 @@ input[type="checkbox"] {
   background: rgba(255,255,255,0.1);
 }
 
-/* Hover details - hidden by default */
+/* Inline detail shown on contact line (type, transponder) */
+.contact-inline-detail {
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60px;
+}
+
+/* Rich hover tooltip - only shown when substantial detail exists */
 .contact-hover-details {
   display: none;
   position: absolute;
   left: 0;
-  top: 100%;
+  bottom: 100%;
   z-index: 100;
   background: var(--bg-primary);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--accent-orange);
   border-radius: var(--radius-sm);
-  padding: var(--space-xs) var(--space-sm);
-  font-size: 10px;
-  color: var(--accent-orange);
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  max-width: 300px;
+  padding: var(--space-sm);
+  font-size: 11px;
+  color: var(--text-primary);
+  white-space: normal;
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.6);
+  min-width: 180px;
+  max-width: 280px;
+  margin-bottom: 4px;
 }
 
-.contact-item.compact:hover .contact-hover-details {
+.contact-hover-details div {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.contact-hover-details div:last-child {
+  border-bottom: none;
+}
+
+/* Only show tooltip if it has content */
+.contact-item.compact:hover .contact-hover-details:not(:empty) {
   display: block;
 }
 
@@ -3426,6 +3494,151 @@ input[type="checkbox"] {
 
 .system-result-item.selected .system-result-uwp {
   background: rgba(0, 0, 0, 0.2);
+}
+
+/* ==================== AR-23.7: Quick Location Buttons ==================== */
+
+.quick-location-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+}
+
+.quick-location-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quick-location-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-color);
+}
+
+.quick-location-item.home-location {
+  background: var(--bg-success);
+  border-color: var(--success-color);
+}
+
+.quick-location-item.favorite {
+  border-left: 3px solid var(--warning-color);
+}
+
+.quick-location-item .location-icon {
+  font-size: 1rem;
+  opacity: 0.7;
+}
+
+.quick-location-item .location-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.quick-location-item .btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.9rem;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.quick-location-item .btn-icon:hover {
+  opacity: 1;
+  color: var(--warning-color);
+}
+
+.quick-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: var(--space-xs);
+}
+
+.favorites-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: var(--space-sm) 0 var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ==================== AR-23.6: Deep Space Mode ==================== */
+
+.deep-space-section {
+  margin: var(--space-md) 0;
+  padding: var(--space-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.deep-space-section .toggle-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.deep-space-section .field-hint {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-left: auto;
+}
+
+.deep-space-fields {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.deep-space-fields .form-row {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.deep-space-fields .form-group {
+  flex: 1;
+}
+
+.deep-space-fields label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xs);
+}
+
+.deep-space-fields input {
+  width: 100%;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-base);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.deep-space-fields input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: var(--space-md) 0;
 }
 
 /* ==================== Weapons Authorization (Autorun 5) ==================== */
@@ -6231,4 +6444,264 @@ input[type="checkbox"] {
   display: flex;
   gap: var(--space-sm);
   margin-top: var(--space-sm);
+}
+
+/* ==================== AR-27: Shared Map ==================== */
+
+.shared-map-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-dark);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+}
+
+.shared-map-overlay.hidden {
+  display: none;
+}
+
+.shared-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.shared-map-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.shared-map-header .live-badge {
+  background: var(--accent-red);
+  color: white;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  animation: pulse-live 2s ease-in-out infinite;
+}
+
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.shared-map-controls {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.shared-map-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.shared-map-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Hamburger menu badge for shared map */
+.menu-item .shared-map-badge {
+  background: var(--accent-red);
+  color: white;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+.menu-item .shared-map-badge.hidden {
+  display: none;
+}
+
+/* Shared map loading/error states */
+.map-loading-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-secondary);
+  font-size: 18px;
+  text-align: center;
+  z-index: 1;
+}
+
+.map-loading-indicator::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 16px auto 0;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.map-error-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  padding: var(--space-lg);
+  background: var(--bg-panel);
+  border: 1px solid var(--accent-yellow);
+  border-radius: var(--radius-md);
+  max-width: 400px;
+  z-index: 1;
+}
+
+.map-error-message p {
+  margin: 0 0 var(--space-sm);
+  color: var(--accent-yellow);
+}
+
+.map-error-message .text-muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.shared-map-container iframe.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Debug overlay - lower right corner, z-index above everything */
+.debug-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 400px;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.debug-message {
+  background: rgba(0, 0, 0, 0.85);
+  color: var(--accent-green);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+  border-left: 3px solid var(--accent-green);
+}
+
+.debug-message.debug-warn {
+  color: var(--accent-yellow);
+  border-left-color: var(--accent-yellow);
+}
+
+.debug-message.debug-error {
+  color: var(--accent-red);
+  border-left-color: var(--accent-red);
+}
+
+.debug-message.fade-out {
+  opacity: 0;
+}
+
+/* Cache toggle - top right corner */
+.cache-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.cache-label {
+  user-select: none;
+}
+
+#cache-status {
+  font-weight: bold;
+  color: var(--accent-green);
+}
+
+/* Toggle switch styling */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  transition: 0.3s;
+  border-radius: 20px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: var(--text-secondary);
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(16px);
+  background-color: white;
 }

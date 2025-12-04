@@ -5,7 +5,7 @@
 
 const puppeteer = require('puppeteer');
 
-const BASE_URL = 'http://localhost:3000/operations/';
+const BASE_URL = 'http://localhost:3000/';
 const TIMEOUT = 30000;
 
 // Common delays

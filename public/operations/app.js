@@ -159,6 +159,8 @@ function initSocket() {
       renderGMSetup();
       // Save session for reconnect (Stage 3.5.5)
       saveSession();
+      // AR-27: Request shared map state
+      state.socket.emit('ops:getMapState');
     }
   });
 
@@ -167,6 +169,44 @@ function initSocket() {
     if (state.isGM) {
       renderGMSetup();
     }
+  });
+
+  // AR-21: Campaign CRUD events
+  state.socket.on('ops:campaignDeleted', (data) => {
+    state.campaigns = state.campaigns.filter(c => c.id !== data.campaignId);
+    renderCampaignList();
+  });
+
+  state.socket.on('ops:campaignDuplicated', (data) => {
+    state.campaigns.push(data.campaign);
+    renderCampaignList();
+  });
+
+  state.socket.on('ops:campaignRenamed', (data) => {
+    const campaign = state.campaigns.find(c => c.id === data.campaignId);
+    if (campaign) campaign.name = data.name;
+    renderCampaignList();
+  });
+
+  // AR-21: Export campaign - download JSON file
+  state.socket.on('ops:campaignExported', (data) => {
+    const json = JSON.stringify(data.data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.data.manifest.campaignName.replace(/[^a-z0-9]/gi, '_')}_export.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // AR-21: Import campaign - add to list
+  state.socket.on('ops:campaignImported', (data) => {
+    state.campaigns.push(data.campaign);
+    renderCampaignList();
+    showNotification(`Campaign "${data.campaign.name}" imported successfully`, 'success');
   });
 
   // Player slot events
@@ -187,6 +227,8 @@ function initSocket() {
     state.campaign = data.campaign;
     state.players = data.availableSlots;
     renderPlayerSlots();
+    // AR-27: Request shared map state
+    state.socket.emit('ops:getMapState');
   });
 
   state.socket.on('ops:playerSlotSelected', (data) => {
@@ -448,6 +490,45 @@ function initSocket() {
       initJumpMapIfNeeded();
     }
     showNotification(`Location set to ${data.locationDisplay}`, 'success');
+  });
+
+  // AR-23.6: Deep space mode updated
+  state.socket.on('ops:deepSpaceUpdated', (data) => {
+    if (state.campaign) {
+      state.campaign.in_deep_space = data.inDeepSpace;
+      state.campaign.deep_space_reference = data.referenceSystem;
+      state.campaign.deep_space_bearing = data.bearing;
+      state.campaign.deep_space_distance = data.distance;
+      state.campaign.current_system = data.locationDisplay;
+    }
+    const locationEl = document.getElementById('bridge-location');
+    if (locationEl) {
+      locationEl.textContent = data.locationDisplay || 'Deep Space';
+    }
+    showNotification(data.inDeepSpace ? 'Entered deep space' : 'Exited deep space', 'info');
+  });
+
+  // AR-23.7: Location data (history, favorites, home)
+  state.socket.on('ops:locationData', (data) => {
+    state.locationHistory = data.locationHistory || [];
+    state.favoriteLocations = data.favoriteLocations || [];
+    state.homeSystem = data.homeSystem || null;
+    state.inDeepSpace = data.inDeepSpace || false;
+    state.deepSpaceReference = data.deepSpaceReference;
+    state.deepSpaceBearing = data.deepSpaceBearing;
+    state.deepSpaceDistance = data.deepSpaceDistance;
+    renderQuickLocations();
+  });
+
+  state.socket.on('ops:homeSystemSet', (data) => {
+    state.homeSystem = data.homeSystem;
+    renderQuickLocations();
+    showNotification(`Home system set to ${data.homeSystem}`, 'success');
+  });
+
+  state.socket.on('ops:favoritesUpdated', (data) => {
+    state.favoriteLocations = data.favoriteLocations || [];
+    renderQuickLocations();
   });
 
   // Ship management events
@@ -1010,6 +1091,58 @@ function initSocket() {
     showNotification(error.message, 'error');
   });
 
+  // ==================== AR-27: Shared Map Events ====================
+
+  // GM shared the map - auto-switch all players
+  state.socket.on('ops:mapShared', (data) => {
+    state.sharedMapActive = true;
+    state.sharedMapView = data;
+    updateSharedMapBadge(true);
+    mapDebugMessage(`Map shared by ${data.sharedBy || 'GM'}`, 'info');
+    // Auto-switch: show map for all players
+    if (data.autoSwitch) {
+      showSharedMap();
+      // Update iframe if map is already open
+      updateSharedMapFrame(data);
+    }
+    if (!state.isGM) {
+      showNotification('GM is sharing the map', 'info');
+    }
+    updateSharedMapButtons();
+  });
+
+  // GM stopped sharing
+  state.socket.on('ops:mapUnshared', () => {
+    state.sharedMapActive = false;
+    state.sharedMapView = null;
+    updateSharedMapBadge(false);
+    updateSharedMapButtons();
+    mapDebugMessage('Map sharing stopped', 'info');
+    if (!state.isGM) {
+      showNotification('Map sharing ended', 'info');
+      closeSharedMap();
+    }
+  });
+
+  // GM updated the view (pan/zoom)
+  state.socket.on('ops:mapViewUpdated', (data) => {
+    state.sharedMapView = data;
+    mapDebugMessage(`View updated: ${data.sector || 'unknown'}`, 'info');
+    if (!state.isGM) {
+      updateSharedMapFrame(data);
+    }
+  });
+
+  // Reconnect: get current map state
+  state.socket.on('ops:mapState', (data) => {
+    state.sharedMapActive = data.shared;
+    state.sharedMapView = data.shared ? data : null;
+    updateSharedMapBadge(data.shared);
+    if (data.shared) {
+      mapDebugMessage('Reconnected to shared map', 'info');
+    }
+  });
+
   // ==================== Puppetry Debug System ====================
   // Quick-and-dirty eval-based puppetry for debugging
   // Server can send commands to manipulate DOM, click buttons, etc.
@@ -1175,6 +1308,31 @@ function initLoginScreen() {
     showModal('template-create-campaign');
   });
 
+  // AR-21: Import campaign from JSON
+  document.getElementById('btn-import-campaign').addEventListener('click', () => {
+    document.getElementById('import-file-input').click();
+  });
+
+  document.getElementById('import-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const campaignData = JSON.parse(event.target.result);
+        const gmName = prompt('Enter GM name for imported campaign:', 'GM');
+        if (gmName) {
+          state.socket.emit('ops:importCampaign', { campaignData, gmName });
+        }
+      } catch (err) {
+        showNotification('Invalid JSON file', 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset for re-import
+  });
+
   // Join campaign (player)
   document.getElementById('btn-join-campaign').addEventListener('click', () => {
     const code = document.getElementById('campaign-code').value.trim();
@@ -1236,21 +1394,151 @@ function renderCampaignList() {
 
   container.innerHTML = state.campaigns.map(c => `
     <div class="campaign-item" data-campaign-id="${c.id}">
-      <div>
-        <div class="campaign-name">${escapeHtml(c.name)}</div>
+      <div class="campaign-info">
+        <div class="campaign-name" title="Click to rename">${escapeHtml(c.name)}</div>
         <div class="campaign-meta">${escapeHtml(c.gm_name)} · ${c.current_system}</div>
       </div>
-      <button class="btn btn-small btn-primary">Select</button>
+      <div class="campaign-actions">
+        <button class="btn btn-small btn-primary btn-select" title="Select campaign">Select</button>
+        <button class="btn btn-small btn-icon btn-rename" title="Rename campaign">✏</button>
+        <button class="btn btn-small btn-icon btn-duplicate" title="Duplicate campaign">⧉</button>
+        <button class="btn btn-small btn-icon btn-export" title="Export campaign">📥</button>
+        <button class="btn btn-small btn-icon btn-delete" title="Delete campaign">🗑</button>
+      </div>
     </div>
   `).join('');
 
-  // Add click handlers
-  container.querySelectorAll('.campaign-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const campaignId = item.dataset.campaignId;
+  // Select campaign
+  container.querySelectorAll('.btn-select').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const campaignId = btn.closest('.campaign-item').dataset.campaignId;
       state.socket.emit('ops:selectCampaign', { campaignId });
     });
   });
+
+  // Duplicate campaign
+  container.querySelectorAll('.btn-duplicate').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const campaignId = btn.closest('.campaign-item').dataset.campaignId;
+      state.socket.emit('ops:duplicateCampaign', { campaignId });
+    });
+  });
+
+  // AR-21: Rename campaign (inline edit)
+  container.querySelectorAll('.btn-rename').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.campaign-item');
+      const campaignId = item.dataset.campaignId;
+      const nameEl = item.querySelector('.campaign-name');
+      const currentName = nameEl.textContent;
+
+      // Create inline input
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'campaign-name-input';
+      input.value = currentName;
+      input.style.cssText = 'width: 100%; padding: 2px 4px; font-size: inherit;';
+
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+
+      const save = () => {
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+          state.socket.emit('ops:renameCampaign', { campaignId, newName });
+        }
+        // Restore display (will be re-rendered on success)
+        const newEl = document.createElement('div');
+        newEl.className = 'campaign-name';
+        newEl.textContent = newName || currentName;
+        input.replaceWith(newEl);
+      };
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') save();
+        if (e.key === 'Escape') {
+          const newEl = document.createElement('div');
+          newEl.className = 'campaign-name';
+          newEl.textContent = currentName;
+          input.replaceWith(newEl);
+        }
+      });
+    });
+  });
+
+  // AR-21: Export campaign
+  container.querySelectorAll('.btn-export').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const campaignId = btn.closest('.campaign-item').dataset.campaignId;
+      state.socket.emit('ops:exportCampaign', { campaignId });
+    });
+  });
+
+  // Delete campaign
+  container.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = btn.closest('.campaign-item');
+      const campaignId = item.dataset.campaignId;
+      const campaignName = item.querySelector('.campaign-name').textContent;
+      showDeleteCampaignModal(campaignId, campaignName);
+    });
+  });
+}
+
+// AR-21: Delete campaign confirmation modal
+function showDeleteCampaignModal(campaignId, campaignName) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-content delete-modal">
+      <div class="modal-header">
+        <h2>Delete Campaign</h2>
+        <button class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete "<strong>${escapeHtml(campaignName)}</strong>"?</p>
+        <p class="text-warning">This will permanently delete all players, ships, and logs.</p>
+        <div class="form-group">
+          <label>Type DELETE to confirm:</label>
+          <input type="text" id="delete-confirm-input" placeholder="Type DELETE" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-cancel">Cancel</button>
+        <button class="btn btn-danger btn-confirm-delete" disabled>Delete</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const input = modal.querySelector('#delete-confirm-input');
+  const confirmBtn = modal.querySelector('.btn-confirm-delete');
+  const cancelBtn = modal.querySelector('.btn-cancel');
+  const closeBtn = modal.querySelector('.btn-close');
+
+  input.addEventListener('input', () => {
+    confirmBtn.disabled = input.value !== 'DELETE';
+  });
+
+  confirmBtn.addEventListener('click', () => {
+    state.socket.emit('ops:deleteCampaign', { campaignId });
+    modal.remove();
+  });
+
+  cancelBtn.addEventListener('click', () => modal.remove());
+  closeBtn.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+
+  input.focus();
 }
 
 function renderPlayerSlots() {
@@ -1358,6 +1646,67 @@ function initGMSetupScreen() {
     document.getElementById('campaign-select').classList.add('hidden');
     document.querySelector('.login-options').classList.remove('hidden');
   });
+}
+
+// AR-23.7: Render quick location buttons (recent, favorites, home)
+function renderQuickLocations() {
+  // Home system button
+  const homeBtn = document.getElementById('home-system-btn');
+  if (homeBtn) {
+    if (state.homeSystem) {
+      homeBtn.classList.remove('hidden');
+      homeBtn.querySelector('.location-name').textContent = state.homeSystem;
+    } else {
+      homeBtn.classList.add('hidden');
+    }
+  }
+
+  // Recent locations
+  const recentContainer = document.getElementById('recent-locations');
+  if (recentContainer) {
+    if (state.locationHistory && state.locationHistory.length > 0) {
+      recentContainer.innerHTML = state.locationHistory.slice(0, 5).map(loc => `
+        <div class="quick-location-item" data-location='${JSON.stringify(loc).replace(/'/g, "&#39;")}'>
+          <span class="location-name">${escapeHtml(loc.locationDisplay || loc.system)}</span>
+          <button class="btn-icon btn-favorite" title="Toggle favorite">★</button>
+        </div>
+      `).join('');
+    } else {
+      recentContainer.innerHTML = '<p class="quick-placeholder">No recent locations</p>';
+    }
+  }
+
+  // Favorite locations
+  const favContainer = document.getElementById('favorite-locations');
+  if (favContainer) {
+    if (state.favoriteLocations && state.favoriteLocations.length > 0) {
+      favContainer.innerHTML = state.favoriteLocations.map(loc => `
+        <div class="quick-location-item favorite" data-location='${JSON.stringify(loc).replace(/'/g, "&#39;")}'>
+          <span class="location-icon">★</span>
+          <span class="location-name">${escapeHtml(loc.locationDisplay || loc.system)}</span>
+          <button class="btn-icon btn-set-home" title="Set as home">🏠</button>
+        </div>
+      `).join('');
+    } else {
+      favContainer.innerHTML = '<p class="quick-placeholder">No favorites saved</p>';
+    }
+  }
+
+  // Update deep space toggle state
+  const deepSpaceToggle = document.getElementById('deep-space-toggle');
+  const deepSpaceFields = document.getElementById('deep-space-fields');
+  if (deepSpaceToggle && deepSpaceFields) {
+    deepSpaceToggle.checked = state.inDeepSpace || false;
+    deepSpaceFields.classList.toggle('hidden', !state.inDeepSpace);
+    if (state.inDeepSpace) {
+      const refInput = document.getElementById('deep-space-reference');
+      const bearingInput = document.getElementById('deep-space-bearing');
+      const distanceInput = document.getElementById('deep-space-distance');
+      if (refInput) refInput.value = state.deepSpaceReference || '';
+      if (bearingInput) bearingInput.value = state.deepSpaceBearing || '';
+      if (distanceInput) distanceInput.value = state.deepSpaceDistance || '';
+    }
+  }
 }
 
 function renderGMSetup() {
@@ -2275,22 +2624,74 @@ function renderContacts() {
     const authorizedIndicator = c.weapons_free ? '<span class="authorized-indicator" title="Weapons Authorized">🎯</span>' : '';
     const authorizedClass = c.weapons_free ? 'weapons-authorized' : '';
 
-    // Build hover details (shown on hover only)
-    const hoverDetails = [];
-    if (c.type && c.type !== c.name) hoverDetails.push(`Type: ${c.type}`);
-    if (c.transponder) hoverDetails.push(`ID: ${c.transponder}`);
-    if (c.uwp) hoverDetails.push(`UWP: ${c.uwp}`);
-    if (c.range_km) hoverDetails.push(`Range: ${formatRange(c.range_km)}`);
-    if (state.isGM && c.gm_notes) hoverDetails.push(`Notes: ${c.gm_notes}`);
+    // Build inline summary (always visible on contact line)
+    const inlineParts = [];
+    if (c.type && c.type !== c.name) inlineParts.push(c.type);
+    if (c.transponder) inlineParts.push(c.transponder);
+    const inlineSummary = inlineParts.length > 0 ? `<span class="contact-inline-detail">${escapeHtml(inlineParts.join(' · '))}</span>` : '';
+
+    // Build rich tooltip (only if substantial detail exists)
+    const tooltipLines = [];
+
+    // Celestial bodies (stars, planets)
+    if (c.celestial || ['Star', 'Planet', 'Moon', 'Gas Giant', 'Belt'].includes(c.type)) {
+      if (c.spectral_class) tooltipLines.push(`Spectral: ${c.spectral_class}`);
+      if (c.luminosity) tooltipLines.push(`Luminosity: ${c.luminosity}`);
+      if (c.uwp) {
+        tooltipLines.push(`UWP: ${c.uwp}`);
+        tooltipLines.push(interpretUWP(c.uwp));
+      }
+      if (c.population) tooltipLines.push(`Pop: ${formatPopulation(c.population)}`);
+      if (c.trade_codes) tooltipLines.push(`Trade: ${c.trade_codes}`);
+      if (c.description) tooltipLines.push(c.description);
+    }
+
+    // Ships - detail based on scan level
+    if (['Ship', 'Patrol', 'Trader', 'Warship', 'Scout'].includes(c.type)) {
+      if (c.tonnage) tooltipLines.push(`Tonnage: ${c.tonnage} dT`);
+      if (c.ship_class) tooltipLines.push(`Class: ${c.ship_class}`);
+      // Active scan reveals more
+      if (c.scan_level >= 2) {
+        if (c.thrust) tooltipLines.push(`Thrust: ${c.thrust}G`);
+        if (c.jump) tooltipLines.push(`Jump: ${c.jump}`);
+        if (c.armament) tooltipLines.push(`Weapons: ${c.armament}`);
+      }
+      // Deep scan reveals everything
+      if (c.scan_level >= 3) {
+        if (c.hull_status) tooltipLines.push(`Hull: ${c.hull_status}%`);
+        if (c.crew_count) tooltipLines.push(`Crew: ${c.crew_count}`);
+        if (c.cargo) tooltipLines.push(`Cargo: ${c.cargo}`);
+        if (c.damage_status) tooltipLines.push(`Damage: ${c.damage_status}`);
+      }
+    }
+
+    // Stations
+    if (['Station', 'Starport', 'Base'].includes(c.type)) {
+      if (c.starport_class) tooltipLines.push(`Class: ${c.starport_class}`);
+      if (c.services) tooltipLines.push(`Services: ${c.services}`);
+      if (c.berthing) tooltipLines.push(`Berthing: ${c.berthing} Cr`);
+    }
+
+    // Range in km if known
+    if (c.range_km) tooltipLines.push(`Range: ${formatRange(c.range_km)}`);
+
+    // GM notes
+    if (state.isGM && c.gm_notes) tooltipLines.push(`GM: ${c.gm_notes}`);
+
+    // Only render tooltip if we have substantial content
+    const tooltipHtml = tooltipLines.length > 0
+      ? `<div class="contact-hover-details">${tooltipLines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`
+      : '';
 
     return `
       <div class="contact-item compact ${rangeClass} ${authorizedClass}" data-contact-id="${c.id}">
         <span class="contact-icon">${getContactIcon(c.type)}${authorizedIndicator}</span>
         <span class="contact-name">${escapeHtml(c.name || c.type)}</span>
+        ${inlineSummary}
         <span class="contact-bearing">${c.bearing}°</span>
         <span class="contact-range-band">${formatRangeBand(c.range_band)}</span>
         ${gmControls}
-        <div class="contact-hover-details">${hoverDetails.join(' · ')}</div>
+        ${tooltipHtml}
       </div>
     `;
   }).join('');
@@ -3431,6 +3832,109 @@ function showModal(templateId) {
       });
       closeModal();
     });
+
+    // AR-23.6: Deep space mode toggle
+    const deepSpaceToggle = document.getElementById('deep-space-toggle');
+    const deepSpaceFields = document.getElementById('deep-space-fields');
+    if (deepSpaceToggle && deepSpaceFields) {
+      deepSpaceToggle.addEventListener('change', () => {
+        deepSpaceFields.classList.toggle('hidden', !deepSpaceToggle.checked);
+        if (!deepSpaceToggle.checked) {
+          // Disable deep space mode
+          state.socket.emit('ops:setDeepSpace', { enabled: false });
+        } else {
+          // Set reference to current system
+          const refInput = document.getElementById('deep-space-reference');
+          if (refInput && state.campaign?.current_system) {
+            refInput.value = state.campaign.current_system;
+          }
+        }
+      });
+    }
+
+    // AR-23.6: Update deep space position button
+    const updateDeepSpaceBtn = document.getElementById('btn-update-deep-space');
+    if (updateDeepSpaceBtn) {
+      updateDeepSpaceBtn.addEventListener('click', () => {
+        const referenceSystem = document.getElementById('deep-space-reference').value;
+        const bearing = parseInt(document.getElementById('deep-space-bearing').value) || 0;
+        const distance = parseFloat(document.getElementById('deep-space-distance').value) || 0;
+        state.socket.emit('ops:setDeepSpace', {
+          enabled: true,
+          referenceSystem,
+          bearing,
+          distance
+        });
+      });
+    }
+
+    // AR-23.7: Home system button - go to home
+    const homeBtn = document.getElementById('home-system-btn');
+    if (homeBtn) {
+      homeBtn.addEventListener('click', () => {
+        if (state.homeSystem) {
+          // Parse home system and set it
+          state.socket.emit('ops:setCurrentSystem', { system: state.homeSystem });
+          closeModal();
+        }
+      });
+    }
+
+    // AR-23.7: Quick location clicks (recent + favorites)
+    const bindQuickLocationClicks = () => {
+      // Recent locations
+      document.querySelectorAll('#recent-locations .quick-location-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('btn-favorite')) return;
+          const loc = JSON.parse(item.dataset.location);
+          state.socket.emit('ops:setCurrentSystem', {
+            system: loc.system,
+            uwp: loc.uwp,
+            sector: loc.sector,
+            hex: loc.hex
+          });
+          closeModal();
+        });
+        // Favorite toggle
+        const favBtn = item.querySelector('.btn-favorite');
+        if (favBtn) {
+          favBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const loc = JSON.parse(item.dataset.location);
+            state.socket.emit('ops:toggleFavoriteLocation', { location: loc });
+          });
+        }
+      });
+
+      // Favorite locations
+      document.querySelectorAll('#favorite-locations .quick-location-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('btn-set-home')) return;
+          const loc = JSON.parse(item.dataset.location);
+          state.socket.emit('ops:setCurrentSystem', {
+            system: loc.system,
+            uwp: loc.uwp,
+            sector: loc.sector,
+            hex: loc.hex
+          });
+          closeModal();
+        });
+        // Set as home button
+        const homeBtn = item.querySelector('.btn-set-home');
+        if (homeBtn) {
+          homeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const loc = JSON.parse(item.dataset.location);
+            state.socket.emit('ops:setHomeSystem', { locationDisplay: loc.locationDisplay });
+          });
+        }
+      });
+    };
+
+    // Fetch location data and render
+    state.socket.emit('ops:getLocationData');
+    // Wait for data then bind clicks (renderQuickLocations will be called by socket handler)
+    setTimeout(bindQuickLocationClicks, 100);
   }
 
   if (templateId === 'template-add-contact') {
@@ -4451,6 +4955,40 @@ function formatShipWeapons(template) {
   }).join('');
 }
 
+// Format population with suffix
+function formatPopulation(pop) {
+  if (!pop) return 'Unknown';
+  if (pop >= 1000000000) return `${(pop / 1000000000).toFixed(1)}B`;
+  if (pop >= 1000000) return `${(pop / 1000000).toFixed(1)}M`;
+  if (pop >= 1000) return `${(pop / 1000).toFixed(1)}K`;
+  return pop.toString();
+}
+
+// Interpret UWP code to human readable description
+function interpretUWP(uwp) {
+  if (!uwp || uwp.length < 7) return '';
+  const starport = uwp[0];
+  const size = parseInt(uwp[1], 16);
+  const atmo = parseInt(uwp[2], 16);
+  const hydro = parseInt(uwp[3], 16);
+  const pop = parseInt(uwp[4], 16);
+  const gov = parseInt(uwp[5], 16);
+  const law = parseInt(uwp[6], 16);
+
+  const starportNames = { A: 'Excellent', B: 'Good', C: 'Routine', D: 'Poor', E: 'Frontier', X: 'None' };
+  const sizeNames = ['Asteroid', 'Small', 'Small', 'Small', 'Medium', 'Medium', 'Medium', 'Large', 'Large', 'Large', 'Large'];
+  const atmoNames = ['None', 'Trace', 'V.Thin Tainted', 'V.Thin', 'Thin Tainted', 'Thin', 'Standard', 'Standard Tainted', 'Dense', 'Dense Tainted', 'Exotic', 'Corrosive', 'Insidious', 'Dense High', 'Thin Low', 'Unusual'];
+  const popNames = ['None', 'Few', 'Hundreds', 'Thousands', '10K', '100K', 'Millions', '10M', '100M', 'Billions', '10B+'];
+
+  const parts = [];
+  if (starportNames[starport]) parts.push(`${starportNames[starport]} Starport`);
+  if (sizeNames[size]) parts.push(`${sizeNames[size]} World`);
+  if (atmoNames[atmo]) parts.push(`${atmoNames[atmo]} Atmo`);
+  if (popNames[pop]) parts.push(`Pop: ${popNames[pop]}`);
+
+  return parts.join(', ');
+}
+
 // ==================== Contact Tooltip (TIP-1) ====================
 
 // Factory function for star-specific popup content
@@ -4987,6 +5525,10 @@ function handleMenuFeature(feature) {
       }
       break;
 
+    case 'shared-map':
+      showSharedMap();
+      break;
+
     default:
       showNotification(`Feature "${feature}" not yet implemented`, 'info');
   }
@@ -5174,6 +5716,247 @@ function updateMailBadge() {
   } else {
     badge.classList.add('hidden');
   }
+}
+
+// ==================== AR-27: Shared Map ====================
+
+// Shared map state
+state.sharedMapActive = false;
+state.sharedMapView = null;
+
+function showSharedMap() {
+  // Create fullscreen map overlay
+  const existing = document.getElementById('shared-map-overlay');
+  if (existing) {
+    existing.classList.remove('hidden');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'shared-map-overlay';
+  overlay.className = 'shared-map-overlay';
+
+  // Build TravellerMap URL
+  let mapUrl = 'https://travellermap.com/?options=41975&style=poster';
+  if (state.campaign?.current_sector && state.campaign?.current_hex) {
+    mapUrl = `https://travellermap.com/?p=${encodeURIComponent(state.campaign.current_sector)}/${state.campaign.current_hex}&scale=64&options=41975&style=poster`;
+  }
+
+  overlay.innerHTML = `
+    <div class="shared-map-header">
+      <h2>🗺️ Shared Map${state.sharedMapActive ? ' <span class="live-badge">LIVE</span>' : ''}</h2>
+      <div class="shared-map-controls">
+        ${state.isGM ? `
+          <button id="btn-share-map" class="btn btn-primary ${state.sharedMapActive ? 'hidden' : ''}">Share with Players</button>
+          <button id="btn-unshare-map" class="btn btn-danger ${state.sharedMapActive ? '' : 'hidden'}">Stop Sharing</button>
+        ` : ''}
+        <button id="btn-retry-map" class="btn btn-secondary hidden">Retry</button>
+        <button id="btn-close-map" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+    <div class="shared-map-container">
+      <div id="shared-map-loading" class="map-loading-indicator">Loading TravellerMap...</div>
+      <div id="shared-map-error" class="map-error-message hidden">
+        <p>TravellerMap is currently unavailable.</p>
+        <p class="text-muted">The map service may be down or unreachable. You can retry or continue without the map.</p>
+      </div>
+      <iframe id="shared-map-frame" src="${mapUrl}" frameborder="0"></iframe>
+      <div id="map-debug-overlay" class="debug-overlay"></div>
+      <div id="map-cache-toggle" class="cache-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="cache-toggle-checkbox" checked>
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="cache-label">Cache <span id="cache-status">ON</span></span>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Event handlers
+  document.getElementById('btn-close-map').addEventListener('click', closeSharedMap);
+
+  // Graceful failure handling for TravellerMap
+  const iframe = document.getElementById('shared-map-frame');
+  const loadingIndicator = document.getElementById('shared-map-loading');
+  const errorMessage = document.getElementById('shared-map-error');
+  const retryBtn = document.getElementById('btn-retry-map');
+
+  // Set timeout for iframe load (TravellerMap may be slow or unavailable)
+  const loadTimeout = setTimeout(() => {
+    handleMapLoadError();
+  }, 15000); // 15 second timeout
+
+  iframe.addEventListener('load', () => {
+    clearTimeout(loadTimeout);
+    loadingIndicator?.classList.add('hidden');
+    iframe.classList.remove('hidden');
+
+    // Welcome message after 10 seconds
+    setTimeout(() => {
+      mapDebugMessage('Welcome to Shared TravellerMap! Many thanks to Joshua Bell <inexorabletash@gmail.com> for hosting https://travellermap.com/ & its API.');
+    }, 10000);
+  });
+
+  iframe.addEventListener('error', () => {
+    clearTimeout(loadTimeout);
+    handleMapLoadError();
+  });
+
+  function handleMapLoadError() {
+    loadingIndicator?.classList.add('hidden');
+    errorMessage?.classList.remove('hidden');
+    retryBtn?.classList.remove('hidden');
+    iframe.classList.add('hidden');
+    showNotification('TravellerMap unavailable - service may be down', 'warning');
+    mapDebugMessage('TravellerMap load failed (timeout or error)', 'error');
+  }
+
+  retryBtn?.addEventListener('click', () => {
+    errorMessage?.classList.add('hidden');
+    retryBtn?.classList.add('hidden');
+    loadingIndicator?.classList.remove('hidden');
+    iframe.classList.remove('hidden');
+    mapDebugMessage('Retrying TravellerMap load...', 'warn');
+    iframe.src = iframe.src; // Reload iframe
+    setTimeout(() => {
+      if (loadingIndicator && !loadingIndicator.classList.contains('hidden')) {
+        handleMapLoadError();
+      }
+    }, 15000);
+  });
+
+  if (state.isGM) {
+    document.getElementById('btn-share-map')?.addEventListener('click', () => {
+      state.socket.emit('ops:shareMap', {
+        center: state.campaign?.current_system,
+        sector: state.campaign?.current_sector,
+        hex: state.campaign?.current_hex,
+        zoom: 64
+      });
+    });
+
+    document.getElementById('btn-unshare-map')?.addEventListener('click', () => {
+      state.socket.emit('ops:unshareMap');
+    });
+  }
+
+  // Cache toggle handler
+  const cacheToggle = document.getElementById('cache-toggle-checkbox');
+  const cacheStatus = document.getElementById('cache-status');
+
+  // Fetch initial cache status
+  fetch('/api/map/cache/status')
+    .then(res => res.json())
+    .then(data => {
+      if (cacheToggle) cacheToggle.checked = data.enabled;
+      if (cacheStatus) cacheStatus.textContent = data.enabled ? 'ON' : 'OFF';
+      mapDebugMessage(`Cache: ${data.enabled ? 'ON' : 'OFF'} (${data.stats.hitRate} hit rate)`);
+    })
+    .catch(() => {
+      mapDebugMessage('Cache status unavailable', 'warn');
+    });
+
+  // Toggle cache on/off
+  cacheToggle?.addEventListener('change', () => {
+    const enabled = cacheToggle.checked;
+    fetch('/api/map/cache/toggle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (cacheStatus) cacheStatus.textContent = data.enabled ? 'ON' : 'OFF';
+        mapDebugMessage(`Cache ${data.enabled ? 'enabled' : 'disabled'}`);
+      })
+      .catch(() => {
+        mapDebugMessage('Failed to toggle cache', 'error');
+      });
+  });
+}
+
+function closeSharedMap() {
+  const overlay = document.getElementById('shared-map-overlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+  }
+}
+
+function updateSharedMapBadge(isLive) {
+  const badge = document.getElementById('shared-map-badge');
+  if (badge) {
+    badge.classList.toggle('hidden', !isLive);
+  }
+  // Also update header if map is open
+  const liveSpan = document.querySelector('.shared-map-header .live-badge');
+  if (liveSpan) {
+    liveSpan.style.display = isLive ? 'inline' : 'none';
+  }
+}
+
+function updateSharedMapButtons() {
+  const shareBtn = document.getElementById('btn-share-map');
+  const unshareBtn = document.getElementById('btn-unshare-map');
+  if (shareBtn) shareBtn.classList.toggle('hidden', state.sharedMapActive);
+  if (unshareBtn) unshareBtn.classList.toggle('hidden', !state.sharedMapActive);
+}
+
+function updateSharedMapFrame(data) {
+  const iframe = document.getElementById('shared-map-frame');
+  if (!iframe || !data) return;
+
+  // Build URL from shared state
+  let mapUrl = 'https://travellermap.com/?options=41975&style=poster';
+  if (data.sector && data.hex) {
+    mapUrl = `https://travellermap.com/?p=${encodeURIComponent(data.sector)}/${data.hex}&scale=${data.zoom || 64}&options=41975&style=poster`;
+  } else if (data.center) {
+    mapUrl = `https://travellermap.com/?p=${encodeURIComponent(data.center)}&scale=${data.zoom || 64}&options=41975&style=poster`;
+  }
+
+  // Only update if URL changed
+  if (iframe.src !== mapUrl) {
+    iframe.src = mapUrl;
+    mapDebugMessage(`Loading: ${data.sector || 'default'}${data.hex ? '/' + data.hex : ''}`);
+  }
+}
+
+/**
+ * Show debug message on shared map overlay
+ * Messages appear in lower-right corner and fade after 3 seconds
+ * Only visible in DEBUG mode (localhost/development)
+ * @param {string} message - Debug message to display
+ * @param {string} type - Message type: 'info', 'warn', 'error' (default: 'info')
+ */
+function mapDebugMessage(message, type = 'info') {
+  // Only show in debug mode
+  if (!DEBUG) return;
+
+  const overlay = document.getElementById('map-debug-overlay');
+  if (!overlay) return;
+
+  const msgEl = document.createElement('div');
+  msgEl.className = `debug-message debug-${type}`;
+  msgEl.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+
+  overlay.appendChild(msgEl);
+
+  // Fade out and remove after 10 seconds
+  setTimeout(() => {
+    msgEl.classList.add('fade-out');
+    setTimeout(() => msgEl.remove(), 500);
+  }, 10000);
+
+  // Keep max 5 messages
+  while (overlay.children.length > 5) {
+    overlay.firstChild.remove();
+  }
+}
+
+// Expose for external use (debugging from console)
+if (DEBUG) {
+  window.mapDebugMessage = mapDebugMessage;
 }
 
 // ==================== Full-Screen Email App (Stage 13.4) ====================

@@ -19,9 +19,18 @@ const flags = {
   unitOnly: args.includes('--unit'),
   integrationOnly: args.includes('--integration'),
   securityOnly: args.includes('--security'),
+  smokeOnly: args.includes('--smoke'),
   showTiming: args.includes('--timing') || process.env.TEST_TIMING === 'true',
   fileFilter: args.find(a => a.startsWith('--file='))?.split('=')[1] || null
 };
+
+// AR-24.5: Smoke tests - critical path only (fast)
+const smokeTests = [
+  'tests/unit/state.test.js',
+  'tests/unit/services.test.js',
+  'tests/operations-handlers.test.js',
+  'tests/contacts.test.js'
+];
 
 const COLORS = {
   reset: '\x1b[0m',
@@ -97,7 +106,10 @@ let suitesFailed = 0;
 
 // AR-18.8: Select tests based on flags
 let allTests;
-if (flags.unitOnly) {
+if (flags.smokeOnly) {
+  allTests = smokeTests;
+  console.log(`${COLORS.yellow}🚀 SMOKE TESTS (fast critical path)${COLORS.reset}\n`);
+} else if (flags.unitOnly) {
   allTests = unitTests;
   console.log(`${COLORS.yellow}Running unit tests only${COLORS.reset}\n`);
 } else if (flags.integrationOnly) {

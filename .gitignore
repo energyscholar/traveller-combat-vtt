@@ -55,11 +55,11 @@ exclude_from_git/
 .*.swo
 \#*\#
 
-# Claude Code session-specific files (keep general .claude/*.md docs)
-.claude/settings.local.json
-.claude/HANDOFF-*.md
-.claude/*TIMESHEET*.md
-.claude/*.local.*
+# Claude Code - ALL private docs moved to traveller-VTT-private repo
+# These are symlinks to the private repo
+.claude/
+.claude
+CLAUDE.md
 
 # Player feedback extracts
 feedback-extract-*.txt
@@ -74,6 +74,10 @@ player-data/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
+*.db-journal
+data/campaigns/
 
 # Cache directories and files
 .cache/
@@ -100,4 +104,15 @@ tests/automated/screenshots/
 tests/automated/*.png
 tests/automated/*.jpg
 .puppeteer_cache/
+
+# Smoke test failure screenshots
+smoke-*.png
+*-error.png
+
+# Debug/development screenshots (not for repo)
+screenshots/
+marketing-screenshots/
+
+# TravellerMap cache (fixtures are ok, cache is not)
+data/map-cache/
 

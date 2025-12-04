@@ -4,7 +4,9 @@
   "description": "Traveller Combat VTT - Multiplayer space combat tracker",
   "main": "server.js",
   "scripts": {
-    "start": "lsof -t -i:3000 | xargs kill -9 2>/dev/null || true && npm run db:reset && echo '\n👥 MULTIPLAYER MODE: http://localhost:3000\n' && node server.js",
+    "start": "echo '\n👥 Operations VTT: http://localhost:3000\n' && node server.js",
+    "start:fresh": "lsof -t -i:3000 | xargs kill -9 2>/dev/null || true && npm run db:reset && npm run start",
+    "start:quick": "lsof -t -i:3000 | xargs kill -9 2>/dev/null || true && npm run start",
     "dev": "echo '\n🎮 SINGLE-PLAYER TEST MODE: http://localhost:3000/test.html\n' && node server.js",
     "test": "node tools/validate-json.js && node tests/run-all-tests.js",
     "test:unit": "node tests/run-all-tests.js",
@@ -13,6 +15,9 @@
     "test:security": "node tests/unit/xss-validation.test.js",
     "test:auto": "jest tests/automated --runInBand",
     "test:auto:smoke": "jest tests/automated/01-launch.test.js",
+    "test:smoke": "node tests/run-all-tests.js --smoke",
+    "test:watch": "nodemon --watch lib --watch tests --ext js --exec 'npm run test:smoke'",
+    "cleanup": "lsof -t -i:3000 | xargs kill -9 2>/dev/null || true && echo 'Port 3000 cleared'",
     "test:validate-registry": "node tests/automated/validate-registry.js",
     "play": "echo '\n🎮 SINGLE-PLAYER TEST: http://localhost:3000/test.html\n👥 MULTIPLAYER: http://localhost:3000\n' && node server.js",
     "security:audit": "npm audit --audit-level=moderate",
@@ -38,6 +43,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
+    "nodemon": "^3.1.11",
     "puppeteer": "^24.29.1",
     "socket.io-client": "^4.8.1"
   },

@@ -1,0 +1,39 @@
+#!/bin/bash
+# Pre-commit hook: Auto-sync changes to private repo
+# This runs before every commit in the public repo
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PUBLIC_REPO="$(dirname "$(dirname "$SCRIPT_DIR")")"
+PRIVATE_REPO="$(dirname "$PUBLIC_REPO")/traveller-VTT-private"
+
+# Check if private repo exists
+if [ ! -d "$PRIVATE_REPO/.git" ]; then
+    echo "[private-sync] Private repo not found, skipping sync"
+    exit 0
+fi
+
+# Check for changes in private repo
+cd "$PRIVATE_REPO"
+if [ -n "$(git status --porcelain)" ]; then
+    echo "[private-sync] Changes detected in private repo, committing..."
+
+    # Stage all changes
+    git add -A
+
+    # Get the commit message from the public repo (will be set after this hook)
+    # Use a generic message for private repo
+    TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+    git commit -m "Auto-sync: $TIMESTAMP" --no-verify 2>/dev/null
+
+    if [ $? -eq 0 ]; then
+        echo "[private-sync] Committed changes to private repo"
+
+        # Push to origin (async, don't block commit)
+        git push origin main --no-verify 2>/dev/null &
+        echo "[private-sync] Pushing to private repo (background)..."
+    fi
+fi
+
+# Return to public repo
+cd "$PUBLIC_REPO"
+exit 0
