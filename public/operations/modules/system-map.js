@@ -19,6 +19,13 @@ const systemMapState = {
 
   // System data
   system: null,
+  sector: 'Spinward Marches',  // Current sector
+  hex: null,                    // Current hex (e.g., "1910")
+
+  // Selection state
+  selectedBody: null,          // Currently selected planet/moon
+  hoveredBody: null,           // Body under mouse cursor
+  showLabels: true,            // Toggle for body labels
 
   // Animation
   animationFrame: null,
@@ -70,6 +77,8 @@ function initSystemMap(container) {
   canvas.addEventListener('mousemove', handleMouseMove);
   canvas.addEventListener('mouseup', handleMouseUp);
   canvas.addEventListener('mouseleave', handleMouseUp);
+  canvas.addEventListener('click', handleClick);
+  canvas.addEventListener('dblclick', handleDoubleClick);
 
   // Start render loop
   startRenderLoop();
@@ -145,6 +154,282 @@ function handleMouseUp() {
   systemMapState.isDragging = false;
   if (systemMapState.canvas) {
     systemMapState.canvas.style.cursor = 'grab';
+  }
+}
+
+/**
+ * Handle click - select a body
+ */
+function handleClick(e) {
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const body = findBodyAtPosition(x, y);
+  systemMapState.selectedBody = body;
+
+  if (body) {
+    console.log('[SystemMap] Selected:', body.name, body);
+    showBodyInfoPanel(body);
+  } else {
+    hideBodyInfoPanel();
+  }
+}
+
+/**
+ * Handle double-click - center on body
+ */
+function handleDoubleClick(e) {
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const body = findBodyAtPosition(x, y);
+  if (body) {
+    // Center view on this body
+    const { zoom, offsetX, offsetY } = systemMapState;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+    // Calculate body position
+    const orbitSpeed = 0.1 / Math.sqrt(body.orbitAU || 1);
+    const angle = systemMapState.time * orbitSpeed;
+    const bodyX = centerX + offsetX + Math.cos(angle) * (body.orbitAU || 0) * auToPixels;
+    const bodyY = centerY + offsetY + Math.sin(angle) * (body.orbitAU || 0) * auToPixels * 0.6;
+
+    // Adjust offset to center on body
+    systemMapState.offsetX += centerX - bodyX;
+    systemMapState.offsetY += centerY - bodyY;
+
+    // Zoom in a bit
+    systemMapState.zoom = Math.min(systemMapState.zoom * 1.5, systemMapState.MAX_ZOOM);
+
+    console.log('[SystemMap] Centered on:', body.name);
+  }
+}
+
+/**
+ * Find what body is at a given canvas position
+ */
+function findBodyAtPosition(x, y) {
+  if (!systemMapState.system?.planets) return null;
+
+  const { zoom, offsetX, offsetY } = systemMapState;
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const centerX = rect.width / 2 + offsetX;
+  const centerY = rect.height / 2 + offsetY;
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  for (const planet of systemMapState.system.planets) {
+    const orbitRadius = planet.orbitAU * auToPixels;
+    const orbitSpeed = 0.1 / Math.sqrt(planet.orbitAU);
+    const angle = systemMapState.time * orbitSpeed;
+    const planetX = centerX + Math.cos(angle) * orbitRadius;
+    const planetY = centerY + Math.sin(angle) * orbitRadius * 0.6;
+
+    const planetSize = Math.max(10, Math.min(50, (planet.size / 5000) * zoom * 2));
+    const dist = Math.sqrt((x - planetX) ** 2 + (y - planetY) ** 2);
+
+    if (dist < planetSize + 5) {
+      return planet;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Show info panel for selected body
+ */
+function showBodyInfoPanel(body) {
+  // Remove existing panel
+  hideBodyInfoPanel();
+
+  const panel = document.createElement('div');
+  panel.id = 'system-map-info-panel';
+  panel.className = 'system-map-info-panel';
+
+  const travelTime = calculateTravelTime(body.orbitAU);
+
+  // Starport info for mainworld
+  let starportHtml = '';
+  if (body.isMainworld && body.starport) {
+    const sp = body.starport;
+    starportHtml = `
+      <div class="info-section">
+        <div class="info-section-title">Starport Class ${sp.class}</div>
+        ${sp.hasHighport ? '<div class="info-row"><span class="info-label">Highport:</span> <span class="info-value">Yes</span></div>' : ''}
+        ${sp.hasDownport ? '<div class="info-row"><span class="info-label">Downport:</span> <span class="info-value">Yes</span></div>' : ''}
+        <div class="info-row"><span class="info-label">Fuel:</span> <span class="info-value">${sp.fuel}</span></div>
+      </div>
+    `;
+  }
+
+  // Fuel scooping for gas giants
+  let fuelHtml = '';
+  if (body.canScoop) {
+    fuelHtml = `
+      <div class="info-section fuel-section">
+        <div class="info-row"><span class="info-label">Fuel:</span> <span class="info-value">${body.fuelAvailable}</span></div>
+        <button class="btn btn-sm btn-primary" onclick="window.setDestination('${body.id}')">Set as Destination</button>
+      </div>
+    `;
+  }
+
+  panel.innerHTML = `
+    <div class="info-panel-header">
+      <h3>${body.name}</h3>
+      <button class="info-panel-close" onclick="window.hideSystemMapInfoPanel()">×</button>
+    </div>
+    <div class="info-panel-content">
+      <div class="info-row"><span class="info-label">Type:</span> <span class="info-value">${body.type}</span></div>
+      <div class="info-row"><span class="info-label">Orbit:</span> <span class="info-value">${body.orbitAU.toFixed(2)} AU</span></div>
+      <div class="info-row"><span class="info-label">Size:</span> <span class="info-value">${Math.round(body.size).toLocaleString()} km</span></div>
+      <div class="info-row"><span class="info-label">Period:</span> <span class="info-value">${Math.round(body.orbitPeriod)} days</span></div>
+      <div class="info-row"><span class="info-label">Travel:</span> <span class="info-value">${travelTime}</span></div>
+      ${body.isMainworld ? `<div class="info-row"><span class="info-label">UWP:</span> <span class="info-value uwp">${systemMapState.system?.uwp || '?'}</span></div>` : ''}
+      ${body.moons?.length ? `<div class="info-row"><span class="info-label">Moons:</span> <span class="info-value">${body.moons.length}</span></div>` : ''}
+      ${body.hasRings ? `<div class="info-row"><span class="info-label">Rings:</span> <span class="info-value">Yes</span></div>` : ''}
+      ${starportHtml}
+      ${fuelHtml}
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+}
+
+/**
+ * Show places overlay (destinations sidebar)
+ */
+function showPlacesOverlay() {
+  hidePlacesOverlay();
+
+  if (!systemMapState.system?.places) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'system-map-places';
+  overlay.className = 'system-map-places';
+
+  const placesHtml = systemMapState.system.places.map(place => `
+    <div class="place-item" data-place-id="${place.id}" onclick="window.goToPlace('${place.id}')">
+      <span class="place-icon">${place.icon}</span>
+      <div class="place-info">
+        <div class="place-name">${place.name}</div>
+        <div class="place-desc">${place.description}</div>
+      </div>
+    </div>
+  `).join('');
+
+  overlay.innerHTML = `
+    <div class="places-header">
+      <h4>Destinations</h4>
+      <button class="places-close" onclick="window.hidePlacesOverlay()">×</button>
+    </div>
+    <div class="places-list">
+      ${placesHtml}
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+/**
+ * Hide places overlay
+ */
+function hidePlacesOverlay() {
+  const existing = document.getElementById('system-map-places');
+  if (existing) existing.remove();
+}
+
+/**
+ * Navigate to a place (center view)
+ */
+function goToPlace(placeId) {
+  const place = systemMapState.system?.places?.find(p => p.id === placeId);
+  if (!place) return;
+
+  // Find the associated planet if any
+  if (place.planetId) {
+    const planet = systemMapState.system.planets.find(p => p.id === place.planetId);
+    if (planet) {
+      systemMapState.selectedBody = planet;
+      centerOnBody(planet);
+      showBodyInfoPanel(planet);
+    }
+  }
+
+  console.log('[SystemMap] Going to:', place.name);
+}
+
+/**
+ * Center view on a body
+ */
+function centerOnBody(body) {
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const { zoom, offsetX, offsetY } = systemMapState;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  const orbitSpeed = 0.1 / Math.sqrt(body.orbitAU || 1);
+  const angle = systemMapState.time * orbitSpeed;
+  const bodyX = centerX + offsetX + Math.cos(angle) * (body.orbitAU || 0) * auToPixels;
+  const bodyY = centerY + offsetY + Math.sin(angle) * (body.orbitAU || 0) * auToPixels * 0.6;
+
+  systemMapState.offsetX += centerX - bodyX;
+  systemMapState.offsetY += centerY - bodyY;
+  systemMapState.zoom = Math.min(zoom * 1.5, systemMapState.MAX_ZOOM);
+}
+
+/**
+ * Set destination (stub for future travel system)
+ */
+function setDestination(bodyId) {
+  console.log('[SystemMap] Destination set:', bodyId);
+  // TODO: Integrate with astrogation/pilot systems
+}
+
+// Global access for UI
+window.hideSystemMapInfoPanel = hideBodyInfoPanel;
+window.hidePlacesOverlay = hidePlacesOverlay;
+window.goToPlace = goToPlace;
+window.setDestination = setDestination;
+
+/**
+ * Hide info panel
+ */
+function hideBodyInfoPanel() {
+  const existing = document.getElementById('system-map-info-panel');
+  if (existing) existing.remove();
+}
+
+// Global access for close button
+window.hideSystemMapInfoPanel = hideBodyInfoPanel;
+
+/**
+ * Calculate travel time to a body at given AU distance
+ * Assumes 1G thrust, simplified Traveller physics
+ */
+function calculateTravelTime(auDistance) {
+  // 1 AU = 149,597,870.7 km
+  // At 1G (10 m/s²), brachistochrone trajectory:
+  // t = 2 * sqrt(d / a) where d is half the distance (accelerate/decelerate)
+  const distanceKm = auDistance * 149597870.7;
+  const accel = 10; // 1G in m/s²
+  const distanceM = distanceKm * 1000;
+
+  // Brachistochrone: time = 2 * sqrt(distance / acceleration)
+  const timeSeconds = 2 * Math.sqrt(distanceM / accel);
+  const timeHours = timeSeconds / 3600;
+  const timeDays = timeHours / 24;
+
+  if (timeDays >= 1) {
+    return `~${timeDays.toFixed(1)} days @ 1G`;
+  } else if (timeHours >= 1) {
+    return `~${timeHours.toFixed(1)} hours @ 1G`;
+  } else {
+    return `~${Math.round(timeSeconds / 60)} min @ 1G`;
   }
 }
 
@@ -508,13 +793,15 @@ function drawZoomIndicator(ctx, width, height, zoom) {
  * Load a star system for display
  * @param {Object} systemData - System data object
  */
-function loadSystem(systemData) {
+function loadSystem(systemData, sector = 'Spinward Marches', hex = null) {
   systemMapState.system = systemData;
+  systemMapState.sector = sector;
+  systemMapState.hex = hex || systemData?.hex;
   // Reset view
   systemMapState.zoom = 1;
   systemMapState.offsetX = 0;
   systemMapState.offsetY = 0;
-  console.log('[SystemMap] Loaded system:', systemData?.name || 'Unknown');
+  console.log('[SystemMap] Loaded system:', systemData?.name || 'Unknown', `(${sector}:${systemMapState.hex})`);
 }
 
 /**
@@ -528,6 +815,11 @@ function destroySystemMap() {
     systemMapState.canvas = null;
     systemMapState.ctx = null;
   }
+
+  // Clean up overlays
+  hideBodyInfoPanel();
+  hidePlacesOverlay();
+  systemMapState.selectedBody = null;
 
   window.removeEventListener('resize', resizeCanvas);
   console.log('[SystemMap] Destroyed');
@@ -551,35 +843,186 @@ function generateSystem(name, uwp = 'X000000-0', stellarClass = 'G2 V', hex = '0
   // Parse stellar class
   const stars = parseStars(stellarClass, rng);
 
-  // Parse UWP for mainworld hints
+  // Parse UWP
+  const starportClass = uwp[0] || 'X';
   const mainworldSize = parseInt(uwp[1], 16) || 5;
   const mainworldAtmo = parseInt(uwp[2], 16) || 5;
   const mainworldHydro = parseInt(uwp[3], 16) || 5;
+  const mainworldPop = parseInt(uwp[4], 16) || 0;
+  const techLevel = parseInt(uwp[7], 16) || 0;
 
   // Generate planets
   const planets = generatePlanets(rng, stars[0], mainworldSize, mainworldAtmo, mainworldHydro);
+
+  // Add starport to mainworld
+  const mainworld = planets.find(p => p.isMainworld);
+  if (mainworld) {
+    mainworld.starport = generateStarport(starportClass, mainworldPop, techLevel, rng);
+  }
+
+  // Mark gas giants for fuel scooping
+  planets.filter(p => p.type === 'gas').forEach(p => {
+    p.canScoop = true;
+    p.fuelAvailable = 'Unrefined (wilderness)';
+  });
 
   // Generate asteroid belt (30% chance)
   const asteroidBelts = [];
   if (rng() < 0.3) {
     const beltAU = 2.0 + rng() * 2.0; // 2-4 AU typical
     asteroidBelts.push({
+      id: 'belt_0',
       innerRadius: beltAU * 0.8,
       outerRadius: beltAU * 1.2,
-      density: 0.3 + rng() * 0.4
+      density: 0.3 + rng() * 0.4,
+      canMine: true
     });
   }
+
+  // Build places array (clickable destinations)
+  const places = generatePlaces(planets, asteroidBelts, starportClass, name);
 
   return {
     name,
     uwp,
     stellarClass,
+    starportClass,
     hex,
     stars,
     planets,
     asteroidBelts,
+    places,
     generated: true
   };
+}
+
+/**
+ * Generate starport based on class
+ */
+function generateStarport(starportClass, population, techLevel, rng) {
+  const starport = {
+    class: starportClass,
+    hasHighport: false,
+    hasDownport: false,
+    facilities: [],
+    fuel: 'None'
+  };
+
+  switch (starportClass) {
+    case 'A':
+      starport.hasHighport = true;
+      starport.hasDownport = true;
+      starport.fuel = 'Refined';
+      starport.facilities = ['Shipyard (all)', 'Repair', 'Naval Base possible'];
+      break;
+    case 'B':
+      starport.hasHighport = true;
+      starport.hasDownport = true;
+      starport.fuel = 'Refined';
+      starport.facilities = ['Shipyard (spacecraft)', 'Repair', 'Scout Base possible'];
+      break;
+    case 'C':
+      starport.hasHighport = population >= 6;
+      starport.hasDownport = true;
+      starport.fuel = 'Unrefined';
+      starport.facilities = ['Shipyard (small craft)', 'Repair'];
+      break;
+    case 'D':
+      starport.hasHighport = false;
+      starport.hasDownport = true;
+      starport.fuel = 'Unrefined';
+      starport.facilities = ['Limited repair'];
+      break;
+    case 'E':
+      starport.hasHighport = false;
+      starport.hasDownport = true;
+      starport.fuel = 'None';
+      starport.facilities = ['Frontier (no facilities)'];
+      break;
+    default: // X
+      starport.hasHighport = false;
+      starport.hasDownport = false;
+      starport.fuel = 'None';
+      starport.facilities = ['No starport'];
+  }
+
+  return starport;
+}
+
+/**
+ * Generate clickable places for the system
+ */
+function generatePlaces(planets, asteroidBelts, starportClass, systemName) {
+  const places = [];
+
+  // Jump point (100 diameters from primary star)
+  places.push({
+    id: 'jump_point',
+    name: 'Jump Point',
+    type: 'navigation',
+    description: '100-diameter safe jump distance',
+    icon: '⚡'
+  });
+
+  // Mainworld and starport
+  const mainworld = planets.find(p => p.isMainworld);
+  if (mainworld) {
+    places.push({
+      id: 'mainworld',
+      name: mainworld.name || systemName,
+      type: 'world',
+      planetId: mainworld.id,
+      description: `Mainworld - ${mainworld.starport?.fuel || 'no'} fuel available`,
+      icon: '🌍'
+    });
+
+    if (mainworld.starport?.hasHighport) {
+      places.push({
+        id: 'highport',
+        name: `${systemName} Highport`,
+        type: 'station',
+        planetId: mainworld.id,
+        description: `Class ${starportClass} orbital station`,
+        icon: '🛸'
+      });
+    }
+
+    if (mainworld.starport?.hasDownport) {
+      places.push({
+        id: 'downport',
+        name: `${systemName} Downport`,
+        type: 'station',
+        planetId: mainworld.id,
+        description: `Class ${starportClass} surface facility`,
+        icon: '🏗️'
+      });
+    }
+  }
+
+  // Gas giants (fuel scooping)
+  planets.filter(p => p.type === 'gas').forEach((gas, i) => {
+    places.push({
+      id: `gas_giant_${i}`,
+      name: gas.name,
+      type: 'fuel',
+      planetId: gas.id,
+      description: 'Gas giant - wilderness refueling',
+      icon: '⛽'
+    });
+  });
+
+  // Asteroid belts (mining)
+  asteroidBelts.forEach((belt, i) => {
+    places.push({
+      id: `belt_${i}`,
+      name: `Asteroid Belt ${i + 1}`,
+      type: 'mining',
+      description: 'Asteroid mining opportunities',
+      icon: '⛏️'
+    });
+  });
+
+  return places;
 }
 
 /**
@@ -806,6 +1249,7 @@ function loadTestSystem(systemKey) {
   );
 
   systemMapState.system = system;
+  systemMapState.hex = testData.hex;
   systemMapState.zoom = 1;
   systemMapState.offsetX = 0;
   systemMapState.offsetY = 0;
@@ -887,5 +1331,8 @@ export {
   setTimeSpeed,
   advanceTime,
   rewindTime,
-  resetTime
+  resetTime,
+  // Places overlay
+  showPlacesOverlay,
+  hidePlacesOverlay
 };

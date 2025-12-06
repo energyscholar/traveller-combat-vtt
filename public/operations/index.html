@@ -217,11 +217,80 @@
           <span class="user-ship-badge" id="bridge-user-ship">Ship</span>
         </div>
         <div class="header-actions">
+          <button id="btn-ship-systems" class="btn btn-icon ship-systems-btn" title="Ship Systems Status">
+            <span class="ship-systems-icon">⚙</span>
+            <span class="ship-systems-indicator all-green"></span>
+          </button>
           <button id="btn-fullscreen" class="btn btn-icon" title="Toggle Fullscreen (F)">⛶</button>
           <button id="btn-bridge-menu" class="btn btn-icon" title="Menu">☰</button>
           <button id="btn-bridge-logout" class="btn btn-link">Logout</button>
         </div>
       </header>
+
+      <!-- Ship Systems Panel (hidden by default) -->
+      <div id="ship-systems-panel" class="ship-systems-panel hidden">
+        <div class="ship-systems-header">
+          <h3>Ship Systems Status</h3>
+          <button id="btn-close-ship-systems" class="btn btn-icon btn-close">×</button>
+        </div>
+        <div class="ship-systems-grid">
+          <div class="system-item" data-system="mDrive">
+            <span class="system-status-dot"></span>
+            <span class="system-name">M-Drive</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="jDrive">
+            <span class="system-status-dot"></span>
+            <span class="system-name">J-Drive</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="powerPlant">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Power Plant</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="sensors">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Sensors</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="computer">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Computer</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="weapon">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Weapons</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="hull">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Hull</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="armour">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Armour</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="fuel">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Fuel System</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="cargo">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Cargo</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+          <div class="system-item" data-system="crew">
+            <span class="system-status-dot"></span>
+            <span class="system-name">Life Support</span>
+            <span class="system-status-text">Operational</span>
+          </div>
+        </div>
+      </div>
 
       <!-- Ship Status Bar -->
       <section id="ship-status-bar" class="ship-status-bar">
@@ -272,6 +341,7 @@
               </select>
             </div>
             <span id="sensor-status" class="status-indicator" title="PASSIVE: Detecting emissions. ACTIVE: Emitting pulses (detectable). DEEP SCAN: Detailed analysis.">PASSIVE</span>
+            <button class="btn btn-icon btn-panel-expand" data-panel="sensor-display" title="Expand panel [1]">⛶</button>
           </div>
           <div id="sensor-contacts" class="contacts-list">
             <p class="placeholder">No contacts detected</p>
@@ -309,6 +379,7 @@
         <section id="crew-panel" class="crew-panel" title="Crew roster - Players and NPCs currently on duty">
           <div class="panel-header">
             <h2>Crew Status</h2>
+            <button class="btn btn-icon btn-panel-expand" data-panel="crew-panel" title="Expand panel [3]">⛶</button>
           </div>
           <div id="crew-list" class="crew-list">
             <!-- Populated dynamically -->
@@ -320,6 +391,7 @@
           <div class="panel-header">
             <h2>Ship Log</h2>
             <button id="btn-add-log" class="btn btn-small" title="Add a personal note to the ship's log">+ Add Note</button>
+            <button class="btn btn-icon btn-panel-expand" data-panel="log-panel" title="Expand panel [4]">⛶</button>
           </div>
           <div id="ship-log" class="ship-log">
             <!-- Populated dynamically -->

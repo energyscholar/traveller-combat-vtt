@@ -8,13 +8,14 @@ const puppeteer = require('puppeteer');
 const BASE_URL = 'http://localhost:3000/';
 const TIMEOUT = 30000;
 
-// Common delays
+// Common delays - use FAST_TEST=1 for quicker runs
+const FAST = process.env.FAST_TEST === '1';
 const DELAYS = {
-  SHORT: 300,
-  MEDIUM: 500,
-  LONG: 1000,
-  PAGE_LOAD: 1500,
-  SOCKET: 2000
+  SHORT: FAST ? 100 : 200,
+  MEDIUM: FAST ? 200 : 350,
+  LONG: FAST ? 400 : 700,
+  PAGE_LOAD: FAST ? 500 : 1000,
+  SOCKET: FAST ? 800 : 1500
 };
 
 async function delay(ms) {

@@ -24,7 +24,9 @@ import {
   advanceTime as advanceMapTime,
   rewindTime as rewindMapTime,
   resetTime as resetMapTime,
-  systemMapState
+  systemMapState,
+  showPlacesOverlay,
+  hidePlacesOverlay
 } from './modules/system-map.js';
 
 // ==================== Debug Configuration ====================
@@ -993,6 +995,11 @@ function initSocket() {
     renderRoleDetailPanel(state.role);
   });
 
+  // Ship Systems status response
+  state.socket.on('ops:shipSystems', (data) => {
+    updateShipSystemsDisplay(data.systems);
+  });
+
   state.socket.on('ops:combatLog', (data) => {
     state.combatLog = data.log || [];
     renderRoleDetailPanel(state.role);
@@ -1264,6 +1271,39 @@ function initSocket() {
     if (data.shared) {
       mapDebugMessage('Reconnected to shared map', 'info');
     }
+  });
+
+  // ==================== AR-29.5: Star System Map Events ====================
+
+  // GM shared a star system - players receive it
+  state.socket.on('ops:starSystemShared', (data) => {
+    console.log('[StarSystem] Received shared system:', data.sector, data.hex);
+    showNotification(`Star system shared: ${data.system?.name || data.hex}`, 'info');
+
+    // Auto-open the system map for players with the shared data
+    if (!state.isGM) {
+      showSystemMap(data.system?.name || 'Shared System');
+      // Wait for canvas to initialize, then load the system
+      setTimeout(() => {
+        if (typeof loadSystemMap === 'function') {
+          loadSystemMap(data.system, data.sector, data.hex);
+        }
+      }, 100);
+    }
+  });
+
+  // Server sends star system data (from database or generated)
+  state.socket.on('ops:starSystemData', (data) => {
+    console.log('[StarSystem] Received system data:', data.sector, data.hex);
+    if (typeof loadSystemMap === 'function') {
+      loadSystemMap(data.system, data.sector, data.hex);
+    }
+  });
+
+  // Star system saved confirmation
+  state.socket.on('ops:starSystemSaved', (data) => {
+    console.log('[StarSystem] System saved:', data.sector, data.hex);
+    showNotification('Star system saved', 'success');
   });
 
   // ==================== Puppetry Debug System ====================
@@ -2148,18 +2188,23 @@ function initBridgeScreen() {
   // AR-15.9: Browser fullscreen toggle
   document.getElementById('btn-fullscreen')?.addEventListener('click', toggleBrowserFullscreen);
 
+  // Ship Systems panel toggle
+  document.getElementById('btn-ship-systems')?.addEventListener('click', toggleShipSystemsPanel);
+  document.getElementById('btn-close-ship-systems')?.addEventListener('click', hideShipSystemsPanel);
+
   // Keyboard shortcuts for panel expansion
   document.addEventListener('keydown', (e) => {
     if (state.currentScreen !== 'bridge') return;
+    if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
     // Escape collapses any expanded panel
     if (e.key === 'Escape') {
       collapseRolePanel();
+      collapseExpandedPanel();
     }
 
-    // F key for fullscreen toggle (when not in input)
+    // F key for fullscreen toggle
     if (e.key === 'f' || e.key === 'F') {
-      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
       const rolePanel = document.getElementById('role-panel');
       if (rolePanel.classList.contains('expanded-full')) {
         collapseRolePanel();
@@ -2167,6 +2212,20 @@ function initBridgeScreen() {
         expandRolePanel('full');
       }
     }
+
+    // Number keys 1-4 toggle panel expansion
+    const panelKeys = { '1': 'sensor-display', '2': 'role-panel', '3': 'crew-panel', '4': 'log-panel' };
+    if (panelKeys[e.key]) {
+      togglePanelExpand(panelKeys[e.key]);
+    }
+  });
+
+  // Panel expand button click handlers
+  document.querySelectorAll('.btn-panel-expand').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panelId = btn.dataset.panel;
+      togglePanelExpand(panelId);
+    });
   });
 
   // Add log note
@@ -6387,9 +6446,11 @@ function showSystemMap() {
       <h2>System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
       <div class="system-map-controls">
         <select id="test-system-select" class="form-control" style="width: auto; display: inline-block;">
-          <option value="">-- Test Systems --</option>
+          <option value="">-- Select System --</option>
           ${testSystemOptions}
         </select>
+        <button id="btn-load-system" class="btn btn-primary" disabled>Load</button>
+        <button id="btn-places" class="btn btn-info">📍 Places</button>
         ${state.isGM ? `
           <button id="btn-share-system-map" class="btn btn-primary">Share with Players</button>
         ` : ''}
@@ -6430,16 +6491,47 @@ function showSystemMap() {
   document.getElementById('btn-close-system-map').addEventListener('click', closeSystemMap);
 
   document.getElementById('btn-share-system-map')?.addEventListener('click', () => {
-    showNotification('System Map sharing - coming soon', 'info');
+    if (!systemMapState.system) {
+      showNotification('No system loaded to share', 'warning');
+      return;
+    }
+    state.socket.emit('ops:shareStarSystem', {
+      sector: systemMapState.sector,
+      hex: systemMapState.hex,
+      system: systemMapState.system
+    });
+    showNotification('Star system shared with players', 'success');
   });
 
-  // Test system selector
+  // Places overlay toggle
+  let placesVisible = false;
+  document.getElementById('btn-places')?.addEventListener('click', () => {
+    if (placesVisible) {
+      hidePlacesOverlay();
+      placesVisible = false;
+    } else {
+      showPlacesOverlay();
+      placesVisible = true;
+    }
+  });
+
+  // Test system selector - only enable Load button on selection
   document.getElementById('test-system-select').addEventListener('change', (e) => {
-    if (e.target.value) {
-      loadTestSystem(e.target.value);
-      document.getElementById('system-map-name').textContent = TEST_SYSTEMS[e.target.value].name;
+    const loadBtn = document.getElementById('btn-load-system');
+    loadBtn.disabled = !e.target.value;
+  });
+
+  // Load button confirms system selection
+  document.getElementById('btn-load-system').addEventListener('click', () => {
+    const select = document.getElementById('test-system-select');
+    if (select.value) {
+      loadTestSystem(select.value);
+      document.getElementById('system-map-name').textContent = TEST_SYSTEMS[select.value].name;
       resetMapTime();
       updateSimulatedDays();
+      // Reset select to placeholder
+      select.value = '';
+      document.getElementById('btn-load-system').disabled = true;
     }
   });
 
@@ -8238,6 +8330,176 @@ function collapseRolePanel() {
   // Clear remembered expansion state
   if (state.selectedRole && state.rolePanelExpanded) {
     state.rolePanelExpanded[state.selectedRole] = null;
+  }
+}
+
+/**
+ * AR-29.7: Toggle generic panel expansion
+ * @param {string} panelId - Panel element ID
+ */
+function togglePanelExpand(panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+
+  // Role panel uses its own expand system
+  if (panelId === 'role-panel') {
+    if (panel.classList.contains('expanded-full')) {
+      collapseRolePanel();
+    } else {
+      expandRolePanel('full');
+    }
+    return;
+  }
+
+  // Generic panel expansion
+  if (panel.classList.contains('panel-expanded')) {
+    collapseExpandedPanel();
+  } else {
+    expandPanel(panelId);
+  }
+}
+
+/**
+ * AR-29.7: Expand a panel to overlay the main content
+ * @param {string} panelId - Panel element ID
+ */
+function expandPanel(panelId) {
+  // First collapse any existing expanded panel
+  collapseExpandedPanel();
+
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+
+  // Create overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'panel-expand-overlay';
+  overlay.id = 'panel-expand-overlay';
+  overlay.onclick = collapseExpandedPanel;
+  document.body.appendChild(overlay);
+
+  // Expand panel
+  panel.classList.add('panel-expanded');
+  state.expandedPanelId = panelId;
+}
+
+/**
+ * AR-29.7: Collapse any expanded panel
+ */
+function collapseExpandedPanel() {
+  const overlay = document.getElementById('panel-expand-overlay');
+  if (overlay) overlay.remove();
+
+  if (state.expandedPanelId) {
+    const panel = document.getElementById(state.expandedPanelId);
+    if (panel) panel.classList.remove('panel-expanded');
+    state.expandedPanelId = null;
+  }
+}
+
+/**
+ * Toggle Ship Systems panel visibility
+ */
+function toggleShipSystemsPanel() {
+  const panel = document.getElementById('ship-systems-panel');
+  if (panel.classList.contains('hidden')) {
+    showShipSystemsPanel();
+  } else {
+    hideShipSystemsPanel();
+  }
+}
+
+/**
+ * Show Ship Systems panel and request current status
+ */
+function showShipSystemsPanel() {
+  const panel = document.getElementById('ship-systems-panel');
+  panel.classList.remove('hidden');
+
+  // Request ship systems data from server
+  if (state.socket && state.selectedShipId) {
+    state.socket.emit('ops:getShipSystems', { shipId: state.selectedShipId });
+  }
+}
+
+/**
+ * Hide Ship Systems panel
+ */
+function hideShipSystemsPanel() {
+  const panel = document.getElementById('ship-systems-panel');
+  panel.classList.add('hidden');
+}
+
+/**
+ * Update Ship Systems display with damage data
+ * @param {Object} systems - System status object from server
+ */
+function updateShipSystemsDisplay(systems) {
+  const panel = document.getElementById('ship-systems-panel');
+  if (!panel) return;
+
+  let hasDamage = false;
+  let hasCritical = false;
+
+  // System severity thresholds
+  const DAMAGED_THRESHOLD = 1;
+  const CRITICAL_THRESHOLD = 4;
+
+  const statusTexts = {
+    0: 'Operational',
+    1: 'Light Damage',
+    2: 'Damaged',
+    3: 'Heavy Damage',
+    4: 'Critical',
+    5: 'Severe',
+    6: 'Destroyed'
+  };
+
+  Object.entries(systems || {}).forEach(([systemName, systemData]) => {
+    const severity = systemData?.totalSeverity || 0;
+    const item = panel.querySelector(`[data-system="${systemName}"]`);
+    if (!item) return;
+
+    // Clear previous state
+    item.classList.remove('damaged', 'critical', 'destroyed');
+
+    // Set new state based on severity
+    if (severity >= 6) {
+      item.classList.add('destroyed');
+      hasCritical = true;
+    } else if (severity >= CRITICAL_THRESHOLD) {
+      item.classList.add('critical');
+      hasCritical = true;
+    } else if (severity >= DAMAGED_THRESHOLD) {
+      item.classList.add('damaged');
+      hasDamage = true;
+    }
+
+    // Update status text
+    const statusText = item.querySelector('.system-status-text');
+    if (statusText) {
+      statusText.textContent = statusTexts[Math.min(severity, 6)] || 'Operational';
+    }
+  });
+
+  // Update header indicator
+  updateShipSystemsIndicator(hasDamage, hasCritical);
+}
+
+/**
+ * Update the Ship Systems button indicator color
+ */
+function updateShipSystemsIndicator(hasDamage, hasCritical) {
+  const indicator = document.querySelector('.ship-systems-indicator');
+  if (!indicator) return;
+
+  indicator.classList.remove('all-green', 'has-damage', 'critical-damage');
+
+  if (hasCritical) {
+    indicator.classList.add('critical-damage');
+  } else if (hasDamage) {
+    indicator.classList.add('has-damage');
+  } else {
+    indicator.classList.add('all-green');
   }
 }
 
