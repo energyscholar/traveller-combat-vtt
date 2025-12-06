@@ -472,6 +472,45 @@ function printResults(results) {
   console.log(`Total: ${results.tests.length}`);
 }
 
+/**
+ * AR-26: Screenshot on failure utility
+ * Saves screenshot with timestamp and test name
+ */
+async function screenshotOnFailure(page, testName) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const safeName = testName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+  const filename = `screenshots/fail-${safeName}-${timestamp}.png`;
+
+  // Ensure screenshots directory exists
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, '../../screenshots');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  try {
+    await page.screenshot({ path: path.join(dir, `fail-${safeName}-${timestamp}.png`), fullPage: true });
+    console.log(`  📸 Screenshot saved: ${filename}`);
+    return filename;
+  } catch (err) {
+    console.log(`  ⚠ Screenshot failed: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * AR-26: Fail with screenshot
+ */
+async function failWithScreenshot(page, results, testName, error) {
+  results.failed++;
+  results.tests.push({ name: testName, status: 'FAIL', error: error?.message || String(error) });
+  console.log(`\x1b[31m✗\x1b[0m ${testName}: ${error?.message || error}`);
+  if (page) {
+    await screenshotOnFailure(page, testName);
+  }
+}
+
 module.exports = {
   BASE_URL,
   TIMEOUT,
@@ -500,5 +539,7 @@ module.exports = {
   pass,
   fail,
   skip,
-  printResults
+  printResults,
+  screenshotOnFailure,
+  failWithScreenshot
 };

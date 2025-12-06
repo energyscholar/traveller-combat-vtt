@@ -52,6 +52,8 @@ const state = {
   crewOnline: [],
   logEntries: [],
   pinnedContactId: null,  // TIP-1: Currently pinned contact for tooltip
+  contactSort: 'range',   // AR-25: Contact sort preference
+  contactFilter: 'all',   // AR-25: Contact filter preference
 
   // AUTORUN-8: Prep data
   prepReveals: [],
@@ -468,8 +470,116 @@ function initSocket() {
   });
 
   state.socket.on('ops:alertStatusChanged', (data) => {
-    updateAlertStatus(data.status);
-    showNotification(`Alert status: ${data.status}`, data.status === 'RED' ? 'error' : 'info');
+    const status = data.alertStatus || data.status;
+    updateAlertStatus(status);
+    // Apply border to all panels based on alert
+    applyAlertBorder(status);
+    if (state.role === 'captain') {
+      renderRoleDetailPanel('captain');
+    }
+  });
+
+  // AR-29: Captain event handlers
+  state.socket.on('ops:orderReceived', (data) => {
+    // Show order to targeted crew
+    const { target, order, from, id, requiresAck } = data;
+    if (target === 'all' || target === state.role) {
+      showNotification(`Order from ${from}: ${order}`, 'warning');
+      // Show acknowledge button for targeted roles
+      if (requiresAck && state.role !== 'captain') {
+        showOrderAckPrompt(id, order);
+      }
+    }
+    // Captain sees all orders in panel
+    if (state.role === 'captain') {
+      renderRoleDetailPanel('captain');
+    }
+  });
+
+  state.socket.on('ops:orderAcknowledged', (data) => {
+    const { orderId, acknowledgedBy } = data;
+    if (state.role === 'captain') {
+      showNotification(`${acknowledgedBy} acknowledged order`, 'success');
+      renderRoleDetailPanel('captain');
+    }
+  });
+
+  state.socket.on('ops:weaponsAuthChanged', (data) => {
+    const { mode, authorizedTargets } = data;
+    state.weaponsAuth = { mode, targets: authorizedTargets };
+    if (state.role === 'gunner') {
+      showNotification(`Weapons ${mode === 'free' ? 'FREE - cleared to engage' : 'HOLD - do not fire'}`, mode === 'free' ? 'warning' : 'info');
+      renderRoleDetailPanel('gunner');
+    }
+    if (state.role === 'captain') {
+      renderRoleDetailPanel('captain');
+    }
+  });
+
+  state.socket.on('ops:contactMarked', (data) => {
+    const { contactId, marking, markedBy } = data;
+    // Update contact in state
+    if (state.contacts) {
+      const contact = state.contacts.find(c => c.id === contactId);
+      if (contact) {
+        contact.marking = marking;
+      }
+    }
+    showNotification(`Contact marked ${marking} by ${markedBy}`, marking === 'hostile' ? 'warning' : 'info');
+    renderRoleDetailPanel(state.role);
+  });
+
+  state.socket.on('ops:statusRequested', (data) => {
+    // Auto-respond with status if we're a crew role
+    if (state.role && state.role !== 'captain' && !state.isGM) {
+      const status = generateRoleStatus(state.role);
+      state.socket.emit('ops:statusReport', { role: state.role, status });
+      showNotification('Status report sent to Captain', 'info');
+    }
+  });
+
+  state.socket.on('ops:statusReceived', (data) => {
+    // Captain receives status reports
+    if (state.role === 'captain') {
+      const { role, status, from } = data;
+      showNotification(`${from} reports: ${status.summary || 'Ready'}`, 'info');
+    }
+  });
+
+  state.socket.on('ops:leadershipResult', (data) => {
+    const { roll, skill, dm, target, expires } = data;
+    const resultEl = document.getElementById('leadership-result');
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div class="leadership-roll">
+          <strong>Leadership:</strong> ${roll} + ${skill} = ${roll + skill}
+          <span class="dm ${dm >= 0 ? 'positive' : 'negative'}">DM ${dm >= 0 ? '+' : ''}${dm}</span>
+          <small>(applies to next ${target} action)</small>
+        </div>
+      `;
+    }
+    state.leadershipDM = { dm, target, expires };
+    showNotification(`Leadership check: DM ${dm >= 0 ? '+' : ''}${dm} to next action`, dm >= 0 ? 'success' : 'warning');
+  });
+
+  state.socket.on('ops:tacticsResult', (data) => {
+    const { roll, skill, bonus } = data;
+    const resultEl = document.getElementById('leadership-result');
+    if (resultEl) {
+      resultEl.innerHTML = `
+        <div class="tactics-roll">
+          <strong>Tactics:</strong> ${roll} + ${skill} = ${roll + skill}
+          <span class="dm positive">Initiative +${bonus}</span>
+        </div>
+      `;
+    }
+    showNotification(`Tactics check: Initiative +${bonus}`, 'success');
+  });
+
+  state.socket.on('ops:leadershipApplied', (data) => {
+    const { dm, appliedTo, action } = data;
+    showNotification(`Leadership DM ${dm >= 0 ? '+' : ''}${dm} applied to ${appliedTo}'s ${action}`, 'info');
+    state.leadershipDM = null;
   });
 
   // Stage 5: Current system updated (TravellerMap)
@@ -1974,6 +2084,33 @@ function renderRoleSelection() {
 
 // ==================== Bridge Screen ====================
 function initBridgeScreen() {
+  // AR-25: Contact sort/filter controls
+  document.getElementById('contact-sort')?.addEventListener('change', (e) => {
+    state.contactSort = e.target.value;
+    localStorage.setItem('ops_contact_sort', state.contactSort);
+    renderContacts();
+  });
+
+  document.getElementById('contact-filter')?.addEventListener('change', (e) => {
+    state.contactFilter = e.target.value;
+    localStorage.setItem('ops_contact_filter', state.contactFilter);
+    renderContacts();
+  });
+
+  // Restore saved sort/filter preferences
+  const savedSort = localStorage.getItem('ops_contact_sort');
+  const savedFilter = localStorage.getItem('ops_contact_filter');
+  if (savedSort) {
+    state.contactSort = savedSort;
+    const sortEl = document.getElementById('contact-sort');
+    if (sortEl) sortEl.value = savedSort;
+  }
+  if (savedFilter) {
+    state.contactFilter = savedFilter;
+    const filterEl = document.getElementById('contact-filter');
+    if (filterEl) filterEl.value = savedFilter;
+  }
+
   // Toggle detail view
   document.getElementById('btn-toggle-detail').addEventListener('click', () => {
     const detail = document.getElementById('role-detail-view');
@@ -2163,6 +2300,11 @@ function initGMControls() {
         selectedContacts: targetable.map(c => c.id)
       });
     }
+  });
+
+  // AR-25: Spawn Training Target DRN
+  document.getElementById('btn-spawn-training')?.addEventListener('click', () => {
+    state.socket.emit('ops:spawnTrainingTarget');
   });
 
   // Exit combat button
@@ -2615,7 +2757,47 @@ function renderContacts() {
     return;
   }
 
-  container.innerHTML = state.contacts.map(c => {
+  // AR-25: Apply filtering
+  let filteredContacts = state.contacts.filter(c => {
+    if (state.contactFilter === 'all') return true;
+    if (state.contactFilter === 'ships') {
+      return ['Ship', 'Patrol', 'Trader', 'Warship', 'Scout', 'Free Trader', 'Far Trader'].includes(c.type);
+    }
+    if (state.contactFilter === 'stations') {
+      return ['Station', 'Starport', 'Base', 'orbital'].includes(c.type);
+    }
+    if (state.contactFilter === 'celestial') {
+      return c.celestial || ['Star', 'Planet', 'Moon', 'Gas Giant', 'Belt'].includes(c.type);
+    }
+    if (state.contactFilter === 'hostiles') {
+      return c.weapons_free || c.hostile;
+    }
+    return true;
+  });
+
+  // AR-25: Apply sorting
+  const rangePriority = { adjacent: 0, close: 1, short: 2, medium: 3, long: 4, distant: 5, stellar: 6, planetary: 7 };
+  filteredContacts.sort((a, b) => {
+    if (state.contactSort === 'range') {
+      const aRank = rangePriority[a.range_band] ?? 99;
+      const bRank = rangePriority[b.range_band] ?? 99;
+      return aRank - bRank;
+    }
+    if (state.contactSort === 'name') {
+      return (a.name || a.type || '').localeCompare(b.name || b.type || '');
+    }
+    if (state.contactSort === 'type') {
+      return (a.type || '').localeCompare(b.type || '');
+    }
+    return 0;
+  });
+
+  if (filteredContacts.length === 0) {
+    container.innerHTML = '<p class="placeholder">No matching contacts</p>';
+    return;
+  }
+
+  container.innerHTML = filteredContacts.map(c => {
     const rangeClass = getRangeClass(c.range_band);
     const gmControls = state.isGM ? `
       <button class="btn btn-icon btn-delete-contact" data-id="${c.id}" title="Delete">✕</button>
@@ -2683,11 +2865,15 @@ function renderContacts() {
       ? `<div class="contact-hover-details">${tooltipLines.map(l => `<div>${escapeHtml(l)}</div>`).join('')}</div>`
       : '';
 
+    // Format range km for display
+    const rangeKmDisplay = c.range_km ? `<span class="contact-range-km">${formatRange(c.range_km)}</span>` : '';
+
     return `
       <div class="contact-item compact ${rangeClass} ${authorizedClass}" data-contact-id="${c.id}">
         <span class="contact-icon">${getContactIcon(c.type)}${authorizedIndicator}</span>
         <span class="contact-name">${escapeHtml(c.name || c.type)}</span>
         ${inlineSummary}
+        ${rangeKmDisplay}
         <span class="contact-bearing">${c.bearing}°</span>
         <span class="contact-range-band">${formatRangeBand(c.range_band)}</span>
         ${gmControls}
@@ -3116,6 +3302,142 @@ function lockTarget(contactId) { combat.lockTarget(state, contactId); }
 function selectWeapon(weaponId) { combat.selectWeapon(state, weaponId); }
 function togglePointDefense() { combat.togglePointDefense(state); }
 
+// ==================== AR-29: Captain Operations ====================
+
+/**
+ * Set alert status (Captain only)
+ */
+function captainSetAlert(alertStatus) {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can change alert status', 'error');
+    return;
+  }
+  // Map GREEN to NORMAL for backend compatibility
+  const status = alertStatus === 'GREEN' ? 'NORMAL' : alertStatus;
+  state.socket.emit('ops:setAlertStatus', { alertStatus: status });
+  showNotification(`Alert status: ${alertStatus}`, alertStatus === 'RED' ? 'error' : alertStatus === 'YELLOW' ? 'warning' : 'success');
+}
+
+/**
+ * Issue quick order (Captain only)
+ */
+function captainQuickOrder(order) {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can issue orders', 'error');
+    return;
+  }
+  state.socket.emit('ops:issueOrder', { target: 'all', order, requiresAck: true });
+  showNotification(`Order issued: ${order}`, 'info');
+}
+
+/**
+ * Issue custom order (Captain only)
+ */
+function captainIssueOrder() {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can issue orders', 'error');
+    return;
+  }
+  const targetSelect = document.getElementById('order-target-select');
+  const orderInput = document.getElementById('order-text-input');
+  if (!orderInput || !orderInput.value.trim()) {
+    showNotification('Enter an order', 'warning');
+    return;
+  }
+  const target = targetSelect?.value || 'all';
+  const order = orderInput.value.trim();
+  state.socket.emit('ops:issueOrder', { target, order, requiresAck: true });
+  orderInput.value = '';
+  showNotification(`Order sent to ${target}: ${order}`, 'info');
+}
+
+/**
+ * Mark contact (Captain only)
+ */
+function captainMarkContact(marking) {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can mark contacts', 'error');
+    return;
+  }
+  const contactSelect = document.getElementById('mark-contact-select');
+  if (!contactSelect) {
+    showNotification('No contact selected', 'error');
+    return;
+  }
+  const contactId = contactSelect.value;
+  state.socket.emit('ops:markContact', { contactId, marking });
+  showNotification(`Contact marked as ${marking}`, marking === 'hostile' ? 'warning' : 'info');
+}
+
+/**
+ * Set weapons authorization (Captain only)
+ */
+function captainWeaponsAuth(mode) {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can authorize weapons', 'error');
+    return;
+  }
+  state.socket.emit('ops:setWeaponsAuth', { mode, targets: ['all'] });
+  showNotification(`Weapons ${mode === 'free' ? 'FREE' : 'HOLD'}`, mode === 'free' ? 'warning' : 'info');
+}
+
+/**
+ * Request status from crew (Captain only)
+ */
+function captainRequestStatus() {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can request status', 'error');
+    return;
+  }
+  state.socket.emit('ops:requestStatus', { target: 'all' });
+  showNotification('Status report requested', 'info');
+}
+
+/**
+ * Leadership check (Captain only)
+ */
+function captainLeadershipCheck() {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can make leadership checks', 'error');
+    return;
+  }
+  // TODO: Get actual skill from character
+  const skill = 0;
+  state.socket.emit('ops:leadershipCheck', { skill, target: 'all' });
+}
+
+/**
+ * Tactics check (Captain only)
+ */
+function captainTacticsCheck() {
+  if (state.role !== 'captain' && !state.isGM) {
+    showNotification('Only Captain can make tactics checks', 'error');
+    return;
+  }
+  // TODO: Get actual skill from character
+  const skill = 0;
+  state.socket.emit('ops:tacticsCheck', { skill });
+}
+
+/**
+ * Acknowledge an order (any crew)
+ */
+function acknowledgeOrder(orderId) {
+  state.socket.emit('ops:acknowledgeOrder', { orderId });
+  showNotification('Order acknowledged', 'success');
+}
+
+// Expose captain functions to window
+window.captainSetAlert = captainSetAlert;
+window.captainQuickOrder = captainQuickOrder;
+window.captainIssueOrder = captainIssueOrder;
+window.captainMarkContact = captainMarkContact;
+window.captainWeaponsAuth = captainWeaponsAuth;
+window.captainRequestStatus = captainRequestStatus;
+window.captainLeadershipCheck = captainLeadershipCheck;
+window.captainTacticsCheck = captainTacticsCheck;
+window.acknowledgeOrder = acknowledgeOrder;
+
 /**
  * Update fire button text when weapon selection changes
  */
@@ -3514,8 +3836,79 @@ function renderShipLog() {
 
 function updateAlertStatus(status) {
   const alertEl = document.getElementById('alert-status');
-  alertEl.className = `alert-status ${status.toLowerCase()}`;
-  alertEl.querySelector('.alert-text').textContent = status.toUpperCase();
+  if (alertEl) {
+    alertEl.className = `alert-status ${status.toLowerCase()}`;
+    const textEl = alertEl.querySelector('.alert-text');
+    if (textEl) textEl.textContent = status.toUpperCase();
+  }
+}
+
+/**
+ * AR-29: Apply alert border to panels based on status
+ */
+function applyAlertBorder(status) {
+  const rolePanel = document.getElementById('role-panel');
+  if (!rolePanel) return;
+
+  // Remove existing alert classes
+  rolePanel.classList.remove('alert-green', 'alert-yellow', 'alert-red');
+
+  // Apply new class based on status
+  const normalizedStatus = status === 'NORMAL' ? 'green' : status.toLowerCase();
+  if (['yellow', 'red'].includes(normalizedStatus)) {
+    rolePanel.classList.add(`alert-${normalizedStatus}`);
+  }
+}
+
+/**
+ * AR-29: Show order acknowledgment prompt
+ */
+function showOrderAckPrompt(orderId, orderText) {
+  const toast = document.createElement('div');
+  toast.className = 'order-ack-toast';
+  toast.innerHTML = `
+    <div class="order-content">
+      <strong>Captain's Order:</strong> ${orderText}
+    </div>
+    <button onclick="acknowledgeOrder('${orderId}'); this.parentElement.remove();" class="btn btn-small btn-success">
+      Acknowledge
+    </button>
+  `;
+  document.body.appendChild(toast);
+
+  // Auto-remove after 30 seconds
+  setTimeout(() => toast.remove(), 30000);
+}
+
+/**
+ * AR-29: Generate role status for Captain's status request
+ */
+function generateRoleStatus(role) {
+  const status = { summary: 'Ready' };
+
+  switch (role) {
+    case 'pilot':
+      status.summary = state.shipState?.evasive ? 'Evasive maneuvers' : 'Holding course';
+      status.course = state.shipState?.course || 'None';
+      status.fuel = state.fuelStatus?.percentage || 100;
+      break;
+    case 'gunner':
+      status.summary = state.weaponsAuth?.mode === 'free' ? 'Weapons hot' : 'Weapons cold';
+      status.weaponsReady = true;
+      break;
+    case 'engineer':
+      status.summary = state.damagedSystems?.length ? `${state.damagedSystems.length} systems damaged` : 'All systems nominal';
+      status.power = state.shipState?.power || 100;
+      break;
+    case 'sensor_operator':
+      status.summary = `Tracking ${state.contacts?.length || 0} contacts`;
+      status.contacts = state.contacts?.length || 0;
+      break;
+    default:
+      status.summary = 'Standing by';
+  }
+
+  return status;
 }
 
 // ==================== Modal Management ====================
@@ -5324,14 +5717,45 @@ function hailContact(contactId) {
   hideContactTooltip();
 }
 
-function showNotification(message, type = 'info') {
-  // Simple notification - could be enhanced with toast UI
+// Notification container (created once)
+let notificationContainer = null;
+
+function getNotificationContainer() {
+  if (!notificationContainer) {
+    notificationContainer = document.createElement('div');
+    notificationContainer.className = 'notification-container';
+    document.body.appendChild(notificationContainer);
+  }
+  return notificationContainer;
+}
+
+function showNotification(message, type = 'info', duration = 4000) {
   debugLog(`[${type.toUpperCase()}] ${message}`);
 
-  // For now, use browser notification if available
-  if (type === 'error') {
-    alert(message);
-  }
+  const container = getNotificationContainer();
+
+  // Icon based on type
+  const icons = {
+    info: 'ℹ️',
+    success: '✓',
+    warning: '⚠',
+    error: '✕'
+  };
+
+  const toast = document.createElement('div');
+  toast.className = `notification-toast ${type}`;
+  toast.innerHTML = `
+    <span class="notification-icon">${icons[type] || icons.info}</span>
+    <span class="notification-message">${message}</span>
+  `;
+
+  container.appendChild(toast);
+
+  // Auto-remove after duration
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
 }
 
 // ==================== Session Storage (Stage 3.5.5) ====================
@@ -5757,6 +6181,7 @@ function showSharedMap() {
         ${state.isGM ? `
           <button id="btn-share-map" class="btn btn-primary ${state.sharedMapActive ? 'hidden' : ''}">Share with Players</button>
           <button id="btn-unshare-map" class="btn btn-danger ${state.sharedMapActive ? '' : 'hidden'}">Stop Sharing</button>
+          <button id="btn-flush-cache" class="btn btn-warning">Flush Cache</button>
         ` : ''}
         <button id="btn-retry-map" class="btn btn-secondary hidden">Retry</button>
         <button id="btn-close-map" class="btn btn-secondary">Close</button>
@@ -5847,6 +6272,20 @@ function showSharedMap() {
 
     document.getElementById('btn-unshare-map')?.addEventListener('click', () => {
       state.socket.emit('ops:unshareMap');
+    });
+
+    document.getElementById('btn-flush-cache')?.addEventListener('click', () => {
+      fetch('/api/map/cache/clear', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            mapDebugMessage('Cache flushed - all cached tiles expired', 'info');
+            showNotification('Map cache flushed', 'success');
+          }
+        })
+        .catch(() => {
+          mapDebugMessage('Failed to flush cache', 'error');
+        });
     });
   }
 

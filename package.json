@@ -18,6 +18,7 @@
     "test:smoke": "node tests/run-all-tests.js --smoke",
     "test:watch": "nodemon --watch lib --watch tests --ext js --exec 'npm run test:smoke'",
     "cleanup": "lsof -t -i:3000 | xargs kill -9 2>/dev/null || true && echo 'Port 3000 cleared'",
+    "cleanup:tests": "node tests/test-cleanup.js",
     "test:validate-registry": "node tests/automated/validate-registry.js",
     "play": "echo '\n🎮 SINGLE-PLAYER TEST: http://localhost:3000/test.html\n👥 MULTIPLAYER: http://localhost:3000\n' && node server.js",
     "security:audit": "npm audit --audit-level=moderate",

@@ -46,9 +46,18 @@ const COLORS = {
 const startTime = Date.now();
 const suiteTimes = [];
 
+// Test cleanup utility
+const testCleanup = require('./test-cleanup');
+
 console.log(`${COLORS.cyan}${COLORS.bold}========================================`);
 console.log(`TRAVELLER COMBAT VTT - TEST SUITE`);
 console.log(`========================================${COLORS.reset}\n`);
+
+// Pre-test cleanup: Remove any stale test campaigns
+const preCleanCount = testCleanup.run();
+if (preCleanCount > 0) {
+  console.log(`${COLORS.yellow}Pre-test cleanup: ${preCleanCount} stale campaigns removed${COLORS.reset}\n`);
+}
 
 // Unit tests to run (in order)
 const unitTests = [
@@ -82,7 +91,10 @@ const unitTests = [
   'tests/ship-systems.test.js',  // Ship systems damage and repair (18 tests)
   'tests/jump.test.js',  // Jump travel and date utilities (23 tests)
   'tests/operations-refueling.test.js',  // Refueling system tests (25 tests)
-  'tests/combat-engine.test.js'  // Combat engine tests (31 tests) - AUTORUN-14
+  'tests/combat-engine.test.js',  // Combat engine tests (31 tests) - AUTORUN-14
+  'tests/system-cache.test.js',  // AR-28: System cache tests (9 tests)
+  'tests/captain.test.js',  // AR-29: Captain role tests (10 tests)
+  'tests/gunner-training.test.js'  // AR-29: Gunner training target tests (8 tests)
 ];
 
 // Integration tests
@@ -212,6 +224,12 @@ if (flags.showTiming && suiteTimes.length > 0) {
   sorted.slice(0, 5).forEach((s, i) => {
     console.log(`  ${i + 1}. ${s.name}: ${s.time}ms`);
   });
+}
+
+// Post-test cleanup: Remove any test campaigns created during run
+const postCleanCount = testCleanup.run();
+if (postCleanCount > 0) {
+  console.log(`${COLORS.yellow}Post-test cleanup: ${postCleanCount} test campaigns removed${COLORS.reset}`);
 }
 
 if (suitesFailed > 0) {

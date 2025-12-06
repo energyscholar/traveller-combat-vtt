@@ -43,5 +43,15 @@ module.exports = {
   features: {
     testMode: process.env.ENABLE_TEST_MODE === 'true',
     debugMode: process.env.DEBUG === 'true'
+  },
+
+  // AR-28: Encyclopedia Data Cache
+  cache: {
+    enabled: process.env.CACHE_ENABLED !== 'false',  // Default: true
+    parsecRadius: parseInt(process.env.CACHE_PARSEC_RADIUS) || 6,  // 1-10 parsecs
+    delaySeconds: parseInt(process.env.CACHE_DELAY_SECONDS) || 30,  // Seconds between fetches
+    maxDurationMinutes: parseInt(process.env.CACHE_MAX_DURATION) || 5,  // Auto-stop after
+    ttlDays: parseInt(process.env.CACHE_TTL_DAYS) || 30,  // Cache expiration
+    debug: process.env.CACHE_DEBUG === 'true'  // Show debug toasts on map
   }
 };

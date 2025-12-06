@@ -910,6 +910,144 @@ input[type="checkbox"] {
   50% { opacity: 0.7; }
 }
 
+/* AR-29: Alert border on panels */
+.role-panel.alert-yellow {
+  border: 2px solid var(--alert-yellow);
+  animation: pulse-yellow 2s infinite;
+}
+
+.role-panel.alert-red {
+  border: 2px solid var(--alert-red);
+  animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-yellow {
+  0%, 100% { border-color: var(--alert-yellow); }
+  50% { border-color: rgba(234, 179, 8, 0.5); }
+}
+
+/* General notification toast system */
+.notification-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.notification-toast {
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  max-width: 350px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  animation: toastSlideIn 0.3s ease;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-toast.info {
+  border-left: 4px solid var(--accent-blue);
+}
+
+.notification-toast.success {
+  border-left: 4px solid var(--alert-green);
+}
+
+.notification-toast.warning {
+  border-left: 4px solid var(--alert-yellow);
+}
+
+.notification-toast.error {
+  border-left: 4px solid var(--alert-red);
+}
+
+.notification-toast .notification-icon {
+  font-size: 1.2em;
+}
+
+.notification-toast .notification-message {
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.notification-toast.fade-out {
+  animation: toastFadeOut 0.3s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toastFadeOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+/* AR-29: Order acknowledgment toast */
+.order-ack-toast {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: var(--bg-secondary);
+  border: 2px solid var(--alert-yellow);
+  border-radius: 8px;
+  padding: 15px;
+  max-width: 350px;
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.order-ack-toast .order-content {
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* AR-29: Captain panel sections */
+.captain-alert-section,
+.captain-orders-section,
+.captain-contacts-section,
+.captain-weapons-section,
+.captain-crew-section,
+.captain-leadership-section {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+}
+
+.captain-leadership-section {
+  border-bottom: none;
+}
+
+.leadership-roll, .tactics-roll {
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+.leadership-roll .dm.positive,
+.tactics-roll .dm.positive {
+  color: var(--success);
+  font-weight: bold;
+}
+
+.leadership-roll .dm.negative {
+  color: var(--danger);
+  font-weight: bold;
+}
+
 .alert-indicator {
   width: 10px;
   height: 10px;
@@ -2064,6 +2202,49 @@ input[type="checkbox"] {
   padding: 1px 4px;
   border-radius: 2px;
   background: rgba(255,255,255,0.1);
+}
+
+/* Range km display on contact line */
+.contact-range-km {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  min-width: 45px;
+  text-align: right;
+}
+
+/* AR-25: Range band color coding */
+.contact-item.range-adjacent .contact-range-band { background: #dc3545; color: #fff; }
+.contact-item.range-close .contact-range-band { background: #fd7e14; color: #fff; }
+.contact-item.range-short .contact-range-band { background: #ffc107; color: #000; }
+.contact-item.range-medium .contact-range-band { background: #28a745; color: #fff; }
+.contact-item.range-long .contact-range-band { background: #17a2b8; color: #fff; }
+.contact-item.range-distant .contact-range-band { background: #6c757d; color: #fff; }
+.contact-item.range-stellar .contact-range-band { background: #6610f2; color: #fff; }
+.contact-item.range-planetary .contact-range-band { background: #343a40; color: #fff; }
+
+/* AR-25: Sensor controls (sort/filter) */
+.sensor-controls {
+  display: flex;
+  gap: var(--space-xs);
+  margin-left: auto;
+  margin-right: var(--space-sm);
+}
+
+.contact-sort-select,
+.contact-filter-select {
+  padding: 2px 4px;
+  font-size: 10px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.contact-sort-select:hover,
+.contact-filter-select:hover {
+  border-color: var(--accent-blue);
 }
 
 /* Inline detail shown on contact line (type, transponder) */

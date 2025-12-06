@@ -530,25 +530,119 @@ function getCaptainPanel(shipState, template, ship, crewOnline, contacts) {
   const authorizedTargets = targetableContacts.filter(c => c.weapons_free);
   const unauthorizedTargets = targetableContacts.filter(c => !c.weapons_free);
 
+  // Alert status colors
+  const alertColors = {
+    'NORMAL': '#28a745',
+    'GREEN': '#28a745',
+    'YELLOW': '#ffc107',
+    'RED': '#dc3545'
+  };
+  const alertStatus = shipState.alertStatus || 'NORMAL';
+  const alertColor = alertColors[alertStatus] || '#28a745';
+
+  // Count contacts by marking
+  const hostileCount = contacts?.filter(c => c.marking === 'hostile').length || 0;
+  const unknownCount = contacts?.filter(c => !c.marking || c.marking === 'unknown').length || 0;
+
   return `
-    <div class="detail-section">
-      <h4>Ship Overview</h4>
-      <div class="detail-stats">
-        <div class="stat-row">
-          <span>Ship Class:</span>
-          <span class="stat-value">${template.class || ship?.name || 'Unknown'}</span>
-        </div>
-        <div class="stat-row">
-          <span>Tonnage:</span>
-          <span class="stat-value">${template.tonnage || '?'} dT</span>
-        </div>
-        <div class="stat-row">
-          <span>Alert Status:</span>
-          <span class="stat-value">${shipState.alertStatus || 'NORMAL'}</span>
-        </div>
+    <div class="detail-section captain-alert-section">
+      <h4>Alert Status</h4>
+      <div class="alert-status-display" style="border-left: 4px solid ${alertColor}; padding-left: 10px;">
+        <span class="alert-status-text" style="color: ${alertColor}; font-weight: bold; font-size: 1.2em;">
+          ${alertStatus === 'NORMAL' ? 'GREEN' : alertStatus}
+        </span>
+      </div>
+      <div class="alert-controls" style="margin-top: 10px; display: flex; gap: 5px;">
+        <button onclick="window.captainSetAlert('GREEN')" class="btn btn-small ${alertStatus === 'NORMAL' || alertStatus === 'GREEN' ? 'btn-success' : 'btn-secondary'}" title="Normal operations">
+          Green
+        </button>
+        <button onclick="window.captainSetAlert('YELLOW')" class="btn btn-small ${alertStatus === 'YELLOW' ? 'btn-warning' : 'btn-secondary'}" title="Battle stations - combat readiness">
+          Yellow
+        </button>
+        <button onclick="window.captainSetAlert('RED')" class="btn btn-small ${alertStatus === 'RED' ? 'btn-danger' : 'btn-secondary'}" title="Emergency - all hands">
+          Red
+        </button>
       </div>
     </div>
-    <div class="detail-section">
+
+    <div class="detail-section captain-orders-section">
+      <h4>Issue Orders</h4>
+      <div class="quick-orders" style="margin-bottom: 10px; display: flex; gap: 5px; flex-wrap: wrap;">
+        <button onclick="window.captainQuickOrder('Evade')" class="btn btn-small btn-secondary" title="Order evasive maneuvers">Evade</button>
+        <button onclick="window.captainQuickOrder('Hold Position')" class="btn btn-small btn-secondary" title="Maintain current position">Hold</button>
+        <button onclick="window.captainQuickOrder('Engage')" class="btn btn-small btn-secondary" title="Engage hostiles">Engage</button>
+        <button onclick="window.captainQuickOrder('Stand Down')" class="btn btn-small btn-secondary" title="Return to normal ops">Stand Down</button>
+      </div>
+      <div class="order-input-row" style="display: flex; gap: 5px;">
+        <select id="order-target-select" class="order-select" style="flex: 0 0 100px;">
+          <option value="all">All Crew</option>
+          <option value="pilot">Pilot</option>
+          <option value="gunner">Gunner</option>
+          <option value="engineer">Engineer</option>
+          <option value="sensor_operator">Sensors</option>
+        </select>
+        <input type="text" id="order-text-input" class="order-input" placeholder="Enter order..." maxlength="200" style="flex: 1;">
+        <button onclick="window.captainIssueOrder()" class="btn btn-small btn-primary" title="Send order to selected crew">Send</button>
+      </div>
+      <div id="pending-orders" class="pending-orders" style="margin-top: 10px; max-height: 100px; overflow-y: auto;"></div>
+    </div>
+
+    <div class="detail-section captain-contacts-section">
+      <h4>Tactical Overview</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Total Contacts:</span>
+          <span class="stat-value">${contacts?.length || 0}</span>
+        </div>
+        <div class="stat-row">
+          <span>Hostile:</span>
+          <span class="stat-value ${hostileCount > 0 ? 'text-danger' : ''}">${hostileCount}</span>
+        </div>
+        <div class="stat-row">
+          <span>Unknown:</span>
+          <span class="stat-value ${unknownCount > 0 ? 'text-warning' : ''}">${unknownCount}</span>
+        </div>
+      </div>
+      ${contacts?.length > 0 ? `
+        <div class="contact-marking" style="margin-top: 10px;">
+          <label for="mark-contact-select">Mark Contact:</label>
+          <select id="mark-contact-select" class="mark-select" style="width: 100%; margin-top: 5px;">
+            ${contacts.map(c => `
+              <option value="${c.id}">${escapeHtml(c.name || 'Unknown')} - ${c.marking || 'unknown'}</option>
+            `).join('')}
+          </select>
+          <div class="marking-buttons" style="margin-top: 5px; display: flex; gap: 5px;">
+            <button onclick="window.captainMarkContact('friendly')" class="btn btn-small btn-success" title="Mark as friendly">Friendly</button>
+            <button onclick="window.captainMarkContact('neutral')" class="btn btn-small btn-secondary" title="Mark as neutral">Neutral</button>
+            <button onclick="window.captainMarkContact('hostile')" class="btn btn-small btn-danger" title="Mark as hostile">Hostile</button>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="detail-section captain-weapons-section">
+      <h4>Weapons Authorization</h4>
+      <div class="weapons-auth-master" style="margin-bottom: 10px;">
+        <button onclick="window.captainWeaponsAuth('hold')" class="btn btn-small ${shipState.weaponsAuth?.mode !== 'free' ? 'btn-warning' : 'btn-secondary'}" title="Gunners cannot fire">
+          Weapons Hold
+        </button>
+        <button onclick="window.captainWeaponsAuth('free')" class="btn btn-small ${shipState.weaponsAuth?.mode === 'free' ? 'btn-danger' : 'btn-secondary'}" title="Gunners may engage">
+          Weapons Free
+        </button>
+      </div>
+      ${targetableContacts.length === 0 ? `
+        <div class="placeholder">No targetable contacts</div>
+      ` : `
+        <div class="weapons-auth-status">
+          <div class="stat-row">
+            <span>Authorized:</span>
+            <span class="stat-value ${authorizedTargets.length > 0 ? 'text-warning' : ''}">${authorizedTargets.length}</span>
+          </div>
+        </div>
+      `}
+    </div>
+
+    <div class="detail-section captain-crew-section">
       <h4>Crew Status</h4>
       <div class="detail-stats">
         <div class="stat-row">
@@ -560,54 +654,22 @@ function getCaptainPanel(shipState, template, ship, crewOnline, contacts) {
           <span class="stat-value">${ship?.npcCrew?.length || 0}</span>
         </div>
       </div>
+      <button onclick="window.captainRequestStatus()" class="btn btn-small btn-secondary" style="margin-top: 10px;" title="Request status from all stations">
+        Request Status Report
+      </button>
     </div>
-    <div class="detail-section">
-      <h4>Weapons Authorization</h4>
-      ${targetableContacts.length === 0 ? `
-        <div class="placeholder">No targetable contacts in range</div>
-        <div class="captain-weapons-note">
-          <small>Sensor operator must identify targets before weapons can be authorized</small>
-        </div>
-      ` : `
-        <div class="weapons-auth-status">
-          <div class="stat-row">
-            <span>Targets Authorized:</span>
-            <span class="stat-value ${authorizedTargets.length > 0 ? 'text-warning' : ''}">${authorizedTargets.length}</span>
-          </div>
-          <div class="stat-row">
-            <span>Awaiting Auth:</span>
-            <span class="stat-value">${unauthorizedTargets.length}</span>
-          </div>
-        </div>
-        ${unauthorizedTargets.length > 0 ? `
-          <div class="authorize-controls">
-            <label for="auth-target-select">Authorize Fire On:</label>
-            <select id="auth-target-select" class="auth-select">
-              ${unauthorizedTargets.map(c => `
-                <option value="${c.id}">${escapeHtml(c.name || 'Unknown')} (${c.type || 'Unknown'}) - ${c.range_band || 'Unknown'}</option>
-              `).join('')}
-            </select>
-            <button onclick="authorizeWeapons()" class="btn btn-warning btn-small"
-                    title="Authorize gunners to engage this target. Required before weapons can fire.">
-              Authorize Weapons Free
-            </button>
-          </div>
-        ` : ''}
-        ${authorizedTargets.length > 0 ? `
-          <div class="authorized-targets">
-            <h5>Active Authorizations:</h5>
-            <ul class="auth-target-list">
-              ${authorizedTargets.map(c => `
-                <li class="auth-target-item">
-                  <span class="target-name">${escapeHtml(c.name || 'Unknown')}</span>
-                  <span class="target-range">${c.range_band || 'Unknown'}</span>
-                  <span class="target-health">${c.health !== undefined ? `${c.health}%` : '100%'}</span>
-                </li>
-              `).join('')}
-            </ul>
-          </div>
-        ` : ''}
-      `}
+
+    <div class="detail-section captain-leadership-section">
+      <h4>Command Actions</h4>
+      <div class="leadership-buttons" style="display: flex; gap: 5px; flex-wrap: wrap;">
+        <button onclick="window.captainLeadershipCheck()" class="btn btn-small btn-primary" title="Roll Leadership to give DM to next crew action">
+          Leadership Check
+        </button>
+        <button onclick="window.captainTacticsCheck()" class="btn btn-small btn-primary" title="Roll Tactics for initiative bonus">
+          Tactics Check
+        </button>
+      </div>
+      <div id="leadership-result" class="leadership-result" style="margin-top: 10px;"></div>
     </div>
   `;
 }

@@ -169,6 +169,31 @@ app.post('/api/map/cache/clear', (req, res) => {
   res.json({ success: true, info: tileProxy.getCacheInfo() });
 });
 
+// AR-28: System cache endpoints (Encyclopedia data)
+const systemCache = require('./lib/operations/system-cache');
+
+app.get('/api/cache/system/:sector/:hex', (req, res) => {
+  const { sector, hex } = req.params;
+  const system = systemCache.getCachedSystem(sector, hex);
+  res.json({ found: !!system, system });
+});
+
+app.get('/api/cache/status', (req, res) => {
+  const status = systemCache.getCacheStatus();
+  const stats = systemCache.getCacheStats();
+  res.json({ ...status, stats });
+});
+
+app.get('/api/cache/stats', (req, res) => {
+  res.json(systemCache.getCacheStats());
+});
+
+app.post('/api/cache/clear', (req, res) => {
+  const { sector } = req.body || {};
+  const result = systemCache.clearCache(sector);
+  res.json(result);
+});
+
 // Track connections and ship assignments (from lib/state)
 const connections = state.getConnections();
 
