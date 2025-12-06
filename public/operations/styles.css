@@ -2102,6 +2102,19 @@ input[type="checkbox"] {
   font-size: 14px;
 }
 
+/* Jump time buttons - distinct purple/blue styling */
+.time-quick-buttons .time-jump {
+  background: linear-gradient(135deg, #2a1a4a 0%, #1a2a4a 100%);
+  border-color: #6644aa;
+  color: #aa88ff;
+}
+
+.time-quick-buttons .time-jump:hover {
+  background: linear-gradient(135deg, #3a2a5a 0%, #2a3a5a 100%);
+  border-color: #8866cc;
+  color: #ccaaff;
+}
+
 .time-custom {
   border-top: 1px solid var(--border-color);
   padding-top: var(--space-md);
