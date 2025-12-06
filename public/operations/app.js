@@ -13,6 +13,19 @@ import { getRoleDetailContent, getActionMessage, renderSystemStatusItem } from '
 import * as combat from './modules/combat.js';
 import { show, hide, toggle, setText, getValue } from './modules/dom-helpers.js';
 import { copyWithFeedback } from './modules/clipboard.js';
+import {
+  initSystemMap,
+  loadSystem as loadSystemMap,
+  destroySystemMap,
+  loadTestSystem,
+  TEST_SYSTEMS,
+  togglePause,
+  setTimeSpeed,
+  advanceTime as advanceMapTime,
+  rewindTime as rewindMapTime,
+  resetTime as resetMapTime,
+  systemMapState
+} from './modules/system-map.js';
 
 // ==================== Debug Configuration ====================
 // SECURITY: Debug logging only enabled on localhost
@@ -5953,6 +5966,10 @@ function handleMenuFeature(feature) {
       showSharedMap();
       break;
 
+    case 'system-map':
+      showSystemMap();
+      break;
+
     default:
       showNotification(`Feature "${feature}" not yet implemented`, 'info');
   }
@@ -6340,6 +6357,139 @@ function updateSharedMapBadge(isLive) {
   const liveSpan = document.querySelector('.shared-map-header .live-badge');
   if (liveSpan) {
     liveSpan.style.display = isLive ? 'inline' : 'none';
+  }
+}
+
+// ==================== System Map (AR-29.5) ====================
+
+function showSystemMap() {
+  // Check if already open
+  const existing = document.getElementById('system-map-overlay');
+  if (existing) {
+    existing.classList.remove('hidden');
+    return;
+  }
+
+  // Create fullscreen overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'system-map-overlay';
+  overlay.className = 'system-map-overlay';
+
+  const systemName = state.campaign?.current_system || 'Demo System';
+
+  // Build test system options
+  const testSystemOptions = Object.keys(TEST_SYSTEMS)
+    .map(key => `<option value="${key}">${TEST_SYSTEMS[key].name}</option>`)
+    .join('');
+
+  overlay.innerHTML = `
+    <div class="system-map-header">
+      <h2>System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
+      <div class="system-map-controls">
+        <select id="test-system-select" class="form-control" style="width: auto; display: inline-block;">
+          <option value="">-- Test Systems --</option>
+          ${testSystemOptions}
+        </select>
+        ${state.isGM ? `
+          <button id="btn-share-system-map" class="btn btn-primary">Share with Players</button>
+        ` : ''}
+        <button id="btn-close-system-map" class="btn btn-secondary">Close</button>
+      </div>
+    </div>
+    <div id="system-map-container" class="system-map-container">
+      <!-- Canvas will be inserted here by initSystemMap -->
+    </div>
+    <div class="system-map-time-controls">
+      <button id="btn-time-rewind-100" class="btn btn-sm">◀◀ -100d</button>
+      <button id="btn-time-rewind-10" class="btn btn-sm">◀ -10d</button>
+      <button id="btn-time-pause" class="btn btn-sm btn-primary">⏸ Pause</button>
+      <button id="btn-time-forward-10" class="btn btn-sm">+10d ▶</button>
+      <button id="btn-time-forward-100" class="btn btn-sm">+100d ▶▶</button>
+      <span class="time-speed-label">Speed:</span>
+      <select id="time-speed-select" class="form-control" style="width: auto; display: inline-block;">
+        <option value="0.1">0.1x</option>
+        <option value="1" selected>1x</option>
+        <option value="5">5x</option>
+        <option value="10">10x</option>
+        <option value="50">50x</option>
+      </select>
+      <span id="simulated-days" class="simulated-days">Day: 0</span>
+    </div>
+    <div class="system-map-instructions">
+      Scroll to zoom | Drag to pan | Time controls affect orbital positions
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Initialize the canvas system map
+  const container = document.getElementById('system-map-container');
+  initSystemMap(container);
+
+  // Event handlers
+  document.getElementById('btn-close-system-map').addEventListener('click', closeSystemMap);
+
+  document.getElementById('btn-share-system-map')?.addEventListener('click', () => {
+    showNotification('System Map sharing - coming soon', 'info');
+  });
+
+  // Test system selector
+  document.getElementById('test-system-select').addEventListener('change', (e) => {
+    if (e.target.value) {
+      loadTestSystem(e.target.value);
+      document.getElementById('system-map-name').textContent = TEST_SYSTEMS[e.target.value].name;
+      resetMapTime();
+      updateSimulatedDays();
+    }
+  });
+
+  // Time controls
+  document.getElementById('btn-time-rewind-100').addEventListener('click', () => {
+    rewindMapTime(100);
+    updateSimulatedDays();
+  });
+  document.getElementById('btn-time-rewind-10').addEventListener('click', () => {
+    rewindMapTime(10);
+    updateSimulatedDays();
+  });
+  document.getElementById('btn-time-pause').addEventListener('click', () => {
+    const paused = togglePause();
+    document.getElementById('btn-time-pause').textContent = paused ? '▶ Play' : '⏸ Pause';
+  });
+  document.getElementById('btn-time-forward-10').addEventListener('click', () => {
+    advanceMapTime(10);
+    updateSimulatedDays();
+  });
+  document.getElementById('btn-time-forward-100').addEventListener('click', () => {
+    advanceMapTime(100);
+    updateSimulatedDays();
+  });
+  document.getElementById('time-speed-select').addEventListener('change', (e) => {
+    setTimeSpeed(parseFloat(e.target.value));
+  });
+
+  // Update simulated days display periodically
+  const daysInterval = setInterval(() => {
+    if (!document.getElementById('simulated-days')) {
+      clearInterval(daysInterval);
+      return;
+    }
+    updateSimulatedDays();
+  }, 500);
+}
+
+function updateSimulatedDays() {
+  const daysEl = document.getElementById('simulated-days');
+  if (daysEl) {
+    daysEl.textContent = `Day: ${Math.round(systemMapState.simulatedDate)}`;
+  }
+}
+
+function closeSystemMap() {
+  const overlay = document.getElementById('system-map-overlay');
+  if (overlay) {
+    destroySystemMap();
+    overlay.remove();
   }
 }
 

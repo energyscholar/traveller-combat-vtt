@@ -6885,3 +6885,101 @@ input[type="checkbox"] {
   transform: translateX(16px);
   background-color: white;
 }
+
+/* ==================== AR-29.5: System Map ==================== */
+
+.system-map-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #0a0a12;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+}
+
+.system-map-overlay.hidden {
+  display: none;
+}
+
+.system-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(20, 20, 30, 0.95);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.system-map-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.system-map-controls {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.system-map-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.system-map-container:active {
+  cursor: grabbing;
+}
+
+#system-map-canvas {
+  display: block;
+}
+
+.system-map-instructions {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--text-secondary);
+  padding: 6px 16px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.system-map-time-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  background: rgba(20, 20, 30, 0.95);
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.system-map-time-controls .btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-width: 60px;
+}
+
+.time-speed-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-left: var(--space-sm);
+}
+
+.simulated-days {
+  color: var(--accent-color);
+  font-weight: bold;
+  font-size: 14px;
+  margin-left: var(--space-md);
+  min-width: 100px;
+}
