@@ -383,7 +383,7 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
     <div class="detail-section gunner-header">
       <h4>GUNNER STATION ${assignedTurret ? `- TURRET ${assignedTurret}` : ''}</h4>
       <div class="gunner-status-badge ${hasTargets ? 'weapons-free' : 'weapons-hold'}"
-           title="${hasTargets ? 'Captain has authorized weapons fire on hostile contacts' : 'Awaiting Captain authorization or hostile contact detection'}">
+           title="${hasTargets ? 'Weapons authorized on hostile contacts' : 'Awaiting authorization or hostile contact detection'}">
         ${hasTargets ? 'WEAPONS FREE' : 'WEAPONS HOLD'}
       </div>
     </div>
@@ -394,7 +394,7 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
         <div class="no-target-locked">
           <div class="locked-icon">○</div>
           <div class="no-target-text">No Target Locked</div>
-          <small>Awaiting hostile contacts or Captain authorization</small>
+          <small>Awaiting hostile contacts or authorization</small>
         </div>
       ` : `
         <div class="target-list">
@@ -487,7 +487,7 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
       ` : ''}
       <div class="fire-buttons">
         <button onclick="fireWeapon()" class="btn btn-danger btn-fire"
-                title="${hasTargets ? `Fire ${selectedWeapon?.name || 'weapon'} at ${selectedTarget?.name || 'target'}${hitChance ? ` (${hitChance}% hit chance)` : ''}` : 'No target locked - awaiting hostile contacts or Captain authorization'}"
+                title="${hasTargets ? `Fire ${selectedWeapon?.name || 'weapon'} at ${selectedTarget?.name || 'target'}${hitChance ? ` (${hitChance}% hit chance)` : ''}` : 'No target locked - awaiting hostile contacts or authorization'}"
                 ${!hasTargets || !hasWeapons ? 'disabled' : ''}>
           ${selectedWeapon && (selectedWeapon.weapon_type || selectedWeapon.type || '').toLowerCase().includes('missile') ? 'LAUNCH!' : 'FIRE!'}
         </button>

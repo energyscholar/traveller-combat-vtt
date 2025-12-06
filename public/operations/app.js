@@ -349,6 +349,7 @@ function initSocket() {
     state.selectedRoleInstance = data.roleInstance || 1;
     showNotification(`GM assigned you to ${formatRoleName(data.role)}`, 'info');
     updateBridgeHeader();
+    updateRoleClass();
     renderRolePanel();
   });
 
@@ -1378,6 +1379,11 @@ function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(`${screenId}-screen`).classList.add('active');
   state.currentScreen = screenId;
+
+  // Update role class when showing bridge
+  if (screenId === 'bridge') {
+    updateRoleClass();
+  }
 }
 
 // ==================== Combat Screen (Autorun 12) ====================
@@ -3372,6 +3378,12 @@ function fireAtTarget() {
 function fireWeapon() { combat.fireWeapon(state); }
 function lockTarget(contactId) { combat.lockTarget(state, contactId); }
 function selectWeapon(weaponId) { combat.selectWeapon(state, weaponId); }
+function selectWeaponByIndex(index) {
+  // Convert index to weapon selection - stores index as selectedWeapon
+  const idx = parseInt(index, 10);
+  state.shipState.selectedWeapon = idx;
+  renderRoleDetailPanel(state.role);
+}
 function togglePointDefense() { combat.togglePointDefense(state); }
 
 // ==================== AR-29: Captain Operations ====================
@@ -3445,8 +3457,8 @@ function captainMarkContact(marking) {
  * Set weapons authorization (Captain only)
  */
 function captainWeaponsAuth(mode) {
-  if (state.role !== 'captain' && !state.isGM) {
-    showNotification('Only Captain can authorize weapons', 'error');
+  if (state.role !== 'captain' && state.role !== 'gunner' && !state.isGM) {
+    showNotification('Only Captain or Gunner can authorize weapons', 'error');
     return;
   }
   state.socket.emit('ops:setWeaponsAuth', { mode, targets: ['all'] });
@@ -6445,11 +6457,12 @@ function showSystemMap() {
     <div class="system-map-header">
       <h2>System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
       <div class="system-map-controls">
-        <select id="test-system-select" class="form-control" style="width: auto; display: inline-block;">
-          <option value="">-- Select System --</option>
-          ${testSystemOptions}
+        <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;">
+          <option value="caladbolg" selected>Caladbolg</option>
+          <option value="dorannia">Dorannia</option>
+          <option value="flammarion">Flammarion</option>
         </select>
-        <button id="btn-load-system" class="btn btn-primary" disabled>Load</button>
+        <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;">SWITCH STARSYSTEM</button>
         <button id="btn-places" class="btn btn-info">📍 Places</button>
         ${state.isGM ? `
           <button id="btn-share-system-map" class="btn btn-primary">Share with Players</button>
@@ -6515,23 +6528,15 @@ function showSystemMap() {
     }
   });
 
-  // Test system selector - only enable Load button on selection
-  document.getElementById('test-system-select').addEventListener('change', (e) => {
-    const loadBtn = document.getElementById('btn-load-system');
-    loadBtn.disabled = !e.target.value;
-  });
-
-  // Load button confirms system selection
+  // Load button switches to selected system
   document.getElementById('btn-load-system').addEventListener('click', () => {
     const select = document.getElementById('test-system-select');
-    if (select.value) {
+    if (select.value && TEST_SYSTEMS[select.value]) {
       loadTestSystem(select.value);
       document.getElementById('system-map-name').textContent = TEST_SYSTEMS[select.value].name;
       resetMapTime();
       updateSimulatedDays();
-      // Reset select to placeholder
-      select.value = '';
-      document.getElementById('btn-load-system').disabled = true;
+      showNotification(`Switched to ${TEST_SYSTEMS[select.value].name} system`, 'success');
     }
   });
 
@@ -8397,6 +8402,19 @@ function collapseExpandedPanel() {
 }
 
 /**
+ * AR-29.7 Phase 2: Update body class for role-specific styling
+ */
+function updateRoleClass() {
+  const body = document.body;
+  // Remove any existing role classes
+  body.className = body.className.replace(/\brole-\w+\b/g, '').trim();
+  // Add current role class
+  if (state.selectedRole) {
+    body.classList.add(`role-${state.selectedRole.replace('_', '-')}`);
+  }
+}
+
+/**
  * Toggle Ship Systems panel visibility
  */
 function toggleShipSystemsPanel() {
@@ -8556,6 +8574,7 @@ window.fireAtTarget = fireAtTarget;
 window.fireWeapon = fireWeapon;
 window.lockTarget = lockTarget;
 window.selectWeapon = selectWeapon;
+window.selectWeaponByIndex = selectWeaponByIndex;
 window.togglePointDefense = togglePointDefense;
 window.updateFireButton = updateFireButton;
 // Autorun 14: Combat contact management

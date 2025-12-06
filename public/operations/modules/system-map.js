@@ -472,8 +472,7 @@ function render() {
   ctx.fillStyle = colors.space;
   ctx.fillRect(0, 0, width, height);
 
-  // Draw background stars
-  drawBackgroundStars(ctx, width, height);
+  // Background stars removed - just show system on space background
 
   // Calculate center
   const centerX = width / 2 + offsetX;

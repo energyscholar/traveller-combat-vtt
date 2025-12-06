@@ -24,13 +24,6 @@
           </button>
         </div>
 
-        <div class="branding-legal">
-          <p class="author-credit">Created by Bruce Stephenson</p>
-          <p class="attribution">Traveller is a registered trademark of Far Future Enterprises, with gratitude to Marc Miller, creator of Traveller.</p>
-          <p class="disclaimer">This is an unofficial fan project and is not affiliated with or endorsed by Far Future Enterprises or Mongoose Publishing.</p>
-          <p class="copyright">&copy; 2025 Bruce Stephenson. Open source under MIT License.</p>
-        </div>
-
         <div id="campaign-select" class="hidden">
           <h2>Select Campaign</h2>
           <div id="campaign-list" class="campaign-list">
@@ -1580,6 +1573,11 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
     </div>
     <div id="subsector-map-canvas-container" class="subsector-map-content"></div>
   </div>
+
+  <!-- Footer - Legal/Attribution (moved from login for cleaner UI) -->
+  <footer id="app-footer" class="app-footer">
+    <span>Traveller © Far Future Enterprises. Created by Bruce Stephenson. MIT License.</span>
+  </footer>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="modules/subsector-map.js"></script>
