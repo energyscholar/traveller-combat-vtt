@@ -106,7 +106,18 @@ async function loadSubsector(subsectorId) {
     subsectorMapState.systems = data.systems || [];
     subsectorMapState.jumpRoutes = data.jumpRoutes || [];
 
+    // Reset view offset for new subsector
+    subsectorMapState.offsetX = 0;
+    subsectorMapState.offsetY = 0;
+    subsectorMapState.selectedSystem = null;
+    subsectorMapState.hoveredSystem = null;
+
+    // Update title
+    const titleEl = document.getElementById('subsector-map-title');
+    if (titleEl) titleEl.textContent = `${data.name} Subsector`;
+
     renderSubsectorMap();
+    console.log(`[SubsectorMap] Loaded ${data.name}: ${data.systems.length} systems`);
     return data;
   } catch (err) {
     console.error('Failed to load subsector:', err);

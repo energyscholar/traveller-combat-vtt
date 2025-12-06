@@ -1567,7 +1567,13 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
   <!-- AR-29.7: Subsector Map Overlay -->
   <div id="subsector-map-container" class="subsector-map-overlay" style="display: none;">
     <div class="subsector-map-header">
-      <h3>District 268 Subsector</h3>
+      <h3 id="subsector-map-title">District 268 Subsector</h3>
+      <select id="subsector-selector" onchange="loadSubsector(this.value)" title="Select subsector">
+        <option value="district268">District 268</option>
+        <option value="five-sisters">Five Sisters</option>
+        <option value="glisten">Glisten</option>
+        <option value="trins-veil">Trin's Veil</option>
+      </select>
       <button class="btn btn-icon" onclick="hideSubsectorMap()" title="Close">×</button>
     </div>
     <div id="subsector-map-canvas-container" class="subsector-map-content"></div>

@@ -5700,6 +5700,28 @@ body.role-engineer .role-panel .role-actions {
   font-size: 18px;
 }
 
+#subsector-selector {
+  margin-left: auto;
+  margin-right: 15px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--bg-medium, #1a2533);
+  border: 1px solid var(--border-color, #334455);
+  color: var(--text-light, #aabbcc);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#subsector-selector:hover {
+  border-color: var(--accent-primary, #4488ff);
+}
+
+#subsector-selector:focus {
+  outline: none;
+  border-color: var(--accent-primary, #4488ff);
+  box-shadow: 0 0 4px rgba(68, 136, 255, 0.3);
+}
+
 .subsector-map-content {
   flex: 1;
   overflow: hidden;
