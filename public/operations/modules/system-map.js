@@ -3,6 +3,8 @@
  * Canvas-based system visualization with stars, planets, moons
  */
 
+console.log('[SystemMap] Module loading...');
+
 // System Map State
 const systemMapState = {
   canvas: null,
@@ -94,9 +96,21 @@ function resizeCanvas() {
   if (!container || !systemMapState.canvas) return;
 
   const rect = container.getBoundingClientRect();
-  systemMapState.canvas.width = rect.width * window.devicePixelRatio;
-  systemMapState.canvas.height = rect.height * window.devicePixelRatio;
+  const width = rect.width || container.offsetWidth || 800;
+  const height = rect.height || container.offsetHeight || 600;
 
+  // Only resize if dimensions are valid
+  if (width <= 0 || height <= 0) {
+    console.warn('[SystemMap] Container has no dimensions, using fallback');
+    systemMapState.canvas.width = 800 * window.devicePixelRatio;
+    systemMapState.canvas.height = 600 * window.devicePixelRatio;
+  } else {
+    systemMapState.canvas.width = width * window.devicePixelRatio;
+    systemMapState.canvas.height = height * window.devicePixelRatio;
+  }
+
+  // Reset transform before scaling (prevents compounding)
+  systemMapState.ctx.setTransform(1, 0, 0, 1, 0, 0);
   systemMapState.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 }
 
@@ -463,16 +477,29 @@ function stopRenderLoop() {
  */
 function render() {
   const { canvas, ctx, zoom, offsetX, offsetY, colors, system } = systemMapState;
-  if (!canvas || !ctx) return;
+  if (!canvas || !ctx) {
+    console.warn('[SystemMap] render: No canvas or ctx');
+    return;
+  }
 
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
 
-  // Clear canvas
-  ctx.fillStyle = colors.space;
-  ctx.fillRect(0, 0, width, height);
+  // Debug logging (first few frames only)
+  if (!systemMapState._debugCount) systemMapState._debugCount = 0;
+  if (systemMapState._debugCount < 3) {
+    console.log('[SystemMap] render:', { width, height, zoom, hasSystem: !!system, stars: system?.stars?.length });
+    systemMapState._debugCount++;
+  }
 
-  // Background stars removed - just show system on space background
+  // Reset ctx state to known good values
+  ctx.globalAlpha = 1;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.setLineDash([]);
+
+  // Clear to space background
+  ctx.fillStyle = systemMapState.colors.space;
+  ctx.fillRect(0, 0, width, height);
 
   // Calculate center
   const centerX = width / 2 + offsetX;
@@ -486,6 +513,12 @@ function render() {
     const demoSystem = generateSystem('Demo System', 'A788899-C', 'G2 V', '1234');
     drawFullSystem(ctx, centerX, centerY, zoom, demoSystem);
   }
+
+  // AR-29.9: Draw ship integration overlays
+  drawRangeBands(ctx, centerX, centerY, zoom);
+  drawCourseLine(ctx, centerX, centerY, zoom);
+  drawMapContacts(ctx, centerX, centerY, zoom);
+  drawPartyShip(ctx, centerX, centerY, zoom);
 
   // Draw zoom indicator
   drawZoomIndicator(ctx, width, height, zoom);
@@ -596,6 +629,12 @@ function drawOrbitPath(ctx, centerX, centerY, radius) {
  * @param {string} type - 'rocky', 'gas', 'ice', 'habitable'
  */
 function drawPlanet(ctx, x, y, size, type) {
+  // Guard against non-finite values that break createRadialGradient
+  if (!isFinite(x) || !isFinite(y) || !isFinite(size) || size <= 0) {
+    console.warn('[SystemMap] drawPlanet: Invalid parameters', { x, y, size, type });
+    return;
+  }
+
   const colors = {
     rocky: ['#8b7355', '#6b5344', '#5a4535'],
     gas: ['#d4a574', '#c49464', '#b48454', '#e8c4a0'],
@@ -638,6 +677,8 @@ function drawPlanet(ctx, x, y, size, type) {
  * Draw planetary rings
  */
 function drawRings(ctx, x, y, planetSize) {
+  if (!isFinite(x) || !isFinite(y) || !isFinite(planetSize) || planetSize <= 0) return;
+
   const innerRadius = planetSize * 1.3;
   const outerRadius = planetSize * 2;
 
@@ -834,7 +875,7 @@ function destroySystemMap() {
  * @param {string} hex - Hex location for seeding
  * @returns {Object} Generated system data
  */
-function generateSystem(name, uwp = 'X000000-0', stellarClass = 'G2 V', hex = '0000') {
+function generateSystem(name, uwp = 'X000000-0', stellarClass = 'G2 V', hex = '0000', preset = null) {
   // Seed random from hex for consistency
   const seed = parseInt(hex, 16) || 12345;
   const rng = seededRandom(seed);
@@ -850,8 +891,63 @@ function generateSystem(name, uwp = 'X000000-0', stellarClass = 'G2 V', hex = '0
   const mainworldPop = parseInt(uwp[4], 16) || 0;
   const techLevel = parseInt(uwp[7], 16) || 0;
 
-  // Generate planets
-  const planets = generatePlanets(rng, stars[0], mainworldSize, mainworldAtmo, mainworldHydro);
+  let planets, asteroidBelts;
+
+  // Use preset if available, otherwise generate randomly
+  if (preset && preset.planets) {
+    console.log(`[SystemMap] Using preset planets for ${name}`);
+    // Convert preset planets to full planet objects
+    planets = preset.planets.map((p, i) => {
+      const planet = {
+        id: `planet_${i}`,
+        name: p.name,
+        type: p.type,
+        orbitAU: p.orbitAU,
+        orbitPeriod: Math.sqrt(p.orbitAU * p.orbitAU * p.orbitAU) * 365,
+        size: p.size,
+        isMainworld: p.isMainworld || false,
+        hasRings: p.hasRings || false,
+        moons: []
+      };
+      // Generate moons if specified
+      if (p.moons) {
+        for (let m = 0; m < p.moons; m++) {
+          planet.moons.push({
+            id: `moon_${i}_${m}`,
+            name: `${p.name} ${String.fromCharCode(97 + m)}`,
+            size: 500 + rng() * 2500,
+            orbitRadius: (m + 1) * 40000 + rng() * 80000
+          });
+        }
+      }
+      return planet;
+    });
+
+    // Use preset asteroid belts
+    asteroidBelts = (preset.asteroidBelts || []).map((belt, i) => ({
+      id: `belt_${i}`,
+      innerRadius: belt.innerRadius,
+      outerRadius: belt.outerRadius,
+      density: belt.density || 0.4,
+      canMine: true
+    }));
+  } else {
+    // Generate planets randomly
+    planets = generatePlanets(rng, stars[0], mainworldSize, mainworldAtmo, mainworldHydro);
+
+    // Generate asteroid belt (30% chance)
+    asteroidBelts = [];
+    if (rng() < 0.3) {
+      const beltAU = 2.0 + rng() * 2.0;
+      asteroidBelts.push({
+        id: 'belt_0',
+        innerRadius: beltAU * 0.8,
+        outerRadius: beltAU * 1.2,
+        density: 0.3 + rng() * 0.4,
+        canMine: true
+      });
+    }
+  }
 
   // Add starport to mainworld
   const mainworld = planets.find(p => p.isMainworld);
@@ -865,21 +961,10 @@ function generateSystem(name, uwp = 'X000000-0', stellarClass = 'G2 V', hex = '0
     p.fuelAvailable = 'Unrefined (wilderness)';
   });
 
-  // Generate asteroid belt (30% chance)
-  const asteroidBelts = [];
-  if (rng() < 0.3) {
-    const beltAU = 2.0 + rng() * 2.0; // 2-4 AU typical
-    asteroidBelts.push({
-      id: 'belt_0',
-      innerRadius: beltAU * 0.8,
-      outerRadius: beltAU * 1.2,
-      density: 0.3 + rng() * 0.4,
-      canMine: true
-    });
-  }
-
   // Build places array (clickable destinations)
   const places = generatePlaces(planets, asteroidBelts, starportClass, name);
+
+  console.log(`[SystemMap] Generated ${name}: ${stars.length} stars, ${planets.length} planets, ${asteroidBelts.length} belts`);
 
   return {
     name,
@@ -1042,32 +1127,56 @@ function parseStars(stellarClass, rng) {
   const stars = [];
   const parts = stellarClass.split(/\s+/);
 
-  // Primary star
-  const primary = parts[0] || 'G2';
-  const luminosity = parts[1] || 'V';
+  // Parse stellar class format: "F7 V M0 V M4 V" -> [F7, V, M0, V, M4, V]
+  // Each star is (type, luminosity) pair
+  let i = 0;
+  let starIndex = 0;
 
-  stars.push({
-    type: primary[0] || 'G',
-    subtype: parseInt(primary.slice(1)) || 2,
-    luminosity,
-    radius: getStarRadius(primary[0], luminosity),
-    color: getStarColor(primary[0]),
-    position: { x: 0, y: 0 }
-  });
+  while (i < parts.length) {
+    const typeSpec = parts[i] || 'G2';
+    const luminosity = parts[i + 1] || 'V';
 
-  // Check for binary/trinary (simplified)
-  if (parts.length > 2 || stellarClass.includes('+')) {
-    const secondaryType = parts[2]?.[0] || (rng() < 0.5 ? 'K' : 'M');
+    // Extract spectral type (letter) and subtype (number)
+    const type = typeSpec[0] || 'G';
+    const subtype = parseInt(typeSpec.slice(1)) || 2;
+
+    // Position companion stars away from primary
+    let position;
+    if (starIndex === 0) {
+      position = { x: 0, y: 0 };
+    } else if (starIndex === 1) {
+      position = { x: 0.8, y: 0.4 }; // Close binary companion
+    } else {
+      position = { x: -0.6, y: -0.5 }; // Distant tertiary
+    }
+
     stars.push({
-      type: secondaryType,
-      subtype: Math.floor(rng() * 9),
-      luminosity: 'V',
-      radius: getStarRadius(secondaryType, 'V') * 0.8,
-      color: getStarColor(secondaryType),
-      position: { x: 0.5, y: 0.3 } // AU from primary
+      type,
+      subtype,
+      luminosity,
+      radius: getStarRadius(type, luminosity) * (starIndex === 0 ? 1 : 0.7),
+      color: getStarColor(type),
+      position,
+      isPrimary: starIndex === 0
+    });
+
+    i += 2; // Move to next type/luminosity pair
+    starIndex++;
+
+    // Safety limit
+    if (starIndex >= 4) break;
+  }
+
+  // Fallback if parsing failed
+  if (stars.length === 0) {
+    stars.push({
+      type: 'G', subtype: 2, luminosity: 'V',
+      radius: 1, color: getStarColor('G'),
+      position: { x: 0, y: 0 }, isPrimary: true
     });
   }
 
+  console.log(`[SystemMap] parseStars: "${stellarClass}" -> ${stars.length} stars`);
   return stars;
 }
 
@@ -1211,22 +1320,58 @@ const TEST_SYSTEMS = {
     name: 'Dorannia',
     hex: '0530',
     uwp: 'E42158A-8',
-    stellarClass: 'K4 V',
-    tradeCodes: 'He Ni Po'
+    stellarClass: 'K4 V',  // Orange dwarf - smaller, dimmer
+    tradeCodes: 'He Ni Po',
+    // Preset: Sparse system with asteroid belt
+    preset: {
+      planets: [
+        { name: 'Dorannia I', type: 'rocky', orbitAU: 0.3, size: 3000, isMainworld: false },
+        { name: 'Dorannia', type: 'rocky', orbitAU: 0.6, size: 4200, isMainworld: true },
+        { name: 'Dorannia III', type: 'ice', orbitAU: 2.5, size: 6000, isMainworld: false },
+        { name: 'Outer Giant', type: 'gas', orbitAU: 5.0, size: 45000, isMainworld: false, hasRings: false, moons: 2 }
+      ],
+      asteroidBelts: [{ innerRadius: 1.2, outerRadius: 1.8, density: 0.5 }],
+      description: 'Sparse orange dwarf system with prominent asteroid belt'
+    }
   },
   flammarion: {
     name: 'Flammarion',
     hex: '0930',
     uwp: 'A623514-B',
-    stellarClass: 'F8 V',
-    tradeCodes: 'Ni Po'
+    stellarClass: 'F8 V',  // Bright yellow-white star
+    tradeCodes: 'Ni Po',
+    // Preset: Rich system with multiple gas giants
+    preset: {
+      planets: [
+        { name: 'Flammarion I', type: 'rocky', orbitAU: 0.4, size: 4800, isMainworld: false },
+        { name: 'Flammarion', type: 'rocky', orbitAU: 0.9, size: 6200, isMainworld: true },
+        { name: 'Flammarion III', type: 'rocky', orbitAU: 1.4, size: 5500, isMainworld: false },
+        { name: 'Beaumont', type: 'gas', orbitAU: 3.2, size: 85000, isMainworld: false, hasRings: true, moons: 4 },
+        { name: 'Verne', type: 'gas', orbitAU: 6.5, size: 120000, isMainworld: false, hasRings: true, moons: 6 },
+        { name: 'Outer Ice', type: 'ice', orbitAU: 12.0, size: 8000, isMainworld: false, moons: 1 }
+      ],
+      asteroidBelts: [],
+      description: 'Bright F-class system with twin ringed gas giants'
+    }
   },
   caladbolg: {
     name: 'Caladbolg',
     hex: '1329',
     uwp: 'B565776-A',
-    stellarClass: 'F7 V M0 V M4 V', // Trinary system!
-    tradeCodes: 'Ag Ri'
+    stellarClass: 'F7 V M0 V M4 V', // TRINARY system!
+    tradeCodes: 'Ag Ri',
+    // Preset: Trinary system - 3 visible stars!
+    preset: {
+      planets: [
+        { name: 'Caladbolg I', type: 'rocky', orbitAU: 0.5, size: 3500, isMainworld: false },
+        { name: 'Caladbolg', type: 'habitable', orbitAU: 1.2, size: 6500, isMainworld: true },
+        { name: 'Caladbolg III', type: 'habitable', orbitAU: 1.8, size: 5800, isMainworld: false },
+        { name: 'Magnus', type: 'gas', orbitAU: 4.5, size: 95000, isMainworld: false, hasRings: false, moons: 8 },
+        { name: 'Caladbolg V', type: 'ice', orbitAU: 8.0, size: 7200, isMainworld: false, moons: 2 }
+      ],
+      asteroidBelts: [{ innerRadius: 2.8, outerRadius: 3.5, density: 0.3 }],
+      description: 'TRINARY system - 3 stars! Agricultural world'
+    }
   }
 };
 
@@ -1240,11 +1385,13 @@ function loadTestSystem(systemKey) {
     return null;
   }
 
+  // Pass preset if available for distinct system layouts
   const system = generateSystem(
     testData.name,
     testData.uwp,
     testData.stellarClass,
-    testData.hex
+    testData.hex,
+    testData.preset  // Pass the preset planets/belts
   );
 
   systemMapState.system = system;
@@ -1315,23 +1462,238 @@ function resetTime() {
   console.log('[SystemMap] Time reset to epoch');
 }
 
-// Export for ES modules
+// ==================== AR-29.9: Ship Integration ====================
+
+/**
+ * Ship state on system map
+ */
+const shipMapState = {
+  partyShip: null,       // { position: {x, y, z}, heading, name }
+  contacts: [],          // Sensor contacts
+  showRangeBands: false, // Toggle for range band overlay
+  destination: null      // Current course destination
+};
+
+/**
+ * Update party ship position on system map
+ * @param {Object} shipData - { position: {x, y, z}, heading, name }
+ */
+function updateShipPosition(shipData) {
+  shipMapState.partyShip = shipData;
+}
+
+/**
+ * Update sensor contacts on system map
+ * @param {Array} contacts - Array of sensor contacts
+ */
+function updateMapContacts(contacts) {
+  shipMapState.contacts = contacts || [];
+}
+
+/**
+ * Toggle range band overlay
+ */
+function toggleRangeBands() {
+  shipMapState.showRangeBands = !shipMapState.showRangeBands;
+}
+
+/**
+ * Set destination for course plotting
+ */
+function setMapDestination(bodyId) {
+  const system = systemMapState.system;
+  if (!system) return;
+
+  // Find body by id
+  const allBodies = [...(system.planets || []), ...(system.places || [])];
+  const body = allBodies.find(b => b.id === bodyId);
+  shipMapState.destination = body || null;
+}
+
+/**
+ * Draw party ship on system map
+ */
+function drawPartyShip(ctx, centerX, centerY, zoom) {
+  if (!shipMapState.partyShip) return;
+
+  const pos = shipMapState.partyShip.position || { x: 5, y: 0, z: 0 };
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  const screenX = centerX + pos.x * auToPixels + systemMapState.offsetX;
+  const screenY = centerY + pos.y * auToPixels + systemMapState.offsetY;
+
+  // Ship triangle (pointing in heading direction)
+  const heading = shipMapState.partyShip.heading || 0;
+  const size = Math.max(10, 15 * Math.sqrt(zoom));
+
+  ctx.save();
+  ctx.translate(screenX, screenY);
+  ctx.rotate(heading);
+
+  // Ship glow
+  ctx.shadowColor = '#4488ff';
+  ctx.shadowBlur = 10;
+
+  // Ship body
+  ctx.fillStyle = '#4488ff';
+  ctx.beginPath();
+  ctx.moveTo(0, -size);           // Nose
+  ctx.lineTo(-size * 0.6, size * 0.6);  // Left
+  ctx.lineTo(0, size * 0.3);      // Rear center
+  ctx.lineTo(size * 0.6, size * 0.6);   // Right
+  ctx.closePath();
+  ctx.fill();
+
+  // Engine glow
+  ctx.shadowColor = '#ff6600';
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = '#ff8833';
+  ctx.beginPath();
+  ctx.arc(0, size * 0.5, size * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Ship label
+  const name = shipMapState.partyShip.name || 'Party Ship';
+  ctx.fillStyle = '#88aaff';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(name, screenX, screenY + size + 14);
+}
+
+/**
+ * Draw sensor contacts on system map
+ */
+function drawMapContacts(ctx, centerX, centerY, zoom) {
+  if (!shipMapState.contacts.length) return;
+
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  for (const contact of shipMapState.contacts) {
+    // Convert bearing/range to position (simplified)
+    const range = contact.rangeKm ? contact.rangeKm / 150000000 : 1; // Convert km to AU approx
+    const bearing = (contact.bearing || 0) * Math.PI / 180;
+
+    const x = Math.cos(bearing) * range;
+    const y = Math.sin(bearing) * range;
+
+    const screenX = centerX + x * auToPixels + systemMapState.offsetX;
+    const screenY = centerY + y * auToPixels + systemMapState.offsetY;
+
+    // Contact color by type
+    let color = '#888888';
+    if (contact.hostile) color = '#ff4444';
+    else if (contact.friendly) color = '#44ff44';
+    else if (contact.known) color = '#ffff44';
+
+    // Draw contact
+    const size = 6;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Contact designation
+    if (contact.designation) {
+      ctx.fillStyle = color;
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(contact.designation, screenX, screenY + size + 10);
+    }
+  }
+}
+
+/**
+ * Draw range band overlay
+ */
+function drawRangeBands(ctx, centerX, centerY, zoom) {
+  if (!shipMapState.showRangeBands || !shipMapState.partyShip) return;
+
+  const pos = shipMapState.partyShip.position || { x: 5, y: 0, z: 0 };
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+  const shipX = centerX + pos.x * auToPixels + systemMapState.offsetX;
+  const shipY = centerY + pos.y * auToPixels + systemMapState.offsetY;
+
+  // Range bands in km → AU (1 AU ≈ 150,000,000 km)
+  const bands = [
+    { name: 'Adjacent', km: 1, color: 'rgba(255, 0, 0, 0.1)' },
+    { name: 'Close', km: 10, color: 'rgba(255, 128, 0, 0.08)' },
+    { name: 'Short', km: 1250, color: 'rgba(255, 255, 0, 0.06)' },
+    { name: 'Medium', km: 10000, color: 'rgba(0, 255, 0, 0.05)' },
+    { name: 'Long', km: 25000, color: 'rgba(0, 128, 255, 0.04)' }
+  ];
+
+  for (const band of bands.reverse()) {
+    const radiusAU = band.km / 150000;
+    const radiusPx = radiusAU * auToPixels;
+
+    if (radiusPx > 5) { // Only draw if visible
+      ctx.fillStyle = band.color;
+      ctx.beginPath();
+      ctx.arc(shipX, shipY, radiusPx, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/**
+ * Draw course line to destination
+ */
+function drawCourseLine(ctx, centerX, centerY, zoom) {
+  if (!shipMapState.partyShip || !shipMapState.destination) return;
+
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+  const shipPos = shipMapState.partyShip.position || { x: 5, y: 0, z: 0 };
+
+  const shipX = centerX + shipPos.x * auToPixels + systemMapState.offsetX;
+  const shipY = centerY + shipPos.y * auToPixels + systemMapState.offsetY;
+
+  // Get destination position (from body orbit)
+  const dest = shipMapState.destination;
+  const orbitRadius = dest.orbitRadius || 1;
+  const destX = centerX + orbitRadius * auToPixels + systemMapState.offsetX;
+  const destY = centerY + systemMapState.offsetY;
+
+  // Draw dashed line
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(shipX, shipY);
+  ctx.lineTo(destX, destY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// Expose ship functions globally
+window.updateShipPosition = updateShipPosition;
+window.updateMapContacts = updateMapContacts;
+window.toggleRangeBands = toggleRangeBands;
+window.setMapDestination = setMapDestination;
+window.shipMapState = shipMapState;
+window.resizeSystemMapCanvas = resizeCanvas;
+
+// Export for ES modules (app.js imports these)
 export {
   initSystemMap,
   loadSystem,
   destroySystemMap,
   systemMapState,
   generateSystem,
-  // Test systems
   TEST_SYSTEMS,
   loadTestSystem,
-  // Time controls
   togglePause,
   setTimeSpeed,
   advanceTime,
   rewindTime,
   resetTime,
-  // Places overlay
   showPlacesOverlay,
-  hidePlacesOverlay
+  hidePlacesOverlay,
+  updateShipPosition,
+  updateMapContacts,
+  toggleRangeBands,
+  setMapDestination,
+  shipMapState,
+  resizeCanvas
 };

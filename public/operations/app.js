@@ -26,7 +26,8 @@ import {
   resetTime as resetMapTime,
   systemMapState,
   showPlacesOverlay,
-  hidePlacesOverlay
+  hidePlacesOverlay,
+  resizeCanvas as resizeSystemMapCanvas
 } from './modules/system-map.js';
 
 // ==================== Debug Configuration ====================
@@ -94,6 +95,11 @@ function initSocket() {
     state.heartbeatInterval = setInterval(() => {
       state.socket.emit('ops:ping');
     }, 60000);
+
+    // AR-30: Setup pilot listeners
+    setupPilotListeners();
+    // AR-31: Setup engineer listeners
+    setupEngineerListeners();
   });
 
   state.socket.on('disconnect', () => {
@@ -490,7 +496,7 @@ function initSocket() {
     updateAlertStatus(status);
     // Apply border to all panels based on alert
     applyAlertBorder(status);
-    if (state.role === 'captain') {
+    if (state.selectedRole === 'captain') {
       renderRoleDetailPanel('captain');
     }
   });
@@ -499,22 +505,22 @@ function initSocket() {
   state.socket.on('ops:orderReceived', (data) => {
     // Show order to targeted crew
     const { target, order, from, id, requiresAck } = data;
-    if (target === 'all' || target === state.role) {
+    if (target === 'all' || target === state.selectedRole) {
       showNotification(`Order from ${from}: ${order}`, 'warning');
       // Show acknowledge button for targeted roles
-      if (requiresAck && state.role !== 'captain') {
+      if (requiresAck && state.selectedRole !== 'captain') {
         showOrderAckPrompt(id, order);
       }
     }
     // Captain sees all orders in panel
-    if (state.role === 'captain') {
+    if (state.selectedRole === 'captain') {
       renderRoleDetailPanel('captain');
     }
   });
 
   state.socket.on('ops:orderAcknowledged', (data) => {
     const { orderId, acknowledgedBy } = data;
-    if (state.role === 'captain') {
+    if (state.selectedRole === 'captain') {
       showNotification(`${acknowledgedBy} acknowledged order`, 'success');
       renderRoleDetailPanel('captain');
     }
@@ -523,11 +529,13 @@ function initSocket() {
   state.socket.on('ops:weaponsAuthChanged', (data) => {
     const { mode, authorizedTargets } = data;
     state.weaponsAuth = { mode, targets: authorizedTargets };
-    if (state.role === 'gunner') {
+    // Update bridge header indicator
+    updateWeaponsAuthIndicator(mode);
+    if (state.selectedRole === 'gunner') {
       showNotification(`Weapons ${mode === 'free' ? 'FREE - cleared to engage' : 'HOLD - do not fire'}`, mode === 'free' ? 'warning' : 'info');
       renderRoleDetailPanel('gunner');
     }
-    if (state.role === 'captain') {
+    if (state.selectedRole === 'captain') {
       renderRoleDetailPanel('captain');
     }
   });
@@ -542,21 +550,21 @@ function initSocket() {
       }
     }
     showNotification(`Contact marked ${marking} by ${markedBy}`, marking === 'hostile' ? 'warning' : 'info');
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
   });
 
   state.socket.on('ops:statusRequested', (data) => {
     // Auto-respond with status if we're a crew role
-    if (state.role && state.role !== 'captain' && !state.isGM) {
-      const status = generateRoleStatus(state.role);
-      state.socket.emit('ops:statusReport', { role: state.role, status });
+    if (state.selectedRole && state.selectedRole !== 'captain' && !state.isGM) {
+      const status = generateRoleStatus(state.selectedRole);
+      state.socket.emit('ops:statusReport', { role: state.selectedRole, status });
       showNotification('Status report sent to Captain', 'info');
     }
   });
 
   state.socket.on('ops:statusReceived', (data) => {
     // Captain receives status reports
-    if (state.role === 'captain') {
+    if (state.selectedRole === 'captain') {
       const { role, status, from } = data;
       showNotification(`${from} reports: ${status.summary || 'Ready'}`, 'info');
     }
@@ -762,8 +770,8 @@ function initSocket() {
   state.socket.on('ops:systemStatus', (data) => {
     state.systemStatus = data.systemStatus;
     state.damagedSystems = data.damagedSystems;
-    if (state.role === 'engineer' || state.role === 'damage_control') {
-      renderRoleDetailPanel(state.role);
+    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
+      renderRoleDetailPanel(state.selectedRole);
     }
   });
 
@@ -773,8 +781,8 @@ function initSocket() {
       data.systemStatus[s]?.totalSeverity > 0
     );
     showNotification(`System damage: ${formatSystemName(data.location)} (Severity ${data.severity})`, 'warning');
-    if (state.role === 'engineer' || state.role === 'damage_control') {
-      renderRoleDetailPanel(state.role);
+    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
+      renderRoleDetailPanel(state.selectedRole);
     }
   });
 
@@ -785,8 +793,8 @@ function initSocket() {
     );
     const notifType = data.success ? 'success' : 'warning';
     showNotification(data.message, notifType);
-    if (state.role === 'engineer' || state.role === 'damage_control') {
-      renderRoleDetailPanel(state.role);
+    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
+      renderRoleDetailPanel(state.selectedRole);
     }
   });
 
@@ -796,16 +804,16 @@ function initSocket() {
       data.systemStatus[s]?.totalSeverity > 0
     );
     showNotification(`Damage cleared: ${data.location === 'all' ? 'all systems' : formatSystemName(data.location)}`, 'success');
-    if (state.role === 'engineer' || state.role === 'damage_control') {
-      renderRoleDetailPanel(state.role);
+    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
+      renderRoleDetailPanel(state.selectedRole);
     }
   });
 
   // Jump events
   state.socket.on('ops:jumpStatus', (data) => {
     state.jumpStatus = data;
-    if (state.role === 'astrogator' || state.role === 'pilot') {
-      renderRoleDetailPanel(state.role);
+    if (state.selectedRole === 'astrogator' || state.selectedRole === 'pilot') {
+      renderRoleDetailPanel(state.selectedRole);
     }
   });
 
@@ -832,7 +840,7 @@ function initSocket() {
     const plotResult = document.getElementById('jump-plot-result');
     if (plotResult) plotResult.style.display = 'none';
     showNotification(`Jump initiated to ${data.destination}. ETA: ${data.jumpEndDate}`, 'info');
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
     renderShipStatus();
   });
 
@@ -846,9 +854,9 @@ function initSocket() {
     // Autorun 5: Store news and mail for display
     state.systemNews = data.news || [];
     state.systemMail = data.mail || {};
-    state.roleContent = data.roleContent || {};
+    state.selectedRoleContent = data.roleContent || {};
     showNotification(`Arrived at ${data.arrivedAt}`, 'success');
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
     renderBridge();
     // Show news/mail modal if there's content
     if (state.systemNews.length > 0 || Object.keys(state.systemMail).length > 0) {
@@ -872,7 +880,7 @@ function initSocket() {
   state.socket.on('ops:contactsReplaced', (data) => {
     state.contacts = data.contacts || [];
     showNotification(`Sensor contacts updated: ${state.contacts.length} objects detected`, 'info');
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
     renderCombatContactsList(); // Autorun 14
   });
 
@@ -890,7 +898,7 @@ function initSocket() {
         state.contacts[idx] = data.contact;
       }
       renderContacts();
-      renderRoleDetailPanel(state.role);
+      renderRoleDetailPanel(state.selectedRole);
       showNotification(data.message || 'Scan complete', 'success');
     } else {
       showNotification(data.message || 'Scan failed', 'error');
@@ -935,7 +943,7 @@ function initSocket() {
     const contact = data.contact;
     state.lockedTarget = contact.id;
     showNotification(`Target locked: ${contact.name}`, 'success');
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
   });
 
   state.socket.on('ops:combatAction', (data) => {
@@ -969,7 +977,7 @@ function initSocket() {
     }
 
     // Refresh gunner panel to update combat log
-    if (state.role === 'gunner') {
+    if (state.selectedRole === 'gunner') {
       renderRoleDetailPanel('gunner');
     }
   });
@@ -988,12 +996,12 @@ function initSocket() {
       state.lockedTarget = null;
     }
 
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
   });
 
   state.socket.on('ops:shipWeapons', (data) => {
     state.shipWeapons = data.weapons || [];
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
   });
 
   // Ship Systems status response
@@ -1003,7 +1011,7 @@ function initSocket() {
 
   state.socket.on('ops:combatLog', (data) => {
     state.combatLog = data.log || [];
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
   });
 
   state.socket.on('ops:pointDefenseStatus', (data) => {
@@ -1020,7 +1028,7 @@ function initSocket() {
     const { jumpStatus, message } = data;
     state.jumpStatus = jumpStatus;
     showNotification(message || 'Jump status updated', 'success');
-    renderRoleDetailPanel(state.role);
+    renderRoleDetailPanel(state.selectedRole);
   });
 
   // Stage 7: Handle time updates (from jumps or GM actions)
@@ -3007,6 +3015,269 @@ function requestSystemStatus() {
   }
 }
 
+// ==================== Power Management (AR-31) ====================
+
+/**
+ * Set power allocation to a preset
+ * @param {string} preset - combat, silent, jump, or standard
+ */
+function setPowerPreset(preset) {
+  if (!state.socket || !state.shipId) {
+    showNotification('Not connected to ship', 'error');
+    return;
+  }
+  state.socket.emit('ops:setPowerPreset', { preset });
+}
+
+/**
+ * Update power levels from sliders
+ */
+function updatePower() {
+  if (!state.socket || !state.shipId) return;
+
+  const sliders = document.querySelectorAll('.power-slider');
+  const power = {};
+  sliders.forEach(slider => {
+    power[slider.dataset.system] = parseInt(slider.value, 10);
+  });
+
+  state.socket.emit('ops:setPower', power);
+}
+
+/**
+ * Request current power status
+ */
+function requestPowerStatus() {
+  if (state.socket && state.shipId) {
+    state.socket.emit('ops:getPowerStatus');
+  }
+}
+
+// ==================== Pilot Controls (AR-30) ====================
+
+// Track evasive state locally for UI updates
+let pilotEvasiveState = false;
+
+function toggleEvasive() {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+
+  const newState = !pilotEvasiveState;
+  state.socket.emit('ops:setEvasive', { enabled: newState });
+}
+
+function changeRange(action) {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+
+  const contactId = document.getElementById('range-contact-select')?.value;
+  if (!contactId) {
+    showNotification('No contact selected', 'error');
+    return;
+  }
+
+  state.socket.emit('ops:setRange', { contactId, action });
+}
+
+function setCourse(destination, eta) {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+
+  state.socket.emit('ops:setCourse', { destination, eta });
+}
+
+function clearCourse() {
+  if (!state.socket || !state.campaignId) return;
+  state.socket.emit('ops:clearCourse');
+}
+
+// Listen for pilot events
+function setupPilotListeners() {
+  if (!state.socket) return;
+
+  state.socket.on('ops:evasiveChanged', (data) => {
+    pilotEvasiveState = data.enabled;
+    const btn = document.getElementById('evasive-toggle');
+    if (btn) {
+      btn.className = `btn btn-small ${data.enabled ? 'btn-active' : ''}`;
+      btn.textContent = data.enabled ? '⚡ Evasive ON' : 'Evasive';
+    }
+    showNotification(data.enabled ? 'Evasive maneuvers engaged' : 'Evasive maneuvers ended', 'info');
+  });
+
+  state.socket.on('ops:rangeChanged', (data) => {
+    showNotification(`Range to ${data.contactId}: ${data.previousRange} → ${data.newRange}`, 'info');
+    // Refresh panel to show updated range
+    if (typeof refreshCrewPanel === 'function') {
+      refreshCrewPanel();
+    }
+  });
+
+  state.socket.on('ops:courseChanged', (data) => {
+    showNotification(`Course set for ${data.destination}`, 'info');
+  });
+
+  state.socket.on('ops:courseCleared', () => {
+    showNotification('Course cleared', 'info');
+  });
+
+  state.socket.on('ops:timeAdvanced', (data) => {
+    if (state.campaign) {
+      state.campaign.current_date = data.newDate;
+    }
+    const dateEl = document.getElementById('bridge-date');
+    if (dateEl) dateEl.textContent = data.newDate;
+    showNotification(`Time: ${data.newDate}${data.advancedBy ? ` (${data.advancedBy})` : ''}`, 'info');
+  });
+}
+
+// AR-31: Listen for engineer power events
+function setupEngineerListeners() {
+  if (!state.socket) return;
+
+  state.socket.on('ops:powerChanged', (data) => {
+    // Update local ship state
+    if (state.shipState) {
+      state.shipState.power = data.power;
+      state.shipState.powerEffects = data.effects;
+      state.shipState.powerPreset = data.preset;
+    }
+    // Show notification
+    const presetLabel = data.preset ? data.preset.charAt(0).toUpperCase() + data.preset.slice(1) : 'Custom';
+    showNotification(`Power: ${presetLabel} (${data.setBy})`, 'info');
+    // Refresh panel to show updated power levels
+    if (typeof refreshCrewPanel === 'function') {
+      refreshCrewPanel();
+    }
+  });
+
+  state.socket.on('ops:powerStatus', (data) => {
+    if (state.shipState) {
+      state.shipState.power = data.power;
+      state.shipState.powerEffects = data.effects;
+    }
+    if (typeof refreshCrewPanel === 'function') {
+      refreshCrewPanel();
+    }
+  });
+}
+
+// Advance game time (AR-30: player time control)
+function advanceTime(days, hours, minutes = 0, reason = '') {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+  state.socket.emit('ops:advanceTime', { days, hours, minutes, reason });
+}
+
+// AR-33: Travel confirmation modal
+let pendingTravel = null;
+
+function showTravelModal(destination) {
+  pendingTravel = destination;
+
+  // Load and show template
+  const template = document.getElementById('template-travel-confirm');
+  if (!template) {
+    console.error('[Travel] Template not found');
+    // Fallback: just set system without modal
+    state.socket.emit('ops:setCurrentSystem', destination);
+    closeModal();
+    return;
+  }
+
+  const content = template.content.cloneNode(true);
+
+  // Set destination name
+  const destName = content.querySelector('#travel-destination-name');
+  if (destName) destName.textContent = destination.system;
+
+  // Set current date
+  const currentDate = content.querySelector('#travel-current-date');
+  if (currentDate) currentDate.textContent = state.campaign?.current_date || '--';
+
+  // Calculate arrival date function
+  const updateArrivalDate = () => {
+    const selected = document.querySelector('input[name="travel-time"]:checked');
+    const arrivalEl = document.getElementById('travel-arrival-date');
+    if (!selected || !arrivalEl || !state.campaign?.current_date) return;
+
+    let days = 0;
+    if (selected.value === 'instant') {
+      days = 0;
+    } else if (selected.value === 'custom') {
+      days = parseInt(document.getElementById('travel-custom-days')?.value) || 0;
+    } else {
+      days = parseInt(selected.value) || 7;
+    }
+
+    // Calculate new date (simple approximation for display)
+    if (days === 0) {
+      arrivalEl.textContent = state.campaign.current_date + ' (no change)';
+    } else {
+      // Parse YYYY-DDD HH:MM format
+      const [datePart, timePart] = state.campaign.current_date.split(' ');
+      const [year, dayOfYear] = datePart.split('-').map(Number);
+      let newDay = dayOfYear + days;
+      let newYear = year;
+      while (newDay > 365) {
+        newDay -= 365;
+        newYear++;
+      }
+      arrivalEl.textContent = `${newYear}-${String(newDay).padStart(3, '0')} ${timePart || '00:00'}`;
+    }
+  };
+
+  // Show modal
+  const overlay = document.getElementById('modal-overlay');
+  const modalContent = document.getElementById('modal-content');
+  modalContent.innerHTML = '';
+  modalContent.appendChild(content);
+  overlay.classList.remove('hidden');
+
+  // Add event listeners
+  document.querySelectorAll('input[name="travel-time"]').forEach(radio => {
+    radio.addEventListener('change', updateArrivalDate);
+  });
+  document.getElementById('travel-custom-days')?.addEventListener('input', () => {
+    document.getElementById('travel-custom').checked = true;
+    updateArrivalDate();
+  });
+
+  // Initial calculation
+  setTimeout(updateArrivalDate, 10);
+
+  // Confirm button
+  document.getElementById('btn-confirm-travel')?.addEventListener('click', () => {
+    const selected = document.querySelector('input[name="travel-time"]:checked');
+    let days = 0;
+    if (selected) {
+      if (selected.value === 'instant') {
+        days = 0;
+      } else if (selected.value === 'custom') {
+        days = parseInt(document.getElementById('travel-custom-days')?.value) || 0;
+      } else {
+        days = parseInt(selected.value) || 7;
+      }
+    }
+
+    // Emit travel with time
+    state.socket.emit('ops:travelToSystem', {
+      ...pendingTravel,
+      travelDays: days
+    });
+    closeModal();
+    pendingTravel = null;
+  });
+}
+
 // ==================== Jump Travel ====================
 
 function requestJumpStatus() {
@@ -3224,7 +3495,7 @@ function handleScanResult(data) {
   }
 
   // Re-render panel to update contact counts
-  renderRoleDetailPanel(state.role);
+  renderRoleDetailPanel(state.selectedRole);
 }
 
 // Scan a specific contact to increase detection level
@@ -3234,16 +3505,133 @@ function scanContact(contactId, targetLevel) {
   showNotification(`Targeting contact for ${scanType} scan...`, 'info');
 }
 
+// Show scan result overlay with newly discovered info highlighted - AR-30
+function showScanResultOverlay(contact, discoveries, oldLevel, newLevel) {
+  // Define what fields are revealed at each scan level
+  const SCAN_LEVEL_LABELS = { 0: 'Unknown', 1: 'Passive', 2: 'Active', 3: 'Deep' };
+
+  // Map discovery strings to actual contact field names
+  const DISCOVERY_FIELD_MAP = {
+    'transponder': 'transponder',
+    'celestial type': 'type',
+    'bearing': 'bearing',
+    'range': 'range_band',
+    'ship type': 'type',
+    'tonnage': 'tonnage',
+    'signature': 'signature',
+    'transponder override': 'transponder',
+    'weapons detected': 'weapons',
+    'cargo manifest': 'cargo',
+    'crew count': 'crew',
+    'detailed specs': 'specs',
+    'GM notes': 'gm_notes'
+  };
+
+  // Create set of newly discovered field names
+  const newFields = new Set(discoveries.map(d => DISCOVERY_FIELD_MAP[d]).filter(Boolean));
+
+  // Build rows for all known info
+  const rows = [];
+
+  // Always show name/designator
+  const displayName = contact.name || contact.transponder || `Contact ${contact.id?.slice(0, 4) || '???'}`;
+  rows.push({ label: 'Designation', value: displayName, isNew: newFields.has('name') || newFields.has('transponder') });
+
+  // Type (ship/celestial)
+  if (contact.type) {
+    rows.push({ label: 'Type', value: contact.type, isNew: newFields.has('type') });
+  }
+
+  // Position info
+  if (contact.bearing !== undefined) {
+    rows.push({ label: 'Bearing', value: `${contact.bearing}°`, isNew: newFields.has('bearing') });
+  }
+  if (contact.range_band) {
+    rows.push({ label: 'Range', value: contact.range_band, isNew: newFields.has('range_band') });
+  }
+  if (contact.range_km) {
+    rows.push({ label: 'Distance', value: `${contact.range_km.toLocaleString()} km`, isNew: false });
+  }
+
+  // Transponder
+  if (contact.transponder) {
+    rows.push({ label: 'Transponder', value: contact.transponder, isNew: newFields.has('transponder') });
+  }
+
+  // Ship details (level 2+)
+  if (contact.tonnage) {
+    rows.push({ label: 'Tonnage', value: `${contact.tonnage} dT`, isNew: newFields.has('tonnage') });
+  }
+  if (contact.signature) {
+    rows.push({ label: 'Signature', value: contact.signature, isNew: newFields.has('signature') });
+  }
+
+  // Deep scan details (level 3)
+  if (contact.crew) {
+    rows.push({ label: 'Crew', value: contact.crew, isNew: newFields.has('crew') });
+  }
+  if (contact.cargo) {
+    rows.push({ label: 'Cargo', value: contact.cargo, isNew: newFields.has('cargo') });
+  }
+
+  // Celestial info
+  if (contact.stellar_class) {
+    rows.push({ label: 'Stellar Class', value: contact.stellar_class, isNew: false });
+  }
+  if (contact.uwp) {
+    rows.push({ label: 'UWP', value: contact.uwp, isNew: false });
+  }
+  if (contact.trade_codes) {
+    rows.push({ label: 'Trade Codes', value: contact.trade_codes, isNew: false });
+  }
+
+  // Build HTML
+  const rowsHtml = rows.map(r => `
+    <div class="scan-result-row${r.isNew ? ' newly-discovered' : ''}">
+      <span class="scan-result-label">${escapeHtml(r.label)}</span>
+      <span class="scan-result-value">${escapeHtml(r.value)}</span>
+    </div>
+  `).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'scan-result-overlay';
+  overlay.innerHTML = `
+    <div class="scan-result-card">
+      <div class="scan-result-header">
+        <h4>Scan Complete</h4>
+        <span class="scan-level-badge">${SCAN_LEVEL_LABELS[newLevel]} Scan</span>
+      </div>
+      <div class="scan-result-body">
+        ${rowsHtml}
+      </div>
+      <div class="scan-result-footer">
+        ${discoveries.length > 0 ? `New data acquired: ${discoveries.join(', ')}` : 'No new data discovered'}
+        <br><small>Click anywhere to dismiss</small>
+      </div>
+    </div>
+  `;
+
+  // Click anywhere to dismiss
+  overlay.addEventListener('click', () => {
+    overlay.remove();
+  });
+
+  // Prevent click on card from dismissing (optional - currently allows dismiss anywhere)
+  // overlay.querySelector('.scan-result-card').addEventListener('click', e => e.stopPropagation());
+
+  document.body.appendChild(overlay);
+}
+
 // ==================== News & Mail Display (Autorun 5) ====================
 
 function showNewsMailModal(systemName) {
   const news = state.systemNews || [];
   const mail = state.systemMail || {};
-  const roleContent = state.roleContent || {};
+  const roleContent = state.selectedRoleContent || {};
 
   // Get role-specific mail if available
-  const myMail = mail[state.role] || null;
-  const myRoleAdvice = roleContent[state.role] || null;
+  const myMail = mail[state.selectedRole] || null;
+  const myRoleAdvice = roleContent[state.selectedRole] || null;
 
   // Create modal content
   let html = `
@@ -3259,7 +3647,7 @@ function showNewsMailModal(systemName) {
   if (myRoleAdvice) {
     html += `
       <div class="role-advice-section">
-        <h4>STATION BRIEF: ${state.role.replace('_', ' ').toUpperCase()}</h4>
+        <h4>STATION BRIEF: ${state.selectedRole.replace('_', ' ').toUpperCase()}</h4>
         <div class="role-advice-content">${myRoleAdvice}</div>
       </div>
     `;
@@ -3354,7 +3742,7 @@ function handleWeaponsAuthorized(data) {
   }
 
   // Re-render to update both Captain and Gunner panels
-  renderRoleDetailPanel(state.role);
+  renderRoleDetailPanel(state.selectedRole);
 }
 
 function fireAtTarget() {
@@ -3382,7 +3770,7 @@ function selectWeaponByIndex(index) {
   // Convert index to weapon selection - stores index as selectedWeapon
   const idx = parseInt(index, 10);
   state.shipState.selectedWeapon = idx;
-  renderRoleDetailPanel(state.role);
+  renderRoleDetailPanel(state.selectedRole);
 }
 function togglePointDefense() { combat.togglePointDefense(state); }
 
@@ -3392,7 +3780,7 @@ function togglePointDefense() { combat.togglePointDefense(state); }
  * Set alert status (Captain only)
  */
 function captainSetAlert(alertStatus) {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can change alert status', 'error');
     return;
   }
@@ -3406,7 +3794,7 @@ function captainSetAlert(alertStatus) {
  * Issue quick order (Captain only)
  */
 function captainQuickOrder(order) {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can issue orders', 'error');
     return;
   }
@@ -3418,7 +3806,7 @@ function captainQuickOrder(order) {
  * Issue custom order (Captain only)
  */
 function captainIssueOrder() {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can issue orders', 'error');
     return;
   }
@@ -3439,7 +3827,7 @@ function captainIssueOrder() {
  * Mark contact (Captain only)
  */
 function captainMarkContact(marking) {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can mark contacts', 'error');
     return;
   }
@@ -3457,7 +3845,7 @@ function captainMarkContact(marking) {
  * Set weapons authorization (Captain only)
  */
 function captainWeaponsAuth(mode) {
-  if (state.role !== 'captain' && state.role !== 'gunner' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && state.selectedRole !== 'gunner' && !state.isGM) {
     showNotification('Only Captain or Gunner can authorize weapons', 'error');
     return;
   }
@@ -3469,7 +3857,7 @@ function captainWeaponsAuth(mode) {
  * Request status from crew (Captain only)
  */
 function captainRequestStatus() {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can request status', 'error');
     return;
   }
@@ -3481,7 +3869,7 @@ function captainRequestStatus() {
  * Leadership check (Captain only)
  */
 function captainLeadershipCheck() {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can make leadership checks', 'error');
     return;
   }
@@ -3494,7 +3882,7 @@ function captainLeadershipCheck() {
  * Tactics check (Captain only)
  */
 function captainTacticsCheck() {
-  if (state.role !== 'captain' && !state.isGM) {
+  if (state.selectedRole !== 'captain' && !state.isGM) {
     showNotification('Only Captain can make tactics checks', 'error');
     return;
   }
@@ -3593,7 +3981,7 @@ function handleFireResult(data) {
   }
 
   // Re-render panel
-  renderRoleDetailPanel(state.role);
+  renderRoleDetailPanel(state.selectedRole);
 }
 
 // ==================== Jump Map (Stage 6) ====================
@@ -3924,6 +4312,21 @@ function updateAlertStatus(status) {
     alertEl.className = `alert-status ${status.toLowerCase()}`;
     const textEl = alertEl.querySelector('.alert-text');
     if (textEl) textEl.textContent = status.toUpperCase();
+  }
+}
+
+/**
+ * Update weapons authorization indicator in bridge header
+ */
+function updateWeaponsAuthIndicator(mode) {
+  const indicator = document.getElementById('weapons-auth-indicator');
+  if (!indicator) return;
+
+  const isFree = mode === 'free';
+  indicator.className = `weapons-auth-indicator ${isFree ? 'free' : 'hold'}`;
+  const textEl = indicator.querySelector('.weapons-text');
+  if (textEl) {
+    textEl.textContent = isFree ? 'WEAPONS FREE' : 'WEAPONS HOLD';
   }
 }
 
@@ -4297,17 +4700,16 @@ function showModal(templateId) {
       if (e.key === 'Enter') performSearch();
     });
 
-    // Set system button
+    // Set system button - AR-33: Show travel confirmation modal
     document.getElementById('btn-set-system').addEventListener('click', () => {
       if (!selectedSystem) return;
       const systemName = `${selectedSystem.Name} (${selectedSystem.Sector} ${selectedSystem.HexX}${String(selectedSystem.HexY).padStart(2, '0')})`;
-      state.socket.emit('ops:setCurrentSystem', {
+      showTravelModal({
         system: systemName,
         uwp: selectedSystem.Uwp,
         sector: selectedSystem.Sector,
         hex: `${selectedSystem.HexX}${String(selectedSystem.HexY).padStart(2, '0')}`
       });
-      closeModal();
     });
 
     // AR-23.6: Deep space mode toggle
@@ -5144,14 +5546,6 @@ function applySystemDamage(system, severity) {
   });
 }
 
-function advanceTime(hours, minutes) {
-  state.socket.emit('ops:advanceTime', {
-    campaignId: state.campaign.id,
-    hours,
-    minutes
-  });
-}
-
 function closeModal() {
   document.getElementById('modal-overlay').classList.add('hidden');
 }
@@ -5801,6 +6195,144 @@ function hailContact(contactId) {
   hideContactTooltip();
 }
 
+/**
+ * Hail selected contact from Captain panel dropdown
+ */
+function hailSelectedContact() {
+  const select = document.getElementById('hail-contact-select');
+  if (!select || !select.value) {
+    showNotification('No contact selected', 'warning');
+    return;
+  }
+  hailContact(select.value);
+}
+
+/**
+ * Broadcast message to all contacts
+ */
+function broadcastMessage() {
+  const messageInput = document.getElementById('comms-message-input');
+  const message = messageInput?.value?.trim();
+
+  if (!message) {
+    showNotification('Enter a message to broadcast', 'warning');
+    return;
+  }
+
+  state.socket.emit('ops:broadcastMessage', { message });
+  messageInput.value = '';
+  showNotification('Broadcast sent', 'info');
+}
+
+/**
+ * Send message to selected contact
+ */
+function sendCommsMessage() {
+  const select = document.getElementById('hail-contact-select');
+  const messageInput = document.getElementById('comms-message-input');
+
+  if (!select || !select.value) {
+    showNotification('No contact selected', 'warning');
+    return;
+  }
+
+  const message = messageInput?.value?.trim();
+  if (!message) {
+    showNotification('Enter a message to send', 'warning');
+    return;
+  }
+
+  const contact = state.contacts.find(c => c.id === select.value);
+  const contactName = contact?.transponder || contact?.name || 'Unknown';
+
+  state.socket.emit('ops:sendMessage', {
+    contactId: select.value,
+    message
+  });
+
+  messageInput.value = '';
+  showNotification(`Message sent to ${contactName}`, 'info');
+}
+
+// ============================================
+// Panel Copy Functions (for debugging)
+// ============================================
+
+/**
+ * Copy ship log to clipboard as formatted text
+ */
+function copyShipLog() {
+  const logEl = document.getElementById('ship-log');
+  if (!logEl) {
+    showNotification('Ship log not found', 'error');
+    return;
+  }
+
+  const entries = logEl.querySelectorAll('.log-entry');
+  const lines = [];
+
+  lines.push('=== SHIP LOG ===');
+  lines.push(`Copied: ${new Date().toISOString()}`);
+  lines.push('');
+
+  entries.forEach(entry => {
+    const time = entry.querySelector('.log-time')?.textContent || '';
+    const type = entry.querySelector('.log-type')?.textContent || '';
+    const msg = entry.querySelector('.log-message')?.textContent || '';
+    lines.push(`[${time}] [${type}] ${msg}`);
+  });
+
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => showNotification('Ship log copied', 'success'))
+    .catch(() => showNotification('Copy failed', 'error'));
+}
+
+/**
+ * Copy sensor panel contacts to clipboard
+ */
+function copySensorPanel() {
+  const contacts = state.contacts || [];
+  const lines = [];
+
+  lines.push('=== SENSOR CONTACTS ===');
+  lines.push(`Copied: ${new Date().toISOString()}`);
+  lines.push(`Total: ${contacts.length}`);
+  lines.push('');
+
+  contacts.forEach(c => {
+    lines.push(`[${c.id?.slice(0,8)}] ${c.transponder || c.name || 'Unknown'}`);
+    lines.push(`  Type: ${c.type || '?'} | Range: ${c.range_band || '?'} | Bearing: ${c.bearing || 0}°`);
+    lines.push(`  Marking: ${c.marking || 'unknown'} | Scan: ${c.scan_level || 0}`);
+    lines.push('');
+  });
+
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => showNotification('Sensor data copied', 'success'))
+    .catch(() => showNotification('Copy failed', 'error'));
+}
+
+/**
+ * Copy current role panel state to clipboard
+ */
+function copyRolePanel() {
+  const rolePanel = document.getElementById('role-panel-content');
+  if (!rolePanel) {
+    showNotification('Role panel not found', 'error');
+    return;
+  }
+
+  const lines = [];
+  lines.push('=== ROLE PANEL ===');
+  lines.push(`Role: ${state.selectedRole || 'none'}`);
+  lines.push(`Copied: ${new Date().toISOString()}`);
+  lines.push('');
+  lines.push(rolePanel.innerText);
+
+  navigator.clipboard.writeText(lines.join('\n'))
+    .then(() => showNotification('Role panel copied', 'success'))
+    .catch(() => showNotification('Copy failed', 'error'));
+}
+
 // Notification container (created once)
 let notificationContainer = null;
 
@@ -6237,10 +6769,14 @@ state.sharedMapActive = false;
 state.sharedMapView = null;
 
 function showSharedMap() {
-  // Create fullscreen map overlay
+  // Create fullscreen map overlay with interactive subsector map
   const existing = document.getElementById('shared-map-overlay');
   if (existing) {
     existing.classList.remove('hidden');
+    // Update ship location if hex changed
+    if (state.campaign?.current_hex && typeof setShipLocation === 'function') {
+      setShipLocation(state.campaign.current_hex);
+    }
     return;
   }
 
@@ -6248,19 +6784,8 @@ function showSharedMap() {
   overlay.id = 'shared-map-overlay';
   overlay.className = 'shared-map-overlay';
 
-  // Build poster API URL via local proxy (avoids browser XSS/CORS issues)
-  // TODO: Track party coordinates in DB - defaults to Caladbolg (1815) for now
-  let mapUrl = '/api/map/poster?sector=Spinward+Marches&hex=1815&jump=4&style=poster';
-  if (state.campaign?.current_sector) {
-    const sector = encodeURIComponent(state.campaign.current_sector);
-    if (state.campaign?.current_hex) {
-      // Jump map centered on current location
-      mapUrl = `/api/map/poster?sector=${sector}&hex=${state.campaign.current_hex}&jump=4&style=poster`;
-    } else {
-      // Sector poster
-      mapUrl = `/api/map/poster?sector=${sector}&scale=32&style=poster&options=41975`;
-    }
-  }
+  // Determine current subsector from campaign data
+  const currentSubsector = state.campaign?.current_subsector || 'district268';
 
   overlay.innerHTML = `
     <div class="shared-map-header">
@@ -6269,84 +6794,45 @@ function showSharedMap() {
         ${state.isGM ? `
           <button id="btn-share-map" class="btn btn-primary ${state.sharedMapActive ? 'hidden' : ''}">Share with Players</button>
           <button id="btn-unshare-map" class="btn btn-danger ${state.sharedMapActive ? '' : 'hidden'}">Stop Sharing</button>
-          <button id="btn-flush-cache" class="btn btn-warning">Flush Cache</button>
         ` : ''}
-        <button id="btn-retry-map" class="btn btn-secondary hidden">Retry</button>
         <button id="btn-close-map" class="btn btn-secondary">Close</button>
       </div>
     </div>
-    <div class="shared-map-container">
-      <div id="shared-map-loading" class="map-loading-indicator">Loading TravellerMap...</div>
-      <div id="shared-map-error" class="map-error-message hidden">
-        <p>TravellerMap is currently unavailable.</p>
-        <p class="text-muted">The map service may be down or unreachable. You can retry or continue without the map.</p>
-      </div>
-      <img id="shared-map-image" src="${mapUrl}" alt="TravellerMap" />
-      <div id="map-debug-overlay" class="debug-overlay"></div>
-      <div id="map-cache-toggle" class="cache-toggle">
-        <label class="toggle-switch">
-          <input type="checkbox" id="cache-toggle-checkbox" checked>
-          <span class="toggle-slider"></span>
-        </label>
-        <span class="cache-label">Cache <span id="cache-status">ON</span></span>
-      </div>
+    <div class="shared-map-container" id="shared-sector-map-container" style="flex: 1; position: relative;">
+      <!-- Interactive sector map canvas will be created here -->
+    </div>
+    <div class="shared-map-footer" style="padding: 8px 16px; background: rgba(0,0,0,0.5); display: flex; gap: 16px; align-items: center;">
+      <span style="color: #aaa;">Scroll to zoom | Drag to pan | Click system for info</span>
+      <span style="color: #666;">Data from travellermap.com</span>
     </div>
   `;
 
   document.body.appendChild(overlay);
 
+  // Initialize interactive sector map
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const container = document.getElementById('shared-sector-map-container');
+      if (container && typeof initSectorMap === 'function') {
+        initSectorMap(container);
+
+        // Load sector data
+        if (typeof loadSectorData === 'function') {
+          loadSectorData(currentSubsector);
+        }
+
+        // Set ship location to current hex if available
+        if (state.campaign?.current_hex && typeof setShipLocation === 'function') {
+          setTimeout(() => {
+            setShipLocation(state.campaign.current_hex);
+          }, 500);
+        }
+      }
+    });
+  });
+
   // Event handlers
   document.getElementById('btn-close-map').addEventListener('click', closeSharedMap);
-
-  // Graceful failure handling for TravellerMap
-  const mapImage = document.getElementById('shared-map-image');
-  const loadingIndicator = document.getElementById('shared-map-loading');
-  const errorMessage = document.getElementById('shared-map-error');
-  const retryBtn = document.getElementById('btn-retry-map');
-
-  // Set timeout for image load (TravellerMap may be slow or unavailable)
-  const loadTimeout = setTimeout(() => {
-    handleMapLoadError();
-  }, 15000); // 15 second timeout
-
-  mapImage.addEventListener('load', () => {
-    clearTimeout(loadTimeout);
-    loadingIndicator?.classList.add('hidden');
-    mapImage.classList.remove('hidden');
-
-    // Welcome message after 2 seconds
-    setTimeout(() => {
-      mapDebugMessage('Shared TravellerMap loaded! Thanks to Joshua Bell for hosting https://travellermap.com/');
-    }, 2000);
-  });
-
-  mapImage.addEventListener('error', () => {
-    clearTimeout(loadTimeout);
-    handleMapLoadError();
-  });
-
-  function handleMapLoadError() {
-    loadingIndicator?.classList.add('hidden');
-    errorMessage?.classList.remove('hidden');
-    retryBtn?.classList.remove('hidden');
-    mapImage.classList.add('hidden');
-    showNotification('TravellerMap unavailable - service may be down', 'warning');
-    mapDebugMessage('TravellerMap load failed (timeout or error)', 'error');
-  }
-
-  retryBtn?.addEventListener('click', () => {
-    errorMessage?.classList.add('hidden');
-    retryBtn?.classList.add('hidden');
-    loadingIndicator?.classList.remove('hidden');
-    mapImage.classList.remove('hidden');
-    mapDebugMessage('Retrying TravellerMap load...', 'warn');
-    mapImage.src = mapImage.src + '&retry=' + Date.now(); // Force reload
-    setTimeout(() => {
-      if (loadingIndicator && !loadingIndicator.classList.contains('hidden')) {
-        handleMapLoadError();
-      }
-    }, 15000);
-  });
 
   if (state.isGM) {
     document.getElementById('btn-share-map')?.addEventListener('click', () => {
@@ -6361,55 +6847,7 @@ function showSharedMap() {
     document.getElementById('btn-unshare-map')?.addEventListener('click', () => {
       state.socket.emit('ops:unshareMap');
     });
-
-    document.getElementById('btn-flush-cache')?.addEventListener('click', () => {
-      fetch('/api/map/cache/clear', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            mapDebugMessage('Cache flushed - all cached tiles expired', 'info');
-            showNotification('Map cache flushed', 'success');
-          }
-        })
-        .catch(() => {
-          mapDebugMessage('Failed to flush cache', 'error');
-        });
-    });
   }
-
-  // Cache toggle handler
-  const cacheToggle = document.getElementById('cache-toggle-checkbox');
-  const cacheStatus = document.getElementById('cache-status');
-
-  // Fetch initial cache status
-  fetch('/api/map/cache/status')
-    .then(res => res.json())
-    .then(data => {
-      if (cacheToggle) cacheToggle.checked = data.enabled;
-      if (cacheStatus) cacheStatus.textContent = data.enabled ? 'ON' : 'OFF';
-      mapDebugMessage(`Cache: ${data.enabled ? 'ON' : 'OFF'} (${data.stats.hitRate} hit rate)`);
-    })
-    .catch(() => {
-      mapDebugMessage('Cache status unavailable', 'warn');
-    });
-
-  // Toggle cache on/off
-  cacheToggle?.addEventListener('change', () => {
-    const enabled = cacheToggle.checked;
-    fetch('/api/map/cache/toggle', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (cacheStatus) cacheStatus.textContent = data.enabled ? 'ON' : 'OFF';
-        mapDebugMessage(`Cache ${data.enabled ? 'enabled' : 'disabled'}`);
-      })
-      .catch(() => {
-        mapDebugMessage('Failed to toggle cache', 'error');
-      });
-  });
 }
 
 function closeSharedMap() {
@@ -6458,16 +6896,18 @@ function showSystemMap() {
       <h2>System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
       <div class="system-map-controls">
         <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;">
-          <option value="caladbolg" selected>Caladbolg</option>
+          <option value="caladbolg">Caladbolg</option>
           <option value="dorannia">Dorannia</option>
-          <option value="flammarion">Flammarion</option>
+          <option value="flammarion" selected>Flammarion</option>
         </select>
         <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;">SWITCH STARSYSTEM</button>
         <button id="btn-places" class="btn btn-info">📍 Places</button>
+        <button id="btn-range-bands" class="btn btn-outline" title="Toggle tactical range bands">📡 Range</button>
+        <button id="btn-show-ship" class="btn btn-outline" title="Show party ship">🚀 Ship</button>
         ${state.isGM ? `
           <button id="btn-share-system-map" class="btn btn-primary">Share with Players</button>
         ` : ''}
-        <button id="btn-close-system-map" class="btn btn-secondary">Close</button>
+        <button id="btn-close-system-map" class="btn btn-secondary" onclick="window.closeSystemMap()">Close</button>
       </div>
     </div>
     <div id="system-map-container" class="system-map-container">
@@ -6496,12 +6936,25 @@ function showSystemMap() {
 
   document.body.appendChild(overlay);
 
-  // Initialize the canvas system map
-  const container = document.getElementById('system-map-container');
-  initSystemMap(container);
+  // Initialize canvas after layout is complete (using double rAF to ensure layout)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // Use scoped query - there's another system-map-container in HTML that's hidden
+      const container = overlay.querySelector('#system-map-container');
+      if (container) {
+        initSystemMap(container);
 
-  // Event handlers
-  document.getElementById('btn-close-system-map').addEventListener('click', closeSystemMap);
+        // Auto-load Flammarion as default system
+        loadTestSystem('flammarion');
+        document.getElementById('system-map-name').textContent = TEST_SYSTEMS['flammarion'].name;
+
+        // Resize canvas after a short delay to ensure proper dimensions
+        setTimeout(() => {
+          resizeSystemMapCanvas();
+        }, 100);
+      }
+    });
+  });
 
   document.getElementById('btn-share-system-map')?.addEventListener('click', () => {
     if (!systemMapState.system) {
@@ -6537,6 +6990,31 @@ function showSystemMap() {
       resetMapTime();
       updateSimulatedDays();
       showNotification(`Switched to ${TEST_SYSTEMS[select.value].name} system`, 'success');
+    }
+  });
+
+  // AR-29.9: Range bands toggle
+  let rangeBandsOn = false;
+  document.getElementById('btn-range-bands')?.addEventListener('click', () => {
+    if (typeof toggleRangeBands === 'function') {
+      toggleRangeBands();
+      rangeBandsOn = !rangeBandsOn;
+      const btn = document.getElementById('btn-range-bands');
+      btn.classList.toggle('btn-active', rangeBandsOn);
+      btn.textContent = rangeBandsOn ? '📡 Range ON' : '📡 Range';
+    }
+  });
+
+  // AR-29.9: Show party ship
+  document.getElementById('btn-show-ship')?.addEventListener('click', () => {
+    // Place a demo ship at 5 AU from star
+    if (typeof updateShipPosition === 'function') {
+      updateShipPosition({
+        name: state.ship?.name || 'Party Ship',
+        position: { x: 5, y: 0, z: 0 },
+        heading: 0
+      });
+      showNotification('Ship shown on system map', 'info');
     }
   });
 
@@ -6583,12 +7061,24 @@ function updateSimulatedDays() {
 }
 
 function closeSystemMap() {
+  console.log('[SystemMap] closeSystemMap called');
   const overlay = document.getElementById('system-map-overlay');
   if (overlay) {
-    destroySystemMap();
+    try {
+      destroySystemMap();
+    } catch (e) {
+      console.error('[SystemMap] Error in destroySystemMap:', e);
+    }
     overlay.remove();
+    console.log('[SystemMap] Overlay removed');
+  } else {
+    console.log('[SystemMap] No overlay found to close');
   }
 }
+
+// Expose system map functions globally
+window.showSystemMap = showSystemMap;
+window.closeSystemMap = closeSystemMap;
 
 function updateSharedMapButtons() {
   const shareBtn = document.getElementById('btn-share-map');
@@ -6611,10 +7101,14 @@ function updateSharedMapFrame(data) {
     mapUrl = `/api/map/poster?sector=${encodeURIComponent(data.sector)}&scale=32&style=poster&options=41975`;
   }
 
-  // Only update if URL changed (compare without query params that might differ)
-  const currentBase = mapImage.src.split('?')[0];
-  const newBase = mapUrl.split('?')[0];
-  if (currentBase !== newBase || !mapImage.src.includes(data.sector || 'Spinward')) {
+  // Only update if URL parameters actually changed (check sector and hex)
+  const currentUrl = new URL(mapImage.src, window.location.origin);
+  const currentSector = currentUrl.searchParams.get('sector');
+  const currentHex = currentUrl.searchParams.get('hex');
+  const newSector = data.sector || 'Spinward Marches';
+  const newHex = data.hex || '1815';
+
+  if (currentSector !== newSector || currentHex !== newHex) {
     mapImage.src = mapUrl;
     mapDebugMessage(`Loading: ${data.sector || 'default'}${data.hex ? '/' + data.hex : ''}`);
   }
@@ -8317,8 +8811,8 @@ function expandRolePanel(mode) {
 
   // Remember expansion state for this role
   if (state.selectedRole) {
-    state.rolePanelExpanded = state.rolePanelExpanded || {};
-    state.rolePanelExpanded[state.selectedRole] = mode;
+    state.selectedRolePanelExpanded = state.selectedRolePanelExpanded || {};
+    state.selectedRolePanelExpanded[state.selectedRole] = mode;
   }
 }
 
@@ -8333,8 +8827,8 @@ function collapseRolePanel() {
   bridgeMain.classList.remove('role-expanded-half');
 
   // Clear remembered expansion state
-  if (state.selectedRole && state.rolePanelExpanded) {
-    state.rolePanelExpanded[state.selectedRole] = null;
+  if (state.selectedRole && state.selectedRolePanelExpanded) {
+    state.selectedRolePanelExpanded[state.selectedRole] = null;
   }
 }
 
@@ -8525,8 +9019,8 @@ function updateShipSystemsIndicator(hasDamage, hasCritical) {
  * Restore expansion state when switching roles
  */
 function restoreRolePanelExpansion() {
-  if (state.selectedRole && state.rolePanelExpanded?.[state.selectedRole]) {
-    expandRolePanel(state.rolePanelExpanded[state.selectedRole]);
+  if (state.selectedRole && state.selectedRolePanelExpanded?.[state.selectedRole]) {
+    expandRolePanel(state.selectedRolePanelExpanded[state.selectedRole]);
   }
 }
 
@@ -8600,6 +9094,13 @@ window.setMapSize = setMapSize;
 window.showAddNPCContactForm = showAddNPCContactForm;
 window.submitNPCContact = submitNPCContact;
 window.hailContact = hailContact;
+window.hailSelectedContact = hailSelectedContact;
+window.broadcastMessage = broadcastMessage;
+window.sendCommsMessage = sendCommsMessage;
+// Panel copy functions
+window.copyShipLog = copyShipLog;
+window.copySensorPanel = copySensorPanel;
+window.copyRolePanel = copyRolePanel;
 window.closeModal = closeModal;
 window.relieveCrewMember = relieveCrewMember;
 window.submitFeedback = submitFeedback;
@@ -8629,3 +9130,12 @@ window.showHandoutDetail = showHandoutDetail;
 window.expandRolePanel = expandRolePanel;
 window.collapseRolePanel = collapseRolePanel;
 window.restoreRolePanelExpansion = restoreRolePanelExpansion;
+// AR-30: Pilot Controls
+window.toggleEvasive = toggleEvasive;
+window.changeRange = changeRange;
+window.setCourse = setCourse;
+window.clearCourse = clearCourse;
+window.advanceTime = advanceTime;
+// AR-31: Engineer Power Management
+window.setPowerPreset = setPowerPreset;
+window.updatePower = updatePower;

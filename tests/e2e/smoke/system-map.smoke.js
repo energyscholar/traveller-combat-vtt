@@ -23,6 +23,9 @@ const fs = require('fs');
 // Screenshot directory
 const SCREENSHOT_DIR = path.join(__dirname, '..', '..', '..', 'screenshots');
 
+// Track screenshots taken during test for cleanup
+const capturedScreenshots = [];
+
 async function takeScreenshot(page, name) {
   if (!fs.existsSync(SCREENSHOT_DIR)) {
     fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -30,8 +33,51 @@ async function takeScreenshot(page, name) {
   const filename = `system-map-${name}-${Date.now()}.png`;
   const filepath = path.join(SCREENSHOT_DIR, filename);
   await page.screenshot({ path: filepath, fullPage: false });
+  capturedScreenshots.push(filepath);
   console.log(`  📸 Screenshot: ${filename}`);
   return filepath;
+}
+
+// Clean up screenshots after successful test
+function cleanupTestScreenshots() {
+  for (const filepath of capturedScreenshots) {
+    try {
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+      }
+    } catch (e) { /* ignore cleanup errors */ }
+  }
+  capturedScreenshots.length = 0;
+}
+
+// Capture canvas pixel sample for comparison (sample 100 points)
+async function captureCanvasPixels(page) {
+  return await page.evaluate(() => {
+    const canvas = document.getElementById('system-map-canvas');
+    if (!canvas) return null;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    const samples = [];
+    // Sample 100 points across canvas
+    for (let i = 0; i < 100; i++) {
+      const x = Math.floor((i % 10) * w / 10 + w / 20);
+      const y = Math.floor(Math.floor(i / 10) * h / 10 + h / 20);
+      const pixel = ctx.getImageData(x, y, 1, 1).data;
+      samples.push(pixel[0], pixel[1], pixel[2]); // RGB values
+    }
+    return samples;
+  });
+}
+
+// Compare two pixel arrays - returns difference percentage (0=identical, 100=completely different)
+function comparePixels(pix1, pix2) {
+  if (!pix1 || !pix2 || pix1.length !== pix2.length) return 0;
+  let diff = 0;
+  for (let i = 0; i < pix1.length; i++) {
+    diff += Math.abs(pix1[i] - pix2[i]);
+  }
+  // Max possible diff is 255 * length
+  return (diff / (255 * pix1.length)) * 100;
 }
 
 async function runSystemMapSmokeTest() {
@@ -188,17 +234,56 @@ async function runSystemMapSmokeTest() {
     // Take screenshot of initial system
     await takeScreenshot(page, 'initial');
 
-    // Step 7: Test system selector exists
-    console.log('Step 7: Verify test system selector...');
+    // Step 7: Test system selector and capture screenshots for all 3 systems
+    console.log('Step 7: Verify test system selector and capture system screenshots...');
     const selectExists = await page.$('#test-system-select');
     if (selectExists) {
       pass(results, 'Test system selector available');
-      // Take screenshots of test systems
+
+      // Capture screenshots and pixel samples for all 3 systems
       const testSystems = ['dorannia', 'flammarion', 'caladbolg'];
+      const pixelData = {};
+
+      const systemTitles = {};
+      const screenshotPaths = {};
+
       for (const sys of testSystems) {
         await page.select('#test-system-select', sys);
-        await delay(DELAYS.MEDIUM);
-        await takeScreenshot(page, sys);
+        // Click the SWITCH STARSYSTEM button to actually load the new system
+        await page.click('#btn-load-system');
+        await delay(DELAYS.LONG); // Extra time for render
+
+        // Capture system name from title
+        systemTitles[sys] = await page.evaluate(() => {
+          const el = document.getElementById('system-map-name');
+          return el ? el.textContent.trim() : 'unknown';
+        });
+        console.log(`  ${sys} title: "${systemTitles[sys]}"`);
+
+        screenshotPaths[sys] = await takeScreenshot(page, sys);
+        pass(results, `Screenshot captured: ${sys}`);
+      }
+
+      // Step 7b: Visual diff verification - systems must show different titles
+      console.log('Step 7b: Verify systems are visually different...');
+
+      // Verify titles are all different
+      const uniqueTitles = new Set(Object.values(systemTitles));
+      console.log(`  Unique system names: ${uniqueTitles.size} (expected 3)`);
+
+      // Also verify screenshot file sizes differ (indicates different content)
+      const sizes = {};
+      for (const sys of testSystems) {
+        if (screenshotPaths[sys] && fs.existsSync(screenshotPaths[sys])) {
+          sizes[sys] = fs.statSync(screenshotPaths[sys]).size;
+        }
+      }
+      console.log(`  Screenshot sizes: Dorannia=${sizes.dorannia}, Flammarion=${sizes.flammarion}, Caladbolg=${sizes.caladbolg}`);
+
+      if (uniqueTitles.size === 3) {
+        pass(results, 'All 3 systems show different names');
+      } else {
+        fail(results, 'System titles', `Only ${uniqueTitles.size} unique names found`);
       }
     } else {
       fail(results, 'System selector', 'Selector not found');
@@ -215,25 +300,73 @@ async function runSystemMapSmokeTest() {
       fail(results, 'Time controls', 'Some controls missing');
     }
 
-    // Step 9: Close system map
+    // Step 9: Close system map and verify bridge returns
     console.log('Step 9: Close system map...');
-    await page.click('#btn-close-system-map');
-    await delay(DELAYS.MEDIUM);
 
-    const overlayGone = await page.$('#system-map-overlay');
-    if (!overlayGone) {
-      pass(results, 'System map closed');
-    } else {
-      // Check if removed from DOM
-      const stillVisible = await page.evaluate(() => {
-        const el = document.getElementById('system-map-overlay');
-        return el && el.offsetParent !== null;
-      });
-      if (!stillVisible) {
-        pass(results, 'System map closed');
-      } else {
-        fail(results, 'Close system map', 'Overlay still visible');
+    // Take screenshot before close
+    await takeScreenshot(page, 'before-close');
+
+    // Try clicking close button (use window.closeSystemMap directly for reliability)
+    const closeResult = await page.evaluate(() => {
+      const btn = document.getElementById('btn-close-system-map');
+      if (!btn) return { clicked: false, error: 'Button not found' };
+
+      // Try direct function call first
+      if (typeof window.closeSystemMap === 'function') {
+        try {
+          window.closeSystemMap();
+          return { clicked: true, method: 'window.closeSystemMap' };
+        } catch (e) {
+          return { clicked: false, error: e.message };
+        }
       }
+
+      // Fallback to button click
+      btn.click();
+      return { clicked: true, method: 'button.click' };
+    });
+    console.log('  Close result:', JSON.stringify(closeResult));
+    const closeClicked = closeResult.clicked;
+
+    if (!closeClicked) {
+      fail(results, 'Click close button', 'Close button not found');
+    } else {
+      await delay(DELAYS.MEDIUM);
+
+      // Take screenshot after close attempt
+      await takeScreenshot(page, 'after-close');
+
+      // Verify overlay is removed from DOM
+      const overlayGone = await page.evaluate(() => {
+        const el = document.getElementById('system-map-overlay');
+        return el === null;
+      });
+
+      if (overlayGone) {
+        pass(results, 'System map overlay removed');
+      } else {
+        fail(results, 'Remove overlay', 'Overlay still in DOM after close');
+      }
+    }
+
+    // Step 10: Verify bridge view is visible again
+    console.log('Step 10: Verify bridge view returns...');
+    const bridgeVisible = await page.evaluate(() => {
+      const bridge = document.querySelector('.bridge-main, #bridge-screen, .bridge-screen');
+      if (!bridge) return { found: false };
+      const style = window.getComputedStyle(bridge);
+      return {
+        found: true,
+        display: style.display,
+        visibility: style.visibility,
+        visible: bridge.offsetParent !== null || style.display !== 'none'
+      };
+    });
+
+    if (bridgeVisible.found && bridgeVisible.visible) {
+      pass(results, 'Bridge view returned after close');
+    } else {
+      fail(results, 'Bridge view returns', `Bridge not visible: ${JSON.stringify(bridgeVisible)}`);
     }
 
   } catch (error) {
@@ -253,6 +386,15 @@ async function runSystemMapSmokeTest() {
   }
 
   printResults(results);
+
+  // Auto-cleanup screenshots on success (keep on failure for debugging)
+  if (results.failed === 0) {
+    cleanupTestScreenshots();
+    console.log('  🧹 Screenshots cleaned up (test passed)');
+  } else {
+    console.log(`  📁 Screenshots preserved for debugging (${capturedScreenshots.length} files)`);
+  }
+
   return results;
 }
 

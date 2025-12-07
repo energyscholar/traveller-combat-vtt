@@ -203,6 +203,9 @@
           <span class="alert-indicator"></span>
           <span class="alert-text">NORMAL</span>
         </div>
+        <div id="weapons-auth-indicator" class="weapons-auth-indicator hold" title="Weapons Authorization Status">
+          <span class="weapons-text">WEAPONS HOLD</span>
+        </div>
         <div class="bridge-user-info">
           <span id="bridge-user-name" class="user-name">User</span>
           <span class="user-role-badge" id="bridge-user-role">Role</span>
@@ -384,6 +387,7 @@
           <div class="panel-header">
             <h2>Ship Log</h2>
             <button id="btn-add-log" class="btn btn-small" title="Add a personal note to the ship's log">+ Add Note</button>
+            <button id="btn-copy-log" class="btn btn-small btn-secondary" onclick="window.copyShipLog()" title="Copy ship log to clipboard">Copy</button>
             <button class="btn btn-icon btn-panel-expand" data-panel="log-panel" title="Expand panel [4]">⛶</button>
           </div>
           <div id="ship-log" class="ship-log">
@@ -854,6 +858,52 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Cancel</button>
       <button class="btn btn-primary" id="btn-save-log-entry">Add Entry</button>
+    </div>
+  </template>
+
+  <!-- AR-33: Travel Confirmation Modal -->
+  <template id="template-travel-confirm">
+    <div class="modal-header">
+      <h2>Travel to <span id="travel-destination-name">System</span>?</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="travel-options">
+        <label class="travel-option">
+          <input type="radio" name="travel-time" value="instant" id="travel-instant">
+          <span class="travel-label">Instant (no time passes)</span>
+          <small>GM teleport - useful for session setup</small>
+        </label>
+        <label class="travel-option">
+          <input type="radio" name="travel-time" value="7" id="travel-7d" checked>
+          <span class="travel-label">Standard jump (7 days)</span>
+          <small>Normal jump space transit time</small>
+        </label>
+        <label class="travel-option">
+          <input type="radio" name="travel-time" value="10" id="travel-10d">
+          <span class="travel-label">Extended jump (10 days)</span>
+          <small>Misjump or multiple jumps</small>
+        </label>
+        <label class="travel-option">
+          <input type="radio" name="travel-time" value="custom" id="travel-custom">
+          <span class="travel-label">Custom time:</span>
+          <input type="number" id="travel-custom-days" min="0" max="365" value="7" style="width: 60px;"> days
+        </label>
+      </div>
+      <div class="travel-summary">
+        <div class="summary-row">
+          <span>Current date:</span>
+          <span id="travel-current-date">--</span>
+        </div>
+        <div class="summary-row">
+          <span>Arrival date:</span>
+          <span id="travel-arrival-date">--</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" id="btn-confirm-travel">Travel</button>
     </div>
   </template>
 
@@ -1559,19 +1609,41 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
   <!-- Stage 7: Character Sheet Tooltip Container -->
   <div id="character-tooltip-container"></div>
 
-  <!-- AR-29.7: Subsector Map Overlay -->
-  <div id="subsector-map-container" class="subsector-map-overlay" style="display: none;">
-    <div class="subsector-map-header">
-      <h3 id="subsector-map-title">District 268 Subsector</h3>
-      <select id="subsector-selector" onchange="loadSubsector(this.value)" title="Select subsector">
+  <!-- AR-29.7: Sector Map Overlay -->
+  <div id="sector-map-container" class="sector-map-overlay" style="display: none;">
+    <div class="sector-map-header">
+      <h3 id="sector-map-title">District 268 Subsector</h3>
+      <select id="sector-selector" onchange="loadSectorData(this.value)" title="Select subsector">
         <option value="district268">District 268</option>
         <option value="five-sisters">Five Sisters</option>
         <option value="glisten">Glisten</option>
         <option value="trins-veil">Trin's Veil</option>
       </select>
-      <button class="btn btn-icon" onclick="hideSubsectorMap()" title="Close">×</button>
+      <div class="sector-zoom-controls">
+        <button class="btn btn-icon btn-small" onclick="zoomSectorMap(1.2)" title="Zoom In">+</button>
+        <button class="btn btn-icon btn-small" onclick="zoomSectorMap(0.8)" title="Zoom Out">−</button>
+        <button class="btn btn-icon btn-small" onclick="resetSectorZoom()" title="Reset Zoom">⟲</button>
+      </div>
+      <button class="btn btn-icon" onclick="hideSectorMap()" title="Close">×</button>
     </div>
-    <div id="subsector-map-canvas-container" class="subsector-map-content"></div>
+    <div id="sector-map-canvas-container" class="sector-map-content"></div>
+  </div>
+
+  <!-- AR-29.6: Star System Map Overlay -->
+  <div id="system-map-container" class="system-map-overlay" style="display: none;">
+    <div class="system-map-header">
+      <h3 id="system-map-title">Star System</h3>
+      <div class="system-map-controls">
+        <button class="btn btn-icon btn-small" onclick="zoomSystemMap(1.3)" title="Zoom In">+</button>
+        <button class="btn btn-icon btn-small" onclick="zoomSystemMap(0.7)" title="Zoom Out">−</button>
+        <button class="btn btn-icon btn-small" onclick="resetSystemMapView()" title="Reset View">⟲</button>
+        <button class="btn btn-icon btn-small" onclick="toggleSystemMapLabels()" title="Toggle Labels">T</button>
+      </div>
+      <button class="btn btn-icon" onclick="hideSystemMap()" title="Close">×</button>
+    </div>
+    <div id="system-map-canvas-container" class="system-map-content"></div>
+    <div id="system-map-info-panel" class="system-map-info" style="display: none;"></div>
+    <div id="system-map-places" class="system-map-places" style="display: none;"></div>
   </div>
 
   <!-- Footer - Legal/Attribution (moved from login for cleaner UI) -->

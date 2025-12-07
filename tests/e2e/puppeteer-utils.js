@@ -43,7 +43,7 @@ async function createPage(options = {}) {
     page.on('console', msg => {
       const type = msg.type();
       const text = msg.text();
-      if (type === 'error' || text.includes('[OPS]') || options.verbose) {
+      if (type === 'error' || text.includes('[OPS]') || text.includes('[SystemMap]') || options.verbose) {
         console.log(`  [BROWSER ${type}] ${text}`);
       }
     });
@@ -137,12 +137,24 @@ async function gmLogin(page) {
   await clickButton(page, 'btn-gm-login');
   await delay(DELAYS.LONG);
 
-  // Wait for campaign selection
+  // Wait for campaign selection screen
   await page.waitForSelector('#campaign-select:not(.hidden), #campaign-list', { timeout: 5000 });
 
-  // Get campaigns
+  // Wait for campaigns to load via socket (campaign-item elements appear)
+  try {
+    await page.waitForSelector('#campaign-list .campaign-item, #campaign-list .campaign-card', { timeout: 5000 });
+  } catch {
+    // Check if "No campaigns yet" placeholder is shown
+    const placeholder = await page.$eval('#campaign-list', el => el.textContent).catch(() => '');
+    if (placeholder.includes('No campaigns')) {
+      throw new Error('No campaigns found - run npm run ops:reset first');
+    }
+  }
+  await delay(DELAYS.SHORT);
+
+  // Get campaigns (campaign-item is the current class)
   const campaigns = await page.evaluate(() => {
-    const cards = document.querySelectorAll('#campaign-list .campaign-card, #campaign-list button, #campaign-list > div');
+    const cards = document.querySelectorAll('#campaign-list .campaign-item, #campaign-list .campaign-card');
     return Array.from(cards).map(c => ({
       text: c.textContent?.trim()?.substring(0, 50),
       id: c.dataset?.campaignId || c.id
@@ -153,10 +165,10 @@ async function gmLogin(page) {
     throw new Error('No campaigns found - run npm run ops:reset first');
   }
 
-  // Click first campaign
-  const firstCampaign = await page.$('#campaign-list .campaign-card, #campaign-list button, #campaign-list > div:first-child');
-  if (firstCampaign) {
-    await firstCampaign.click();
+  // Click first campaign's select button
+  const selectBtn = await page.$('#campaign-list .campaign-item .btn-select, #campaign-list .campaign-card');
+  if (selectBtn) {
+    await selectBtn.click();
     await delay(DELAYS.SOCKET);
   }
 

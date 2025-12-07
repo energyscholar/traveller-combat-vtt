@@ -127,7 +127,7 @@ export function getRoleDetailContent(role, context) {
 
   switch (role) {
     case 'pilot':
-      return getPilotPanel(shipState, template, campaign);
+      return getPilotPanel(shipState, template, campaign, jumpStatus);
 
     case 'engineer':
       return getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus);
@@ -159,10 +159,13 @@ export function getRoleDetailContent(role, context) {
 
 // ==================== Individual Role Panel Functions ====================
 
-function getPilotPanel(shipState, template, campaign) {
+function getPilotPanel(shipState, template, campaign, jumpStatus = {}) {
   const hasDestination = shipState.destination || campaign?.destination;
   const destination = shipState.destination || campaign?.destination || 'None set';
   const eta = shipState.eta || campaign?.eta || null;
+  const evasive = shipState.evasive || false;
+  const contacts = campaign?.sensorContacts || [];
+  const inJump = jumpStatus?.inJump || false;
 
   return `
     <div class="detail-section">
@@ -188,6 +191,51 @@ function getPilotPanel(shipState, template, campaign) {
         ` : ''}
       </div>
     </div>
+    ${inJump ? `
+    <div class="detail-section jump-status-section">
+      <h4>IN JUMP SPACE</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Destination:</span>
+          <span class="stat-value">${jumpStatus.destination || 'Unknown'}</span>
+        </div>
+        <div class="stat-row">
+          <span>Exit Date:</span>
+          <span class="stat-value">${jumpStatus.jumpEndDate || 'Calculating...'}</span>
+        </div>
+        ${jumpStatus.hoursRemaining !== undefined ? `
+        <div class="stat-row">
+          <span>Time Remaining:</span>
+          <span class="stat-value">${jumpStatus.hoursRemaining}h</span>
+        </div>
+        ` : ''}
+      </div>
+      ${jumpStatus.canExit ? `
+      <button onclick="completeJump()" class="btn btn-primary btn-exit-jump" title="Exit jump space at destination">Exit Jump Space</button>
+      ` : ''}
+    </div>
+    ` : ''}
+    <div class="detail-section">
+      <h4>Maneuvers</h4>
+      <div class="pilot-controls">
+        <button id="evasive-toggle" class="btn btn-small ${evasive ? 'btn-active' : ''}"
+                onclick="toggleEvasive()" title="Toggle evasive maneuvers (-2 DM to incoming attacks)"
+                ${inJump ? 'disabled' : ''}>
+          ${evasive ? '⚡ Evasive ON' : 'Evasive'}
+        </button>
+        ${contacts.length > 0 && !inJump ? `
+        <div class="range-control">
+          <select id="range-contact-select" class="pilot-select">
+            ${contacts.map(c => `<option value="${c.id}">${c.designation || c.name} (${c.range || 'medium'})</option>`).join('')}
+          </select>
+          <div class="range-buttons">
+            <button class="btn btn-small" onclick="changeRange('approach')" title="Close range">◀ Close</button>
+            <button class="btn btn-small" onclick="changeRange('withdraw')" title="Increase range">Open ▶</button>
+          </div>
+        </div>
+        ` : inJump ? '<div class="no-contacts">No maneuvers in jump space</div>' : '<div class="no-contacts">No contacts to maneuver against</div>'}
+      </div>
+    </div>
     <div class="detail-section">
       <h4>Drive Status</h4>
       <div class="detail-stats">
@@ -206,17 +254,39 @@ function getPilotPanel(shipState, template, campaign) {
       <div class="detail-stats">
         <div class="stat-row">
           <span>Status:</span>
-          <span class="stat-value">${shipState.docked ? 'Docked' : 'Free Flight'}</span>
+          <span class="stat-value">${shipState.docked ? 'Docked' : inJump ? 'In Jump' : 'Free Flight'}</span>
         </div>
       </div>
+    </div>
+    <div class="detail-section">
+      <h4>Time Controls</h4>
+      <div class="time-controls">
+        <div class="time-row">
+          <button class="btn btn-small" onclick="advanceTime(0, 1)" title="Advance 1 hour">+1h</button>
+          <button class="btn btn-small" onclick="advanceTime(0, 4)" title="Advance 4 hours">+4h</button>
+          <button class="btn btn-small" onclick="advanceTime(0, 8)" title="Advance 8 hours">+8h</button>
+        </div>
+        <div class="time-row">
+          <button class="btn btn-small" onclick="advanceTime(1, 0)" title="Advance 1 day">+1d</button>
+          <button class="btn btn-small" onclick="advanceTime(3, 0)" title="Advance 3 days">+3d</button>
+          <button class="btn btn-small btn-jump-time" onclick="advanceTime(7, 0)" title="Standard jump duration (7 days)">+7d (Jump)</button>
+        </div>
+        <div class="time-row">
+          <button class="btn btn-small" onclick="advanceTime(10, 0)" title="Advance 10 days">+10d</button>
+          <button class="btn btn-small" onclick="advanceTime(14, 0)" title="Advance 2 weeks">+14d</button>
+        </div>
+      </div>
+      ${inJump && jumpStatus.canExit ? `
+      <button onclick="completeJump()" class="btn btn-primary btn-exit-jump" title="Exit jump space at destination">Exit Jump</button>
+      ` : ''}
     </div>
   `;
 }
 
 function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus) {
-  const maxPower = template.powerPlant || 100;
-  const currentPower = shipState.power ?? maxPower;
-  const powerPercent = Math.round((currentPower / maxPower) * 100);
+  // Power allocation state
+  const power = shipState.power || { mDrive: 75, weapons: 75, sensors: 75, lifeSupport: 75, computer: 75 };
+  const powerEffects = shipState.powerEffects || { weaponsDM: 0, sensorsDM: 0, thrustMultiplier: 1.0 };
 
   const fs = fuelStatus || {
     total: shipState.fuel ?? template.fuel ?? 40,
@@ -228,7 +298,54 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
   };
   const fuelBreakdown = fs.breakdown || { refined: fs.total, unrefined: 0, processed: 0 };
 
+  // Power effect warnings
+  const warnings = [];
+  if (powerEffects.weaponsDM < 0) warnings.push(`Weapons: ${powerEffects.weaponsDM} DM`);
+  if (powerEffects.sensorsDM < 0) warnings.push(`Sensors: ${powerEffects.sensorsDM} DM`);
+  if (powerEffects.thrustMultiplier < 1) warnings.push(`Thrust: ${Math.round(powerEffects.thrustMultiplier * 100)}%`);
+
   return `
+    <div class="detail-section power-section">
+      <h4>Power Allocation</h4>
+      <div class="power-presets">
+        <button onclick="window.setPowerPreset('combat')" class="btn btn-small ${shipState.powerPreset === 'combat' ? 'btn-active' : ''}" title="Max weapons and sensors">Combat</button>
+        <button onclick="window.setPowerPreset('silent')" class="btn btn-small ${shipState.powerPreset === 'silent' ? 'btn-active' : ''}" title="Minimal power signature">Silent</button>
+        <button onclick="window.setPowerPreset('jump')" class="btn btn-small ${shipState.powerPreset === 'jump' ? 'btn-active' : ''}" title="Prep for jump">Jump</button>
+        <button onclick="window.setPowerPreset('standard')" class="btn btn-small ${shipState.powerPreset === 'standard' ? 'btn-active' : ''}" title="Balanced allocation">Standard</button>
+      </div>
+      <div class="power-sliders">
+        <div class="power-slider-row">
+          <label>M-Drive</label>
+          <input type="range" min="0" max="100" value="${power.mDrive}" class="power-slider" data-system="mDrive" onchange="window.updatePower()" oninput="this.nextElementSibling.textContent=this.value+'%'">
+          <span class="power-value">${power.mDrive}%</span>
+        </div>
+        <div class="power-slider-row">
+          <label>Weapons</label>
+          <input type="range" min="0" max="100" value="${power.weapons}" class="power-slider" data-system="weapons" onchange="window.updatePower()" oninput="this.nextElementSibling.textContent=this.value+'%'">
+          <span class="power-value">${power.weapons}%</span>
+        </div>
+        <div class="power-slider-row">
+          <label>Sensors</label>
+          <input type="range" min="0" max="100" value="${power.sensors}" class="power-slider" data-system="sensors" onchange="window.updatePower()" oninput="this.nextElementSibling.textContent=this.value+'%'">
+          <span class="power-value">${power.sensors}%</span>
+        </div>
+        <div class="power-slider-row">
+          <label>Life Sup</label>
+          <input type="range" min="0" max="100" value="${power.lifeSupport}" class="power-slider" data-system="lifeSupport" onchange="window.updatePower()" oninput="this.nextElementSibling.textContent=this.value+'%'">
+          <span class="power-value">${power.lifeSupport}%</span>
+        </div>
+        <div class="power-slider-row">
+          <label>Computer</label>
+          <input type="range" min="0" max="100" value="${power.computer}" class="power-slider" data-system="computer" onchange="window.updatePower()" oninput="this.nextElementSibling.textContent=this.value+'%'">
+          <span class="power-value">${power.computer}%</span>
+        </div>
+      </div>
+      ${warnings.length > 0 ? `
+      <div class="power-effects-warning">
+        <small>Effects: ${warnings.join(' | ')}</small>
+      </div>
+      ` : ''}
+    </div>
     <div class="detail-section">
       <h4>System Status</h4>
       <div class="system-status-grid">
@@ -379,13 +496,35 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
   const weaponTypes = [...new Set(weapons.map(w => w.weapon_type || w.type || 'beam'))];
   const hasMissiles = weapons.some(w => (w.weapon_type || w.type || '').toLowerCase().includes('missile'));
 
+  // Weapons authorization status
+  const weaponsFree = shipState.weaponsAuth?.mode === 'free';
+
   return `
     <div class="detail-section gunner-header">
       <h4>GUNNER STATION ${assignedTurret ? `- TURRET ${assignedTurret}` : ''}</h4>
-      <div class="gunner-status-badge ${hasTargets ? 'weapons-free' : 'weapons-hold'}"
-           title="${hasTargets ? 'Weapons authorized on hostile contacts' : 'Awaiting authorization or hostile contact detection'}">
-        ${hasTargets ? 'WEAPONS FREE' : 'WEAPONS HOLD'}
+      <div class="gunner-status-badge ${weaponsFree ? 'weapons-free' : 'weapons-hold'}"
+           title="${weaponsFree ? 'Weapons authorized - engage at will' : 'Weapons secured - await authorization'}">
+        ${weaponsFree ? 'WEAPONS FREE' : 'WEAPONS HOLD'}
       </div>
+    </div>
+
+    <div class="detail-section gunner-auth-section">
+      <h4>Weapons Authorization</h4>
+      <div class="weapons-auth-controls" style="display: flex; gap: 8px; margin-top: 8px;">
+        <button onclick="window.captainWeaponsAuth('hold')"
+                class="btn btn-small ${!weaponsFree ? 'btn-warning active' : 'btn-secondary'}"
+                title="Secure weapons - no firing without direct order">
+          HOLD
+        </button>
+        <button onclick="window.captainWeaponsAuth('free')"
+                class="btn btn-small ${weaponsFree ? 'btn-danger active' : 'btn-secondary'}"
+                title="Authorize weapons - engage hostile targets">
+          FREE
+        </button>
+      </div>
+      <small class="auth-hint" style="color: var(--text-muted); margin-top: 4px; display: block;">
+        ${weaponsFree ? 'Engage hostile targets at will' : 'Awaiting weapons free authorization'}
+      </small>
     </div>
 
     <div class="detail-section target-section">
@@ -544,6 +683,13 @@ function getCaptainPanel(shipState, template, ship, crewOnline, contacts) {
   const hostileCount = contacts?.filter(c => c.marking === 'hostile').length || 0;
   const unknownCount = contacts?.filter(c => !c.marking || c.marking === 'unknown').length || 0;
 
+  // Hailable contacts (have transponder and are ships/stations)
+  const hailableContacts = contacts?.filter(c =>
+    c.transponder && c.transponder !== 'NONE' &&
+    !c.celestial && c.type &&
+    ['Ship', 'Station', 'Starport', 'Base', 'Patrol', 'Free Trader', 'Far Trader', 'System Defense Boat'].includes(c.type)
+  ) || [];
+
   return `
     <div class="detail-section captain-alert-section">
       <h4>Alert Status</h4>
@@ -670,6 +816,35 @@ function getCaptainPanel(shipState, template, ship, crewOnline, contacts) {
         </button>
       </div>
       <div id="leadership-result" class="leadership-result" style="margin-top: 10px;"></div>
+    </div>
+
+    <div class="detail-section captain-comms-section">
+      <h4>Communications</h4>
+      ${hailableContacts.length === 0 ? `
+        <div class="placeholder">No hailable contacts in range</div>
+      ` : `
+        <div class="hail-controls">
+          <select id="hail-contact-select" class="hail-select" style="width: 100%; margin-bottom: 8px;">
+            ${hailableContacts.map(c => `
+              <option value="${c.id}">${escapeHtml(c.transponder || c.name || 'Unknown')} (${c.type})</option>
+            `).join('')}
+          </select>
+          <div class="hail-buttons" style="display: flex; gap: 5px; margin-bottom: 8px;">
+            <button onclick="window.hailSelectedContact()" class="btn btn-small btn-primary" title="Open channel to selected contact">
+              Hail
+            </button>
+            <button onclick="window.broadcastMessage()" class="btn btn-small btn-secondary" title="Broadcast to all contacts">
+              Broadcast
+            </button>
+          </div>
+          <div class="message-input-row" style="display: flex; gap: 5px;">
+            <input type="text" id="comms-message-input" class="comms-input" placeholder="Enter message..." maxlength="500" style="flex: 1;">
+            <button onclick="window.sendCommsMessage()" class="btn btn-small btn-success" title="Send message to selected contact">
+              Send
+            </button>
+          </div>
+        </div>
+      `}
     </div>
   `;
 }
