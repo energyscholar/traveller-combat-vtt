@@ -1124,6 +1124,18 @@ function getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemSta
 }
 
 function getDamageControlPanel(shipState, template, systemStatus = {}, damagedSystems = []) {
+  // AR-38.3: Merge combat damage with template-based system damage
+  const shipSystems = shipState.systems || template.systems || {};
+  const templateDamagedSystems = Object.entries(shipSystems)
+    .filter(([name, sys]) => sys && sys.health !== undefined && sys.health < 100)
+    .map(([name, sys]) => ({ name, health: sys.health, issue: sys.issue, status: sys.status }));
+
+  // Combine combat damage + template damage for repair list
+  const allDamagedSystems = [
+    ...damagedSystems,
+    ...templateDamagedSystems.map(s => s.name).filter(n => !damagedSystems.includes(n))
+  ];
+
   return `
     <div class="detail-section">
       <h4>Hull Integrity</h4>
@@ -1152,13 +1164,24 @@ function getDamageControlPanel(shipState, template, systemStatus = {}, damagedSy
         ${renderSystemStatusItem('Fuel', systemStatus.fuel)}
         ${renderSystemStatusItem('Cargo', systemStatus.cargo)}
       </div>
+      ${templateDamagedSystems.length > 0 ? `
+      <h5 style="margin-top: 12px;">Auxiliary Systems</h5>
+      <div class="system-status-grid">
+        ${templateDamagedSystems.map(sys => `
+          <div class="system-status-item ${sys.health < 50 ? 'critical' : 'damaged'}">
+            <span class="system-name">${sys.name}</span>
+            <span class="system-state">${sys.health}% - ${sys.status}</span>
+          </div>
+        `).join('')}
+      </div>
+      ` : ''}
     </div>
-    ${damagedSystems.length > 0 ? `
+    ${allDamagedSystems.length > 0 ? `
     <div class="detail-section">
       <h4>Repair Actions</h4>
       <div class="repair-controls">
         <select id="repair-target" class="repair-select">
-          ${damagedSystems.map(s => `<option value="${s}">${formatSystemName(s)}</option>`).join('')}
+          ${allDamagedSystems.map(s => `<option value="${s}">${formatSystemName(s)}</option>`).join('')}
         </select>
         <button onclick="attemptRepair()" class="btn btn-small" title="Roll repair check (8+) to fix selected system. DM penalty equals damage severity.">Attempt Repair</button>
       </div>

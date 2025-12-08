@@ -6775,9 +6775,13 @@ function showSharedMap() {
   const existing = document.getElementById('shared-map-overlay');
   if (existing) {
     existing.classList.remove('hidden');
-    // Update ship location if hex changed
+    // Update ship location if hex changed and center map
     if (state.campaign?.current_hex && typeof setShipLocation === 'function') {
       setShipLocation(state.campaign.current_hex);
+      // AR-38.3: Center map on ship location when reopened
+      if (typeof centerOnHex === 'function') {
+        setTimeout(() => centerOnHex(state.campaign.current_hex), 100);
+      }
     }
     return;
   }
@@ -6823,10 +6827,14 @@ function showSharedMap() {
           loadSectorData(currentSubsector);
         }
 
-        // Set ship location to current hex if available
+        // Set ship location to current hex if available and center map
         if (state.campaign?.current_hex && typeof setShipLocation === 'function') {
           setTimeout(() => {
             setShipLocation(state.campaign.current_hex);
+            // AR-38.3: Center map on ship location when first opened
+            if (typeof centerOnHex === 'function') {
+              centerOnHex(state.campaign.current_hex);
+            }
           }, 500);
         }
       }
