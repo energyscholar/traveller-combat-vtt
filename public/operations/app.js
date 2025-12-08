@@ -1250,6 +1250,15 @@ function initSocket() {
     }
   });
 
+  // AR-49: Repair Queue Events
+  state.socket.on('ops:repairQueue', (data) => {
+    state.repairQueue = data.repairs || [];
+    // Refresh engineer panel if active
+    if (state.selectedRole === 'engineer') {
+      renderRoleDetailPanel(state.selectedRole);
+    }
+  });
+
   // ==================== AR-27: Shared Map Events ====================
 
   // GM shared the map - auto-switch all players
@@ -2669,7 +2678,8 @@ function renderRoleDetailPanel(role) {
     contacts: state.contacts,
     crewOnline: state.crewOnline,
     ship: state.ship,
-    environmentalData: state.environmentalData || null
+    environmentalData: state.environmentalData || null,
+    repairQueue: state.repairQueue || []
   };
 
   // Role-specific content from module

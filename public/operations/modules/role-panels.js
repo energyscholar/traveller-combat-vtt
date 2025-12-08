@@ -123,14 +123,15 @@ export function renderSystemStatusItem(name, status) {
 export function getRoleDetailContent(role, context) {
   const { shipState = {}, template = {}, systemStatus = {}, damagedSystems = [],
           fuelStatus, jumpStatus = {}, campaign, contacts = [], crewOnline = [], ship,
-          roleInstance = 1, shipWeapons = [], combatLog = [], environmentalData = null } = context;
+          roleInstance = 1, shipWeapons = [], combatLog = [], environmentalData = null,
+          repairQueue = [] } = context;
 
   switch (role) {
     case 'pilot':
       return getPilotPanel(shipState, template, campaign, jumpStatus);
 
     case 'engineer':
-      return getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus);
+      return getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue);
 
     case 'gunner':
       return getGunnerPanel(shipState, template, contacts, roleInstance, shipWeapons, combatLog);
@@ -283,7 +284,7 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}) {
   `;
 }
 
-function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus) {
+function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue = []) {
   // Power allocation state
   const power = shipState.power || { mDrive: 75, weapons: 75, sensors: 75, lifeSupport: 75, computer: 75 };
   const powerEffects = shipState.powerEffects || { weaponsDM: 0, sensorsDM: 0, thrustMultiplier: 1.0 };
@@ -368,6 +369,28 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
       </div>
       <div class="repair-info">
         <small>Engineer check (8+) with DM = -Severity</small>
+      </div>
+    </div>
+    ` : ''}
+    ${repairQueue.length > 0 ? `
+    <div class="detail-section repair-queue-section">
+      <h4>Active Repairs (${repairQueue.length})</h4>
+      <div class="repair-queue-list">
+        ${repairQueue.map(r => `
+          <div class="repair-item ${r.status === 'in_progress' ? 'active' : ''}" data-repair-id="${r.id}">
+            <div class="repair-header">
+              <span class="repair-system">${escapeHtml(r.system || 'Unknown')}</span>
+              <span class="repair-status ${r.status === 'in_progress' ? 'text-warning' : ''}">${r.status === 'in_progress' ? 'In Progress' : 'Queued'}</span>
+            </div>
+            <div class="repair-details" style="font-size: 0.85em; color: var(--text-muted);">
+              <span class="repair-hours">${r.hoursRemaining || r.hoursRequired}h remaining</span>
+              ${r.partsRequired ? `<span class="repair-parts"> | Parts: ${r.partsRequired}</span>` : ''}
+            </div>
+            <div class="repair-progress" style="background: var(--bg-secondary); border-radius: 3px; height: 4px; margin-top: 4px;">
+              <div class="repair-progress-bar" style="width: ${r.hoursRequired ? ((r.hoursRequired - (r.hoursRemaining || r.hoursRequired)) / r.hoursRequired * 100) : 0}%; background: var(--primary); height: 100%; border-radius: 3px;"></div>
+            </div>
+          </div>
+        `).join('')}
       </div>
     </div>
     ` : ''}
