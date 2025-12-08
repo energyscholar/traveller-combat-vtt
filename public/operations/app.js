@@ -6906,6 +6906,10 @@ function showSystemMap() {
         <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;">SWITCH STARSYSTEM</button>
         <button id="btn-places" class="btn btn-info">📍 Places</button>
         <button id="btn-range-bands" class="btn btn-outline" title="Toggle tactical range bands">📡 Range</button>
+        <button id="btn-goldilocks" class="btn btn-outline" title="Toggle habitable zone">🌡️ HZ</button>
+        <select id="object-selector" class="form-control" style="width: auto; display: inline-block; min-width: 120px;" title="Jump to object">
+          <option value="">Go to...</option>
+        </select>
         <button id="btn-show-ship" class="btn btn-outline" title="Show party ship">🚀 Ship</button>
         ${state.isGM ? `
           <button id="btn-share-system-map" class="btn btn-primary">Share with Players</button>
@@ -7014,6 +7018,55 @@ function showSystemMap() {
       btn.textContent = rangeBandsOn ? '📡 Range ON' : '📡 Range';
     }
   });
+
+  // AR-36: Goldilocks zone toggle
+  let goldilocksOn = false;
+  document.getElementById('btn-goldilocks')?.addEventListener('click', () => {
+    if (typeof toggleGoldilocksZone === 'function') {
+      toggleGoldilocksZone();
+      goldilocksOn = !goldilocksOn;
+      const btn = document.getElementById('btn-goldilocks');
+      btn.classList.toggle('btn-active', goldilocksOn);
+      btn.textContent = goldilocksOn ? '🌡️ HZ ON' : '🌡️ HZ';
+    }
+  });
+
+  // AR-36: Object selector dropdown
+  document.getElementById('object-selector')?.addEventListener('change', (e) => {
+    const value = e.target.value;
+    if (value && typeof goToObject === 'function') {
+      goToObject(value);
+      e.target.value = ''; // Reset selector
+    }
+  });
+
+  // Populate object selector when system changes
+  function updateObjectSelector() {
+    const select = document.getElementById('object-selector');
+    if (!select || !systemMapState.system) return;
+
+    const options = ['<option value="">Go to...</option>'];
+
+    // Add stars
+    if (systemMapState.system.stars) {
+      systemMapState.system.stars.forEach((star, i) => {
+        options.push(`<option value="star-${i}">${star.name || `Star ${i + 1}`}</option>`);
+      });
+    }
+
+    // Add planets
+    if (systemMapState.system.planets) {
+      systemMapState.system.planets.forEach((planet, i) => {
+        const prefix = planet.isMainworld ? '★ ' : '';
+        options.push(`<option value="planet-${i}">${prefix}${planet.name}</option>`);
+      });
+    }
+
+    select.innerHTML = options.join('');
+  }
+
+  // Update selector after system loads
+  setTimeout(updateObjectSelector, 200);
 
   // AR-29.9: Show party ship
   document.getElementById('btn-show-ship')?.addEventListener('click', () => {

@@ -523,6 +523,9 @@ function render() {
     drawFullSystem(ctx, centerX, centerY, zoom, demoSystem);
   }
 
+  // AR-36: Draw goldilocks zone (behind other overlays)
+  drawGoldilocksZone(ctx, centerX, centerY, zoom);
+
   // AR-29.9: Draw ship integration overlays
   drawRangeBands(ctx, centerX, centerY, zoom);
   drawCourseLine(ctx, centerX, centerY, zoom);
@@ -1504,6 +1507,122 @@ function resetTime() {
   console.log('[SystemMap] Time reset to epoch');
 }
 
+// ==================== AR-36: Goldilocks Zone ====================
+
+let showGoldilocksZone = false;
+
+/**
+ * Toggle habitable zone display
+ */
+function toggleGoldilocksZone() {
+  showGoldilocksZone = !showGoldilocksZone;
+  console.log(`[SystemMap] Goldilocks zone: ${showGoldilocksZone ? 'ON' : 'OFF'}`);
+}
+
+/**
+ * Calculate habitable zone bounds based on stellar luminosity
+ * @param {string} stellarClass - e.g., "G2 V", "K4 V", "M0 V"
+ * @returns {{ inner: number, outer: number }} AU bounds
+ */
+function getHabitableZone(stellarClass) {
+  // Approximate luminosity based on spectral type
+  const luminosityMap = {
+    'O': 100000, 'B': 1000, 'A': 20, 'F': 2.5,
+    'G': 1.0, 'K': 0.4, 'M': 0.04
+  };
+
+  const type = stellarClass?.charAt(0)?.toUpperCase() || 'G';
+  const luminosity = luminosityMap[type] || 1.0;
+
+  // HZ scales with sqrt of luminosity
+  const sqrtL = Math.sqrt(luminosity);
+  return {
+    inner: 0.95 * sqrtL,
+    outer: 1.37 * sqrtL
+  };
+}
+
+/**
+ * Draw goldilocks zone overlay
+ */
+function drawGoldilocksZone(ctx, centerX, centerY, zoom) {
+  if (!showGoldilocksZone || !systemMapState.system) return;
+
+  const stellarClass = systemMapState.system.stellarClass || 'G2 V';
+  const hz = getHabitableZone(stellarClass);
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  ctx.save();
+
+  // Draw habitable zone as translucent green annulus
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, hz.outer * auToPixels, 0, Math.PI * 2);
+  ctx.arc(centerX, centerY, hz.inner * auToPixels, 0, Math.PI * 2, true);
+  ctx.fillStyle = 'rgba(68, 180, 68, 0.15)';
+  ctx.fill();
+
+  // Draw boundary lines
+  ctx.strokeStyle = 'rgba(68, 180, 68, 0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, hz.inner * auToPixels, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, hz.outer * auToPixels, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ==================== AR-36: Object Navigation ====================
+
+/**
+ * Navigate to a specific object in the system
+ * @param {string} objectId - e.g., "star-0", "planet-2"
+ */
+function goToObject(objectId) {
+  if (!systemMapState.system || !systemMapState.canvas) return;
+
+  const [type, indexStr] = objectId.split('-');
+  const index = parseInt(indexStr, 10);
+
+  const width = systemMapState.canvas.width / window.devicePixelRatio;
+  const height = systemMapState.canvas.height / window.devicePixelRatio;
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  let targetX = 0, targetY = 0, targetZoom = 1;
+
+  if (type === 'star') {
+    // Stars are at center
+    targetX = 0;
+    targetY = 0;
+    targetZoom = 2;
+  } else if (type === 'planet') {
+    const planet = systemMapState.system.planets?.[index];
+    if (planet) {
+      // Calculate planet position
+      const orbitSpeed = 0.1 / Math.sqrt(planet.orbitAU || 1);
+      const angle = systemMapState.time * orbitSpeed;
+      targetX = Math.cos(angle) * planet.orbitAU * systemMapState.AU_TO_PIXELS;
+      targetY = Math.sin(angle) * planet.orbitAU * systemMapState.AU_TO_PIXELS;
+
+      // Zoom based on orbit size
+      targetZoom = Math.min(10, Math.max(1, 50 / planet.orbitAU));
+    }
+  }
+
+  // Animate to target (simple instant transition for now)
+  systemMapState.offsetX = centerX - targetX * targetZoom;
+  systemMapState.offsetY = centerY - targetY * targetZoom;
+  systemMapState.zoom = targetZoom;
+
+  console.log(`[SystemMap] Navigated to ${objectId}`);
+}
+
 // ==================== AR-29.9: Ship Integration ====================
 
 /**
@@ -1715,6 +1834,9 @@ window.toggleRangeBands = toggleRangeBands;
 window.setMapDestination = setMapDestination;
 window.shipMapState = shipMapState;
 window.resizeSystemMapCanvas = resizeCanvas;
+// AR-36: Goldilocks zone and navigation
+window.toggleGoldilocksZone = toggleGoldilocksZone;
+window.goToObject = goToObject;
 
 // Export for ES modules (app.js imports these)
 export {
