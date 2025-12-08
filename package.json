@@ -33,6 +33,7 @@
     "validate-adventure": "node scripts/validate-adventure.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "better-sqlite3": "^12.5.0",
