@@ -1275,6 +1275,30 @@ function initSocket() {
     }
   });
 
+  // AR-49: Medical Conditions Events (Medic)
+  state.socket.on('ops:medicalConditions', (data) => {
+    state.medicalConditions = data;
+    if (state.selectedRole === 'medic') {
+      renderRoleDetailPanel(state.selectedRole);
+    }
+  });
+
+  // AR-49: Target Conditions Events (Gunner)
+  state.socket.on('ops:targetConditions', (data) => {
+    state.targetConditions = data;
+    if (state.selectedRole === 'gunner') {
+      renderRoleDetailPanel(state.selectedRole);
+    }
+  });
+
+  // AR-49: Boarding Conditions Events (Marines)
+  state.socket.on('ops:boardingConditions', (data) => {
+    state.boardingConditions = data;
+    if (state.selectedRole === 'marines') {
+      renderRoleDetailPanel(state.selectedRole);
+    }
+  });
+
   // ==================== AR-27: Shared Map Events ====================
 
   // GM shared the map - auto-switch all players
@@ -2697,7 +2721,10 @@ function renderRoleDetailPanel(role) {
     environmentalData: state.environmentalData || null,
     repairQueue: state.repairQueue || [],
     rescueTargets: state.rescueTargets || [],
-    flightConditions: state.flightConditions || null
+    flightConditions: state.flightConditions || null,
+    medicalConditions: state.medicalConditions || null,
+    targetConditions: state.targetConditions || null,
+    boardingConditions: state.boardingConditions || null
   };
 
   // Role-specific content from module

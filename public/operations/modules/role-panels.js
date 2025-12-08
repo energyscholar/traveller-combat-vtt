@@ -124,7 +124,8 @@ export function getRoleDetailContent(role, context) {
   const { shipState = {}, template = {}, systemStatus = {}, damagedSystems = [],
           fuelStatus, jumpStatus = {}, campaign, contacts = [], crewOnline = [], ship,
           roleInstance = 1, shipWeapons = [], combatLog = [], environmentalData = null,
-          repairQueue = [], rescueTargets = [], flightConditions = null } = context;
+          repairQueue = [], rescueTargets = [], flightConditions = null,
+          medicalConditions = null, targetConditions = null, boardingConditions = null } = context;
 
   switch (role) {
     case 'pilot':
@@ -134,7 +135,7 @@ export function getRoleDetailContent(role, context) {
       return getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue);
 
     case 'gunner':
-      return getGunnerPanel(shipState, template, contacts, roleInstance, shipWeapons, combatLog);
+      return getGunnerPanel(shipState, template, contacts, roleInstance, shipWeapons, combatLog, targetConditions);
 
     case 'captain':
       return getCaptainPanel(shipState, template, ship, crewOnline, contacts, rescueTargets);
@@ -147,6 +148,12 @@ export function getRoleDetailContent(role, context) {
 
     case 'damage_control':
       return getDamageControlPanel(shipState, template, systemStatus, damagedSystems);
+
+    case 'medic':
+      return getMedicPanel(shipState, template, crewOnline, medicalConditions);
+
+    case 'marines':
+      return getMarinesPanel(shipState, template, boardingConditions);
 
     default:
       return `
@@ -487,7 +494,7 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
   `;
 }
 
-function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWeapons = [], combatLog = []) {
+function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWeapons = [], combatLog = [], targetConditions = null) {
   // Use ship_weapons from database if available, else fall back to template
   const weapons = shipWeapons.length > 0 ? shipWeapons : (template.weapons || []);
   const ammo = shipState.ammo || {};
@@ -635,6 +642,49 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
         </div>
       `}
     </div>
+
+    ${targetConditions ? `
+    <div class="detail-section target-conditions">
+      <h4>Targeting Conditions</h4>
+      <div class="detail-stats">
+        ${targetConditions.lockStatus ? `
+        <div class="stat-row">
+          <span>Lock Status:</span>
+          <span class="stat-value ${targetConditions.lockStatus === 'Locked' ? 'text-success' : targetConditions.lockStatus === 'Acquiring' ? 'text-warning' : ''}">${targetConditions.lockStatus}</span>
+        </div>
+        ` : ''}
+        ${targetConditions.ecmEffect ? `
+        <div class="stat-row">
+          <span>ECM Effect:</span>
+          <span class="stat-value ${targetConditions.ecmEffect === 'Heavy' ? 'text-danger' : targetConditions.ecmEffect === 'Moderate' ? 'text-warning' : ''}">${targetConditions.ecmEffect}</span>
+        </div>
+        ` : ''}
+        ${targetConditions.solutionQuality ? `
+        <div class="stat-row">
+          <span>Firing Solution:</span>
+          <span class="stat-value ${targetConditions.solutionQuality === 'Excellent' ? 'text-success' : targetConditions.solutionQuality === 'Poor' ? 'text-danger' : ''}">${targetConditions.solutionQuality}</span>
+        </div>
+        ` : ''}
+        ${targetConditions.targetAspect ? `
+        <div class="stat-row">
+          <span>Target Aspect:</span>
+          <span class="stat-value">${targetConditions.targetAspect}</span>
+        </div>
+        ` : ''}
+        ${targetConditions.trackingMod !== undefined ? `
+        <div class="stat-row">
+          <span>Tracking Mod:</span>
+          <span class="stat-value ${targetConditions.trackingMod < 0 ? 'text-danger' : targetConditions.trackingMod > 0 ? 'text-success' : ''}">${targetConditions.trackingMod >= 0 ? '+' : ''}${targetConditions.trackingMod}</span>
+        </div>
+        ` : ''}
+      </div>
+      ${targetConditions.warning ? `
+      <div class="targeting-warning" style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.15); border-radius: 4px;">
+        <strong class="text-danger">⚠ ${escapeHtml(targetConditions.warning)}</strong>
+      </div>
+      ` : ''}
+    </div>
+    ` : ''}
 
     <div class="detail-section weapons-section">
       <h4>WEAPONS</h4>
@@ -1396,5 +1446,174 @@ function getDamageControlPanel(shipState, template, systemStatus = {}, damagedSy
       <div class="placeholder">All systems operational</div>
     </div>
     `}
+  `;
+}
+
+// ==================== AR-49 Phase 5: Medic Panel ====================
+
+function getMedicPanel(shipState, template, crewOnline = [], medicalConditions = null) {
+  // Medical conditions section HTML
+  const medicalConditionsHtml = medicalConditions ? `
+    <div class="detail-section medical-conditions">
+      <h4>Medical Status</h4>
+      <div class="detail-stats">
+        ${medicalConditions.alertLevel ? `
+        <div class="stat-row">
+          <span>Alert Level:</span>
+          <span class="stat-value ${medicalConditions.alertLevel === 'Critical' ? 'text-danger' : medicalConditions.alertLevel === 'Elevated' ? 'text-warning' : ''}">${medicalConditions.alertLevel}</span>
+        </div>
+        ` : ''}
+        ${medicalConditions.supplyLevel !== undefined ? `
+        <div class="stat-row">
+          <span>Medical Supplies:</span>
+          <span class="stat-value ${medicalConditions.supplyLevel <= 25 ? 'text-danger' : medicalConditions.supplyLevel <= 50 ? 'text-warning' : ''}">${medicalConditions.supplyLevel}%</span>
+        </div>
+        ` : ''}
+        ${medicalConditions.bedCapacity !== undefined ? `
+        <div class="stat-row">
+          <span>Beds Available:</span>
+          <span class="stat-value">${medicalConditions.bedsUsed || 0}/${medicalConditions.bedCapacity}</span>
+        </div>
+        ` : ''}
+      </div>
+      ${medicalConditions.patients && medicalConditions.patients.length > 0 ? `
+      <div class="patient-list" style="margin-top: 8px;">
+        <strong>Patients:</strong>
+        <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+          ${medicalConditions.patients.map(p => `
+            <li class="${p.severity === 'critical' ? 'text-danger' : p.severity === 'serious' ? 'text-warning' : ''}">
+              ${escapeHtml(p.name)} - ${escapeHtml(p.condition)}${p.treatmentEta ? ` (${p.treatmentEta})` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+      ` : ''}
+      ${medicalConditions.hazard ? `
+      <div class="medical-hazard" style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.15); border-radius: 4px;">
+        <strong class="text-danger">⚠ ${escapeHtml(medicalConditions.hazard)}</strong>
+      </div>
+      ` : ''}
+    </div>
+  ` : '';
+
+  // Crew health overview
+  const crewCount = crewOnline?.length || 0;
+  const healthyCount = medicalConditions?.healthyCrew ?? crewCount;
+  const injuredCount = medicalConditions?.patients?.length || 0;
+
+  return `
+    <div class="detail-section">
+      <h4>Sickbay</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Crew Health:</span>
+          <span class="stat-value ${injuredCount > 0 ? 'text-warning' : 'text-success'}">${healthyCount}/${crewCount} healthy</span>
+        </div>
+        <div class="stat-row">
+          <span>Injured:</span>
+          <span class="stat-value ${injuredCount > 0 ? 'text-danger' : ''}">${injuredCount}</span>
+        </div>
+      </div>
+    </div>
+
+    ${medicalConditionsHtml}
+
+    <div class="detail-section">
+      <h4>Medical Actions</h4>
+      <div class="action-buttons">
+        <button onclick="roleAction('triage')" class="btn btn-small">Triage</button>
+        <button onclick="roleAction('treatInjury')" class="btn btn-small">Treat Injury</button>
+        <button onclick="roleAction('checkSupplies')" class="btn btn-small">Check Supplies</button>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== AR-49 Phase 7: Marines Panel ====================
+
+function getMarinesPanel(shipState, template, boardingConditions = null) {
+  // Default squad status
+  const squadReady = shipState.marineSquadReady ?? true;
+  const squadSize = template.marineComplement || 4;
+
+  // Boarding conditions section HTML
+  const boardingConditionsHtml = boardingConditions ? `
+    <div class="detail-section boarding-conditions">
+      <h4>Tactical Situation</h4>
+      <div class="detail-stats">
+        ${boardingConditions.alertLevel ? `
+        <div class="stat-row">
+          <span>Alert Level:</span>
+          <span class="stat-value ${boardingConditions.alertLevel === 'Combat' ? 'text-danger' : boardingConditions.alertLevel === 'Elevated' ? 'text-warning' : ''}">${boardingConditions.alertLevel}</span>
+        </div>
+        ` : ''}
+        ${boardingConditions.hostileCount !== undefined ? `
+        <div class="stat-row">
+          <span>Hostile Count:</span>
+          <span class="stat-value ${boardingConditions.hostileCount > 0 ? 'text-danger' : 'text-success'}">${boardingConditions.hostileCount}</span>
+        </div>
+        ` : ''}
+        ${boardingConditions.deckControl ? `
+        <div class="stat-row">
+          <span>Deck Control:</span>
+          <span class="stat-value ${boardingConditions.deckControl === 'Contested' ? 'text-warning' : boardingConditions.deckControl === 'Enemy' ? 'text-danger' : 'text-success'}">${boardingConditions.deckControl}</span>
+        </div>
+        ` : ''}
+        ${boardingConditions.breachPoints !== undefined ? `
+        <div class="stat-row">
+          <span>Breach Points:</span>
+          <span class="stat-value ${boardingConditions.breachPoints > 0 ? 'text-danger' : ''}">${boardingConditions.breachPoints}</span>
+        </div>
+        ` : ''}
+      </div>
+      ${boardingConditions.sectors && boardingConditions.sectors.length > 0 ? `
+      <div class="sector-list" style="margin-top: 8px;">
+        <strong>Sector Status:</strong>
+        <ul style="margin: 4px 0 0 0; padding-left: 16px;">
+          ${boardingConditions.sectors.map(s => `
+            <li class="${s.status === 'hostile' ? 'text-danger' : s.status === 'contested' ? 'text-warning' : 'text-success'}">
+              ${escapeHtml(s.name)} - ${escapeHtml(s.status)}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+      ` : ''}
+      ${boardingConditions.hazard ? `
+      <div class="boarding-hazard" style="margin-top: 8px; padding: 8px; background: rgba(220,53,69,0.15); border-radius: 4px;">
+        <strong class="text-danger">⚠ ${escapeHtml(boardingConditions.hazard)}</strong>
+      </div>
+      ` : ''}
+    </div>
+  ` : '';
+
+  return `
+    <div class="detail-section">
+      <h4>Marine Detachment</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Squad Status:</span>
+          <span class="stat-value ${squadReady ? 'text-success' : 'text-warning'}">${squadReady ? 'Ready' : 'Deploying'}</span>
+        </div>
+        <div class="stat-row">
+          <span>Squad Size:</span>
+          <span class="stat-value">${squadSize} marines</span>
+        </div>
+        <div class="stat-row">
+          <span>Equipment:</span>
+          <span class="stat-value">${shipState.marineEquipment || 'Standard'}</span>
+        </div>
+      </div>
+    </div>
+
+    ${boardingConditionsHtml}
+
+    <div class="detail-section">
+      <h4>Tactical Actions</h4>
+      <div class="action-buttons">
+        <button onclick="roleAction('securityPatrol')" class="btn btn-small">Security Patrol</button>
+        <button onclick="roleAction('prepareBoarding')" class="btn btn-small">Prepare Boarding</button>
+        <button onclick="roleAction('repelBoarders')" class="btn btn-small">Repel Boarders</button>
+      </div>
+    </div>
   `;
 }
