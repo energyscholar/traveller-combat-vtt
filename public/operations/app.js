@@ -3507,6 +3507,34 @@ function scanContact(contactId, targetLevel) {
   showNotification(`Targeting contact for ${scanType} scan...`, 'info');
 }
 
+// Electronic Warfare Controls (AR-36)
+function toggleECM() {
+  const newState = !state.shipState?.ecm;
+  state.socket.emit('ops:setEW', { type: 'ecm', active: newState });
+  showNotification(`ECM ${newState ? 'activated' : 'deactivated'}`, newState ? 'warning' : 'info');
+}
+
+function toggleECCM() {
+  const newState = !state.shipState?.eccm;
+  state.socket.emit('ops:setEW', { type: 'eccm', active: newState });
+  showNotification(`ECCM ${newState ? 'activated' : 'deactivated'}`, newState ? 'success' : 'info');
+}
+
+function toggleStealth() {
+  const newState = !state.shipState?.stealth;
+  state.socket.emit('ops:setEW', { type: 'stealth', active: newState });
+  showNotification(`Stealth mode ${newState ? 'engaged' : 'disengaged'}`, 'info');
+}
+
+function setSensorLock(contactId) {
+  state.socket.emit('ops:setSensorLock', { contactId });
+  if (contactId) {
+    showNotification('Sensor lock acquired', 'warning');
+  } else {
+    showNotification('Sensor lock released', 'info');
+  }
+}
+
 // Show scan result overlay with newly discovered info highlighted - AR-30
 function showScanResultOverlay(contact, discoveries, oldLevel, newLevel) {
   // Define what fields are revealed at each scan level
@@ -9180,6 +9208,10 @@ window.initiateJump = initiateJump;
 window.plotJumpCourse = plotJumpCourse;
 window.initiateJumpFromPlot = initiateJumpFromPlot;
 window.performScan = performScan;
+window.toggleECM = toggleECM;
+window.toggleECCM = toggleECCM;
+window.toggleStealth = toggleStealth;
+window.setSensorLock = setSensorLock;
 window.authorizeWeapons = authorizeWeapons;
 window.fireAtTarget = fireAtTarget;
 window.fireWeapon = fireWeapon;

@@ -965,18 +965,46 @@ function getSensorOperatorPanel(shipState, contacts) {
       <!-- Populated by scan results -->
     </div>
     <div class="detail-section">
-      <h4>EW Status</h4>
+      <h4>Electronic Warfare</h4>
+      <div class="ew-controls" style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px;">
+        <button onclick="window.toggleECM()" class="btn btn-small ${shipState.ecm ? 'btn-active btn-warning' : ''}" title="Electronic Counter-Measures: -DM to enemy sensors">
+          ECM ${shipState.ecm ? 'ON' : 'OFF'}
+        </button>
+        <button onclick="window.toggleECCM()" class="btn btn-small ${shipState.eccm ? 'btn-active btn-success' : ''}" title="Electronic Counter-Counter-Measures: +DM to our sensors">
+          ECCM ${shipState.eccm ? 'ON' : 'OFF'}
+        </button>
+        <button onclick="window.toggleStealth()" class="btn btn-small ${shipState.stealth ? 'btn-active btn-secondary' : ''}" title="Reduce emissions to avoid detection">
+          Stealth ${shipState.stealth ? 'ON' : 'OFF'}
+        </button>
+      </div>
       <div class="detail-stats">
         <div class="stat-row">
-          <span>Jamming:</span>
-          <span class="stat-value">${shipState.jamming ? 'Active' : 'Inactive'}</span>
+          <span>Sensor Lock:</span>
+          <span class="stat-value ${shipState.sensorLock ? 'text-warning' : ''}">${shipState.sensorLock ? escapeHtml(shipState.sensorLockTarget || 'Active') : 'None'}</span>
         </div>
         <div class="stat-row">
-          <span>Stealth:</span>
-          <span class="stat-value">${shipState.stealth ? 'Active' : 'Off'}</span>
+          <span>Jamming DM:</span>
+          <span class="stat-value">${shipState.ecm ? '-2' : '0'}</span>
         </div>
       </div>
     </div>
+    ${ships.length > 0 ? `
+    <div class="detail-section">
+      <h4>Threat Assessment</h4>
+      <div class="threat-list">
+        ${ships.filter(c => c.scan_level >= 2).map(c => {
+          const threat = c.marking === 'hostile' ? 'HIGH' : c.marking === 'unknown' ? 'UNKNOWN' : 'LOW';
+          const threatClass = threat === 'HIGH' ? 'text-danger' : threat === 'UNKNOWN' ? 'text-warning' : 'text-success';
+          return `
+            <div class="threat-item" style="display: flex; justify-content: space-between; padding: 3px 0;">
+              <span>${escapeHtml(c.name || c.transponder || 'Contact')}</span>
+              <span class="${threatClass}">${threat}</span>
+            </div>
+          `;
+        }).join('') || '<div class="placeholder">Scan ships to assess threats</div>'}
+      </div>
+    </div>
+    ` : ''}
     <div class="detail-section sensor-skill-note">
       <small><em>Your Electronics (sensors) skill affects detection range and accuracy</em></small>
     </div>
