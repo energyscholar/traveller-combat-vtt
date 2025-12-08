@@ -6898,15 +6898,15 @@ function showSystemMap() {
     <div class="system-map-header">
       <h2>Shared System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
       <div class="system-map-controls">
-        <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;">
+        <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;" title="Select a star system to view">
           <option value="caladbolg">Caladbolg</option>
           <option value="dorannia">Dorannia</option>
           <option value="flammarion" selected>Flammarion</option>
         </select>
-        <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;">SWITCH STARSYSTEM</button>
-        <button id="btn-places" class="btn btn-info">📍 Places</button>
+        <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;" title="Load the selected star system">SWITCH STARSYSTEM</button>
+        <button id="btn-places" class="btn btn-info" title="Show clickable destinations in this system">📍 Places</button>
         <button id="btn-range-bands" class="btn btn-outline" title="Toggle tactical range bands">📡 Range</button>
-        <button id="btn-goldilocks" class="btn btn-outline" title="Toggle habitable zone">🌡️ HZ</button>
+        <button id="btn-goldilocks" class="btn btn-outline btn-toggle-fixed" title="Toggle habitable zone display - Shows where liquid water can exist">🌡️ HZ</button>
         <select id="object-selector" class="form-control" style="width: auto; display: inline-block; min-width: 120px;" title="Jump to object">
           <option value="">Go to...</option>
         </select>
@@ -6921,13 +6921,13 @@ function showSystemMap() {
       <!-- Canvas will be inserted here by initSystemMap -->
     </div>
     <div class="system-map-time-controls">
-      <button id="btn-time-rewind-100" class="btn btn-sm">◀◀ -100d</button>
-      <button id="btn-time-rewind-10" class="btn btn-sm">◀ -10d</button>
-      <button id="btn-time-pause" class="btn btn-sm btn-primary">⏸ Pause</button>
-      <button id="btn-time-forward-10" class="btn btn-sm">+10d ▶</button>
-      <button id="btn-time-forward-100" class="btn btn-sm">+100d ▶▶</button>
+      <button id="btn-time-rewind-100" class="btn btn-sm" title="Rewind 100 days - Move planets back in their orbits">◀◀ -100d</button>
+      <button id="btn-time-rewind-10" class="btn btn-sm" title="Rewind 10 days">◀ -10d</button>
+      <button id="btn-time-pause" class="btn btn-sm btn-primary" title="Pause/Resume orbital animation">⏸ Pause</button>
+      <button id="btn-time-forward-10" class="btn btn-sm" title="Advance 10 days">+10d ▶</button>
+      <button id="btn-time-forward-100" class="btn btn-sm" title="Advance 100 days - Move planets forward in their orbits">+100d ▶▶</button>
       <span class="time-speed-label">Speed:</span>
-      <select id="time-speed-select" class="form-control" style="width: auto; display: inline-block;">
+      <select id="time-speed-select" class="form-control" style="width: auto; display: inline-block;" title="Orbital animation speed multiplier">
         <option value="0" selected>0x</option>
         <option value="1">1x</option>
         <option value="5">5x</option>
@@ -6935,10 +6935,10 @@ function showSystemMap() {
         <option value="50">50x</option>
       </select>
       <span class="date-input-label">Date:</span>
-      <input type="number" id="date-year-input" class="form-control" style="width: 70px; display: inline-block;" value="1105" min="1" max="9999" title="Imperial Year">
+      <input type="number" id="date-year-input" class="form-control" style="width: 70px; display: inline-block;" value="1105" min="1" max="9999" title="Imperial Year (e.g., 1105)">
       <span>.</span>
       <input type="number" id="date-day-input" class="form-control" style="width: 55px; display: inline-block;" value="001" min="1" max="365" title="Day of Year (001-365)">
-      <button id="btn-set-date" class="btn btn-sm">Set</button>
+      <button id="btn-set-date" class="btn btn-sm" title="Set simulated date for orbital positions">Set</button>
       <span id="simulated-date" class="simulated-date">1105.001</span>
     </div>
     <div class="system-map-instructions">
@@ -7003,6 +7003,8 @@ function showSystemMap() {
       document.getElementById('system-map-name').textContent = TEST_SYSTEMS[select.value].name;
       resetMapTime();
       updateSimulatedDate();
+      // AR-38: Update GO TO dropdown when system changes
+      setTimeout(() => updateObjectSelector(), 100);
       showNotification(`Switched to ${TEST_SYSTEMS[select.value].name} system`, 'success');
     }
   });
@@ -7019,7 +7021,7 @@ function showSystemMap() {
     }
   });
 
-  // AR-36: Goldilocks zone toggle
+  // AR-36: Goldilocks zone toggle (fixed-width button)
   let goldilocksOn = false;
   document.getElementById('btn-goldilocks')?.addEventListener('click', () => {
     if (typeof toggleGoldilocksZone === 'function') {
@@ -7027,7 +7029,7 @@ function showSystemMap() {
       goldilocksOn = !goldilocksOn;
       const btn = document.getElementById('btn-goldilocks');
       btn.classList.toggle('btn-active', goldilocksOn);
-      btn.textContent = goldilocksOn ? '🌡️ HZ ON' : '🌡️ HZ';
+      // Keep same text, use class for visual feedback
     }
   });
 

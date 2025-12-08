@@ -356,30 +356,69 @@ function hidePlacesOverlay() {
   if (existing) existing.remove();
 }
 
+// AR-38: Track last selected place and view variant for re-click cycling
+let lastSelectedPlaceId = null;
+let viewVariantIndex = 0;
+const VIEW_ZOOM_LEVELS = [1.5, 3, 5, 8]; // Cycle through these zoom multipliers
+
 /**
  * Navigate to a place (center view)
+ * AR-38: Re-clicking same place cycles through different zoom levels
  */
 function goToPlace(placeId) {
   const place = systemMapState.system?.places?.find(p => p.id === placeId);
   if (!place) return;
+
+  // AR-38: Check if re-clicking same place
+  if (placeId === lastSelectedPlaceId) {
+    viewVariantIndex = (viewVariantIndex + 1) % VIEW_ZOOM_LEVELS.length;
+    console.log(`[SystemMap] Cycling view: variant ${viewVariantIndex + 1}/${VIEW_ZOOM_LEVELS.length}`);
+  } else {
+    viewVariantIndex = 0;
+    lastSelectedPlaceId = placeId;
+  }
 
   // Find the associated planet if any
   if (place.planetId) {
     const planet = systemMapState.system.planets.find(p => p.id === place.planetId);
     if (planet) {
       systemMapState.selectedBody = planet;
-      centerOnBody(planet);
+      centerOnBodyWithVariant(planet, VIEW_ZOOM_LEVELS[viewVariantIndex]);
       showBodyInfoPanel(planet);
     }
   }
 
-  console.log('[SystemMap] Going to:', place.name);
+  console.log('[SystemMap] Going to:', place.name, `(zoom ${VIEW_ZOOM_LEVELS[viewVariantIndex]}x)`);
 }
+
+/**
+ * Get current places overlay state (for testing)
+ */
+function getPlacesOverlayState() {
+  const overlay = document.getElementById('places-overlay');
+  return {
+    visible: !!overlay,
+    lastSelectedPlaceId,
+    viewVariantIndex,
+    currentZoom: VIEW_ZOOM_LEVELS[viewVariantIndex]
+  };
+}
+
+// Expose for testing
+window.getPlacesOverlayState = getPlacesOverlayState;
 
 /**
  * Center view on a body
  */
 function centerOnBody(body) {
+  centerOnBodyWithVariant(body, 1.5);
+}
+
+/**
+ * Center view on a body with specific zoom multiplier
+ * AR-38: Supports view cycling with different zoom levels
+ */
+function centerOnBodyWithVariant(body, zoomMultiplier) {
   const rect = systemMapState.canvas.getBoundingClientRect();
   const { zoom, offsetX, offsetY } = systemMapState;
   const centerX = rect.width / 2;
@@ -393,7 +432,7 @@ function centerOnBody(body) {
 
   systemMapState.offsetX += centerX - bodyX;
   systemMapState.offsetY += centerY - bodyY;
-  systemMapState.zoom = Math.min(zoom * 1.5, systemMapState.MAX_ZOOM);
+  systemMapState.zoom = Math.min(zoom * zoomMultiplier, systemMapState.MAX_ZOOM);
 }
 
 /**
@@ -1536,26 +1575,33 @@ function drawGoldilocksZone(ctx, centerX, centerY, zoom) {
   const hz = getHabitableZone(stellarClass);
   const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
 
+  // AR-38: Use 0.6 perspective ratio to match orbital ellipses
+  const perspectiveRatio = 0.6;
+  const innerRadiusX = hz.inner * auToPixels;
+  const innerRadiusY = innerRadiusX * perspectiveRatio;
+  const outerRadiusX = hz.outer * auToPixels;
+  const outerRadiusY = outerRadiusX * perspectiveRatio;
+
   ctx.save();
 
-  // Draw habitable zone as translucent green annulus
+  // Draw habitable zone as translucent green elliptical annulus
   ctx.beginPath();
-  ctx.arc(centerX, centerY, hz.outer * auToPixels, 0, Math.PI * 2);
-  ctx.arc(centerX, centerY, hz.inner * auToPixels, 0, Math.PI * 2, true);
+  ctx.ellipse(centerX, centerY, outerRadiusX, outerRadiusY, 0, 0, Math.PI * 2);
+  ctx.ellipse(centerX, centerY, innerRadiusX, innerRadiusY, 0, 0, Math.PI * 2, true);
   ctx.fillStyle = 'rgba(68, 180, 68, 0.15)';
   ctx.fill();
 
-  // Draw boundary lines
+  // Draw boundary ellipses
   ctx.strokeStyle = 'rgba(68, 180, 68, 0.4)';
   ctx.lineWidth = 1;
   ctx.setLineDash([5, 5]);
 
   ctx.beginPath();
-  ctx.arc(centerX, centerY, hz.inner * auToPixels, 0, Math.PI * 2);
+  ctx.ellipse(centerX, centerY, innerRadiusX, innerRadiusY, 0, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(centerX, centerY, hz.outer * auToPixels, 0, Math.PI * 2);
+  ctx.ellipse(centerX, centerY, outerRadiusX, outerRadiusY, 0, 0, Math.PI * 2);
   ctx.stroke();
 
   ctx.restore();

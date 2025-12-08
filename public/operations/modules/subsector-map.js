@@ -39,24 +39,71 @@ const sectorMapState = {
   HEX_WIDTH: 8,         // Columns in subsector
   HEX_HEIGHT: 10,       // Rows in subsector
 
-  // Colors
+  // AR-38: Map display style (matches TravellerMap options)
+  displayStyle: 'poster',  // 'poster', 'atlas', 'candy', 'terminal'
+
+  // Colors - matches TravellerMap.com styling
   colors: {
-    background: '#0a0a12',
-    hexOutline: 'rgba(60, 80, 100, 0.4)',
-    hexHover: 'rgba(80, 120, 160, 0.3)',
-    systemDot: '#88aacc',
+    background: '#000000',                  // Pure black like TravellerMap
+    hexOutline: 'rgba(128, 0, 0, 0.35)',    // Red-tinted grid like official map
+    hexHover: 'rgba(200, 100, 100, 0.25)',  // Red highlight on hover
+    systemDot: '#cccc88',                   // Neutral system color
     systemHover: '#ffffff',
-    systemNaval: '#4488ff',
-    systemScout: '#44ff88',
-    jumpRoute: 'rgba(100, 150, 200, 0.25)',
-    label: '#aabbcc',
+    systemNaval: '#4488ff',                 // Navy base - blue
+    systemScout: '#44ff88',                 // Scout base - green
+    jumpRoute: 'rgba(80, 200, 80, 0.3)',    // Green trade routes
+    label: '#ccccaa',                       // Slightly warmer labels
     labelHover: '#ffffff',
-    amber: '#ffaa00',
-    red: '#ff4444',
-    imperial: '#4488ff',
-    nonAligned: '#888888'
+    amber: '#ffaa00',                       // Amber zone
+    red: '#ff4444',                         // Red zone
+    imperial: '#ffcc00',                    // Imperial - yellow/gold
+    nonAligned: '#00cccc',                  // Non-aligned - cyan
+    subsectorBorder: 'rgba(255, 255, 0, 0.4)' // Yellow subsector boundaries
   }
 };
+
+// AR-38: Style presets for different display modes
+const STYLE_PRESETS = {
+  poster: {
+    background: '#000000',
+    hexOutline: 'rgba(128, 0, 0, 0.35)',
+    label: '#ccccaa',
+    textShadow: true
+  },
+  atlas: {
+    background: '#1a1a2e',
+    hexOutline: 'rgba(100, 100, 140, 0.3)',
+    label: '#aabbcc',
+    textShadow: false
+  },
+  candy: {
+    background: '#0a0a1a',
+    hexOutline: 'rgba(100, 50, 150, 0.3)',
+    label: '#ddccff',
+    textShadow: true
+  },
+  terminal: {
+    background: '#001100',
+    hexOutline: 'rgba(0, 100, 0, 0.4)',
+    label: '#00ff00',
+    textShadow: false
+  }
+};
+
+/**
+ * Set display style (AR-38)
+ */
+function setDisplayStyle(style) {
+  if (!STYLE_PRESETS[style]) return;
+  sectorMapState.displayStyle = style;
+  const preset = STYLE_PRESETS[style];
+  sectorMapState.colors.background = preset.background;
+  sectorMapState.colors.hexOutline = preset.hexOutline;
+  sectorMapState.colors.label = preset.label;
+  renderSectorMap();
+}
+
+window.setDisplayStyle = setDisplayStyle;
 
 /**
  * Initialize subsector map
@@ -395,6 +442,17 @@ function renderSectorMap() {
   ctx.fillStyle = sectorMapState.colors.background;
   ctx.fillRect(0, 0, width, height);
 
+  // Draw subsector name watermark (large, subtle background text)
+  if (sectorMapState.subsector) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(60, 40, 40, 0.15)';  // Very subtle red-tinted watermark
+    ctx.font = `bold ${Math.min(width, height) * 0.12}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(sectorMapState.subsector.name.toUpperCase(), width / 2, height / 2);
+    ctx.restore();
+  }
+
   // Draw title
   if (sectorMapState.subsector) {
     ctx.fillStyle = sectorMapState.colors.label;
@@ -418,8 +476,8 @@ function renderSectorMap() {
 
       drawHex(ctx, pos.x, pos.y, scaledHexSize, fill, sectorMapState.colors.hexOutline);
 
-      // Draw hex number (scale font)
-      ctx.fillStyle = 'rgba(80, 100, 120, 0.5)';
+      // Draw hex number (scale font) - red-tinted to match grid
+      ctx.fillStyle = 'rgba(128, 80, 80, 0.5)';
       ctx.font = `${Math.round(9 * scale)}px monospace`;
       ctx.textAlign = 'center';
       ctx.fillText(hexCoord, pos.x, pos.y - scaledHexSize + 12 * scale);

@@ -243,6 +243,82 @@ test('Ship no longer in jump space', () => {
   assertFalse(ship.current_state.jump.inJump);
 });
 
+// ==================== No-Fuel Mode Tests ====================
+
+console.log('\n--- No-Fuel Mode ---\n');
+
+// Create fresh test data for no-fuel tests
+let noFuelCampaignId = generateId();
+let noFuelShipId = generateId();
+
+db.prepare(`
+  INSERT INTO campaigns (id, name, gm_name, current_date, current_system)
+  VALUES (?, ?, ?, ?, ?)
+`).run(noFuelCampaignId, 'No-Fuel Test Campaign', 'Test GM', '1105-200 12:00', 'Regina');
+
+db.prepare(`
+  INSERT INTO ships (id, campaign_id, name, template_id, ship_data, current_state)
+  VALUES (?, ?, ?, ?, ?, ?)
+`).run(
+  noFuelShipId,
+  noFuelCampaignId,
+  'No-Fuel Scout',
+  'scout',
+  JSON.stringify({ hull: 100, tonnage: 100, jumpRating: 2, fuel: 5 }),
+  JSON.stringify({ fuel: 0 })  // Empty fuel
+);
+
+test('noFuelMode defaults to false', () => {
+  assertEqual(jump.getNoFuelMode(), false);
+});
+
+test('canInitiateJump fails with no fuel when noFuelMode disabled', () => {
+  jump.setNoFuelMode(false);
+  const result = jump.canInitiateJump(noFuelShipId, 1);
+  assertFalse(result.canJump);
+  assertTrue(result.error.includes('Insufficient fuel'));
+});
+
+test('setNoFuelMode enables no-fuel mode', () => {
+  jump.setNoFuelMode(true);
+  assertEqual(jump.getNoFuelMode(), true);
+});
+
+test('canInitiateJump succeeds with no fuel when noFuelMode enabled', () => {
+  jump.setNoFuelMode(true);
+  const result = jump.canInitiateJump(noFuelShipId, 1);
+  assertTrue(result.canJump);
+  assertEqual(result.fuelNeeded, 0);  // Should report 0 fuel needed
+  assertTrue(result.noFuelMode);
+});
+
+test('initiateJump works with no fuel in noFuelMode', () => {
+  jump.setNoFuelMode(true);
+  const result = jump.initiateJump(noFuelShipId, noFuelCampaignId, 'Efate', 1);
+  assertTrue(result.success);
+  assertEqual(result.destination, 'Efate');
+});
+
+test('Fuel not consumed in noFuelMode', () => {
+  const ship = campaign.getShip(noFuelShipId);
+  assertEqual(ship.current_state.fuel, 0);  // Still 0, not negative
+});
+
+test('completeJump works in noFuelMode', () => {
+  // Advance time past jump
+  accounts.updateCampaign(noFuelCampaignId, { current_date: '1105-210 12:00' });
+  const result = jump.completeJump(noFuelShipId, noFuelCampaignId);
+  assertTrue(result.success);
+  assertEqual(result.arrivedAt, 'Efate');
+});
+
+// Clean up no-fuel mode
+jump.setNoFuelMode(false);
+
+// Cleanup no-fuel test data
+db.prepare('DELETE FROM ships WHERE id = ?').run(noFuelShipId);
+db.prepare('DELETE FROM campaigns WHERE id = ?').run(noFuelCampaignId);
+
 // ==================== Cleanup ====================
 
 db.prepare('DELETE FROM ships WHERE id = ?').run(testShipId);

@@ -6006,10 +6006,13 @@ body.role-engineer .role-panel .role-actions {
   gap: 4px;
 }
 
-.sector-zoom-controls .btn-small {
-  padding: 2px 8px;
-  font-size: 14px;
+.sector-zoom-controls .btn-small,
+.sector-zoom-controls .btn-icon {
+  padding: 3px 8px;
+  font-size: 13px;
   min-width: 28px;
+  min-height: 26px;
+  border-radius: 4px;
 }
 
 #sector-selector {
@@ -7525,7 +7528,39 @@ body.role-engineer .role-panel .role-actions {
 
 .system-map-controls {
   display: flex;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Compact map control buttons */
+.system-map-controls .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 28px;
+  border-radius: 4px;
+}
+
+.system-map-controls .btn-warning {
+  padding: 4px 12px;
+}
+
+.system-map-controls .form-control {
+  padding: 3px 8px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+/* Fixed-width toggle buttons (prevent size change on state toggle) */
+.btn-toggle-fixed {
+  min-width: 52px;
+  text-align: center;
+}
+
+.btn-toggle-fixed.btn-active {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #000;
 }
 
 .system-map-container {
