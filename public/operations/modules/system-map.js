@@ -1288,22 +1288,6 @@ function generatePlanets(rng, primaryStar, mainSize, mainAtmo, mainHydro) {
 }
 
 /**
- * Get habitable zone range for star type
- */
-function getHabitableZone(starType) {
-  const zones = {
-    O: { inner: 50, outer: 200 },
-    B: { inner: 10, outer: 50 },
-    A: { inner: 2, outer: 5 },
-    F: { inner: 1.2, outer: 2.5 },
-    G: { inner: 0.9, outer: 1.5 },
-    K: { inner: 0.5, outer: 0.9 },
-    M: { inner: 0.1, outer: 0.4 }
-  };
-  return zones[starType] || zones.G;
-}
-
-/**
  * Generate orbital distances
  */
 function generateOrbits(rng, count, mainworldAU) {
