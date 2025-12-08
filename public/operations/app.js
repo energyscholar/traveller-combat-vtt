@@ -1238,6 +1238,9 @@ function initSocket() {
   state.socket.on('ops:tradeCodes', handleTradeCodes);
   state.socket.on('ops:starports', handleStarports);
 
+  // ==================== AR-48: Medical Records Events ====================
+  state.socket.on('ops:medicalRecords', handleMedicalRecords);
+
   // ==================== AR-27: Shared Map Events ====================
 
   // GM shared the map - auto-switch all players
@@ -8529,6 +8532,85 @@ function showShipConfiguration() {
   showModalContent(html);
 }
 
+// ==================== AR-48: Medical Records ====================
+
+function showMedicalRecords() {
+  // Request health data from server
+  state.socket.emit('ops:getMedicalRecords');
+
+  // Show loading state
+  const html = `
+    <div class="modal-header">
+      <h2>🏥 Medical Records</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body medical-records">
+      <div class="loading">Loading medical data...</div>
+    </div>
+  `;
+  showModalContent(html);
+}
+
+function handleMedicalRecords(data) {
+  const { health = [], triage = [] } = data;
+  const modalBody = document.querySelector('.modal-body.medical-records');
+  if (!modalBody) return;
+
+  let html = '';
+
+  if (triage.length === 0 && health.length === 0) {
+    html = `
+      <div class="medical-summary" style="text-align: center; padding: 20px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">✓</div>
+        <h4>All Crew Healthy</h4>
+        <p style="color: var(--text-muted);">No injuries or conditions to report.</p>
+      </div>
+    `;
+  } else {
+    // Triage section (urgent cases first)
+    if (triage.length > 0) {
+      html += '<div class="medical-section"><h4>Triage Priority</h4><div class="triage-list">';
+      for (const t of triage) {
+        const severityClass = t.severity === 'critical' ? 'text-danger' : t.severity === 'severe' ? 'text-warning' : '';
+        html += `
+          <div class="triage-item">
+            <span class="triage-name">${escapeHtml(t.name || 'Unknown')}</span>
+            <span class="triage-severity ${severityClass}">${t.severity || 'stable'}</span>
+            <span class="triage-wounds">${t.wounds || 0} wounds</span>
+          </div>
+        `;
+      }
+      html += '</div></div>';
+    }
+
+    // Full health records
+    html += '<div class="medical-section"><h4>Crew Health Status</h4><div class="health-list">';
+    for (const h of health) {
+      const statusColor = h.consciousness === 'alert' ? 'text-success' :
+                          h.consciousness === 'unconscious' ? 'text-danger' : 'text-warning';
+      const woundCount = h.wounds?.length || 0;
+      const conditionCount = h.conditions?.length || 0;
+
+      html += `
+        <div class="health-item" style="padding: 8px; border-bottom: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between;">
+            <strong>${escapeHtml(h.name || h.character_id || 'Unknown')}</strong>
+            <span class="${statusColor}">${h.consciousness || 'alert'}</span>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted);">
+            END: ${h.current_end ?? '?'}/${h.max_end ?? '?'} |
+            Wounds: ${woundCount} | Conditions: ${conditionCount}
+            ${h.total_dm ? ` | DM: ${h.total_dm}` : ''}
+          </div>
+        </div>
+      `;
+    }
+    html += '</div></div>';
+  }
+
+  modalBody.innerHTML = html;
+}
+
 // ==================== GM Prep Panel (AUTORUN-8) ====================
 
 // Initialize prep panel event listeners
@@ -9567,6 +9649,7 @@ window.decodeUWP = decodeUWP;
 // AR-48: Menu features
 window.showCrewRoster = showCrewRoster;
 window.showShipConfiguration = showShipConfiguration;
+window.showMedicalRecords = showMedicalRecords;
 // Autorun 14: Combat contact management
 window.showAddCombatContactModal = showAddCombatContactModal;
 window.submitCombatContact = submitCombatContact;
