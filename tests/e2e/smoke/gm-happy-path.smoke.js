@@ -18,7 +18,8 @@ const {
   fail,
   printResults,
   delay,
-  DELAYS
+  DELAYS,
+  assertNoConsoleErrors
 } = require('../puppeteer-utils');
 
 async function runGMHappyPath() {
@@ -184,6 +185,9 @@ async function runGMHappyPath() {
     } else {
       fail(results, 'Shared map closes', 'Overlay still visible');
     }
+
+    // Final check: no JavaScript errors during test
+    assertNoConsoleErrors(page, results);
 
   } catch (error) {
     fail(results, 'Unexpected error', error);

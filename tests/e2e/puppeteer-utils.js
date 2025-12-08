@@ -38,18 +38,71 @@ async function createPage(options = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
 
-  // Capture console logs
+  // Track console errors for test assertions
+  page._consoleErrors = [];
+
+  // Patterns to ignore (expected errors)
+  const IGNORED_ERROR_PATTERNS = [
+    /favicon\.ico/i,
+    /Failed to load resource.*404/i,
+    /net::ERR_/i  // Network errors during test teardown
+  ];
+
+  // Capture console logs and track errors
   if (options.logConsole !== false) {
     page.on('console', msg => {
       const type = msg.type();
       const text = msg.text();
-      if (type === 'error' || text.includes('[OPS]') || text.includes('[SystemMap]') || options.verbose) {
+
+      // Track fatal JS errors
+      if (type === 'error') {
+        const isIgnored = IGNORED_ERROR_PATTERNS.some(p => p.test(text));
+        if (!isIgnored) {
+          page._consoleErrors.push({ type, text, timestamp: Date.now() });
+          console.log(`  ❌ [BROWSER ERROR] ${text}`);
+        }
+      } else if (text.includes('[OPS]') || text.includes('[SystemMap]') || options.verbose) {
         console.log(`  [BROWSER ${type}] ${text}`);
       }
     });
   }
 
+  // Also capture page errors (uncaught exceptions, syntax errors)
+  page.on('pageerror', error => {
+    const errorText = error.message || error.toString();
+    page._consoleErrors.push({ type: 'pageerror', text: errorText, timestamp: Date.now() });
+    console.log(`  ❌ [PAGE ERROR] ${errorText}`);
+  });
+
   return { browser, page };
+}
+
+/**
+ * Get all console errors captured during test
+ */
+function getConsoleErrors(page) {
+  return page._consoleErrors || [];
+}
+
+/**
+ * Assert no console errors occurred - call this to fail test on JS errors
+ */
+function assertNoConsoleErrors(page, results) {
+  const errors = getConsoleErrors(page);
+  if (errors.length > 0) {
+    const errorSummary = errors.map(e => e.text).join('\n  ');
+    fail(results, 'No JavaScript errors', `${errors.length} error(s):\n  ${errorSummary}`);
+    return false;
+  }
+  pass(results, 'No JavaScript errors');
+  return true;
+}
+
+/**
+ * Clear console errors (for tests that expect errors in specific sections)
+ */
+function clearConsoleErrors(page) {
+  page._consoleErrors = [];
 }
 
 /**
@@ -554,5 +607,9 @@ module.exports = {
   skip,
   printResults,
   screenshotOnFailure,
-  failWithScreenshot
+  failWithScreenshot,
+  // Console error tracking
+  getConsoleErrors,
+  assertNoConsoleErrors,
+  clearConsoleErrors
 };
