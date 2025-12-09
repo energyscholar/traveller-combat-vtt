@@ -327,10 +327,22 @@ apiRoutes.register(app, {
 // Test API for automation (only in test/dev mode)
 registerTestAPI(app, io, activeSessions, connections);
 
+// Get git commit info for version identification
+const { execSync } = require('child_process');
+let gitInfo = 'unknown';
+try {
+  const hash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  const date = execSync('git log -1 --format=%ci', { encoding: 'utf8' }).trim();
+  gitInfo = `${hash} (${date})`;
+} catch (e) {
+  gitInfo = `build-${new Date().toISOString()}`;
+}
+
 // Start server
 server.listen(config.server.port, () => {
   log.info('========================================');
   log.info('TRAVELLER STARSHIP OPERATIONS VTT');
+  log.info(`VERSION: ${gitInfo}`);
   log.info('========================================');
   log.info(`Server running on http://localhost:${config.server.port}`);
   log.info(`Environment: ${config.env}`);

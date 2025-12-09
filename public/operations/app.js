@@ -2194,9 +2194,12 @@ function renderRoleSelection() {
     // Unlimited roles are never marked as taken
     const isTaken = !r.unlimited && takenBy && !isSelected;
 
+    // TODO: Expand tooltips with detailed role responsibilities
+    const tooltip = `${r.name}: ${r.desc}`;
     return `
       <div class="role-option ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''} ${r.unlimited ? 'unlimited' : ''}"
-           data-role-id="${r.id}" data-role-instance="${r.instance}" ${isTaken ? 'disabled' : ''}>
+           data-role-id="${r.id}" data-role-instance="${r.instance}" ${isTaken ? 'disabled' : ''}
+           title="${tooltip}">
         <div class="role-name">${r.name}</div>
         <div class="role-desc">${r.desc}</div>
         ${isTaken ? `<div class="role-taken-by">Taken by ${escapeHtml(takenBy.name)}</div>` : ''}
@@ -2506,6 +2509,14 @@ function updateRoleQuirkDisplay() {
 function renderBridge() {
   // Ship name
   document.getElementById('bridge-ship-name').textContent = state.ship?.name || 'Unknown Ship';
+
+  // AR-51.2: Update screen label with role
+  const screenLabel = document.getElementById('bridge-screen-label');
+  if (screenLabel) {
+    const roleDisplay = state.isGM ? 'GM' : (state.selectedRole || 'Crew');
+    const roleName = roleDisplay.charAt(0).toUpperCase() + roleDisplay.slice(1).replace(/_/g, ' ');
+    screenLabel.textContent = `Bridge · ${roleName}`;
+  }
 
   // Campaign name (Phase 1 requirement)
   const campaignNameEl = document.getElementById('bridge-campaign-name');

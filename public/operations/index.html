@@ -10,10 +10,11 @@
   <div id="app">
     <!-- Login Screen (GM or Player) -->
     <div id="login-screen" class="screen active">
+      <span class="screen-label screen-label-centered">Welcome</span>
       <div class="login-container">
         <h1 class="title">Traveller VTT for Starship Operations</h1>
         <p class="subtitle">Virtual Tabletop for Mongoose Traveller 2E</p>
-        <p class="version-info">Version 0.31</p>
+        <p class="version-info">Version 0.45</p>
 
         <div class="login-options">
           <button id="btn-gm-login" class="btn btn-primary btn-large" title="Game Master login - Full campaign control and access to all ship data">
@@ -66,8 +67,10 @@
         </div>
 
         <div id="player-slot-select" class="hidden">
+          <span class="screen-label">Player Slot Selection</span>
           <h2>Select Your Slot</h2>
-          <div id="player-slot-list" class="slot-list">
+          <p class="slot-hint">Click a slot to join as that player</p>
+          <div id="player-slot-list" class="slot-list slot-list-grid">
             <!-- Populated dynamically -->
           </div>
           <button id="btn-back-player-slot" class="btn btn-link">Back</button>
@@ -78,6 +81,7 @@
     <!-- GM Setup Screen -->
     <div id="gm-setup-screen" class="screen">
       <header class="header">
+        <span class="screen-label">GM Campaign Setup</span>
         <h1 id="gm-campaign-name">Campaign Setup</h1>
         <div class="header-actions">
           <button id="btn-gm-settings" class="btn btn-icon" title="Settings">⚙</button>
@@ -85,109 +89,122 @@
         </div>
       </header>
 
-      <div class="gm-setup-container">
-        <!-- Campaign Code Section -->
-        <section class="setup-section campaign-code-section">
-          <h2>Campaign Code</h2>
-          <div class="campaign-code-display">
-            <code id="campaign-code-value">--------</code>
-            <button id="btn-copy-code" class="btn btn-small" title="Copy to clipboard">Copy</button>
+      <div class="gm-setup-container gm-setup-compact">
+        <!-- Top row: Campaign Code + Start Session -->
+        <div class="gm-setup-top-row">
+          <section class="setup-section campaign-code-section">
+            <h2>Campaign Code</h2>
+            <div class="campaign-code-display">
+              <code id="campaign-code-value">--------</code>
+              <button id="btn-copy-code" class="btn btn-small" title="Copy to clipboard">Copy</button>
+            </div>
+            <p class="code-hint">Share this code with players to join</p>
+          </section>
+          <div class="setup-actions-top">
+            <button id="btn-start-session" class="btn btn-primary btn-large" title="Launch bridge view - Players can then join their stations">
+              Start Session
+            </button>
           </div>
-          <p class="code-hint">Share this code with players to join</p>
-        </section>
+        </div>
 
-        <section class="setup-section">
-          <h2>Player Slots</h2>
-          <div id="gm-player-slots" class="player-slots">
-            <!-- Populated dynamically -->
-          </div>
-          <div class="add-slot-form">
-            <input type="text" id="new-slot-name" placeholder="Player name">
-            <button id="btn-add-player-slot" class="btn btn-success" title="Reserve a player slot - Players join with this name">+ Add Slot</button>
-          </div>
-        </section>
+        <!-- Two-column layout for remaining sections -->
+        <div class="gm-setup-columns">
+          <div class="gm-setup-col">
+            <section class="setup-section setup-section-compact">
+              <h2>Player Slots</h2>
+              <div id="gm-player-slots" class="player-slots player-slots-compact">
+                <!-- Populated dynamically -->
+              </div>
+              <div class="add-slot-form add-slot-form-compact">
+                <input type="text" id="new-slot-name" placeholder="Player name">
+                <button id="btn-add-player-slot" class="btn btn-success btn-small" title="Reserve a player slot">+ Add</button>
+              </div>
+            </section>
 
-        <section class="setup-section">
-          <h2>Ships</h2>
-          <div id="gm-ships-list" class="ships-list">
-            <!-- Populated dynamically -->
+            <section class="setup-section setup-section-compact">
+              <h2>Ships</h2>
+              <div id="gm-ships-list" class="ships-list ships-list-compact">
+                <!-- Populated dynamically -->
+              </div>
+              <div class="button-row">
+                <button id="btn-add-ship" class="btn btn-success btn-small" title="Add a ship">+ Add Ship</button>
+                <button id="btn-custom-ship" class="btn btn-secondary btn-small" title="Custom ship">+ Custom</button>
+              </div>
+            </section>
           </div>
-          <div class="button-row">
-            <button id="btn-add-ship" class="btn btn-success" title="Add a ship to campaign - Select from templates">+ Add Ship</button>
-            <button id="btn-custom-ship" class="btn btn-secondary" title="Create a custom ship with full editor">+ Custom Ship</button>
-          </div>
-        </section>
 
-        <section class="setup-section">
-          <h2>Campaign Settings</h2>
-          <div class="form-group" title="Imperial calendar date - Format: DDD-YYYY (day 001-365, year 1105+)">
-            <label>Current Date:</label>
-            <input type="text" id="campaign-date" placeholder="1105-001">
+          <div class="gm-setup-col">
+            <section class="setup-section setup-section-compact">
+              <h2>Campaign Settings</h2>
+              <div class="form-group form-group-compact" title="Imperial calendar date - Format: DDD-YYYY">
+                <label>Date:</label>
+                <input type="text" id="campaign-date" placeholder="1105-001">
+              </div>
+              <div class="form-group form-group-compact" title="Current star system">
+                <label>System:</label>
+                <input type="text" id="campaign-system" placeholder="Regina">
+              </div>
+              <div class="form-group form-group-compact" title="God Mode - Direct editing, bypass rules">
+                <label>
+                  <input type="checkbox" id="god-mode-toggle">
+                  God Mode
+                </label>
+              </div>
+            </section>
           </div>
-          <div class="form-group" title="Current star system - Location for sensor contacts and navigation">
-            <label>Current System:</label>
-            <input type="text" id="campaign-system" placeholder="Regina">
-          </div>
-          <div class="form-group" title="God Mode - Direct editing of ship stats, contacts, and systems. Bypass normal game rules.">
-            <label>
-              <input type="checkbox" id="god-mode-toggle">
-              God Mode (Full Control)
-            </label>
-          </div>
-        </section>
-
-        <div class="setup-actions">
-          <button id="btn-start-session" class="btn btn-primary btn-large" title="Launch bridge view - Players can then join their stations">
-            Start Session
-          </button>
         </div>
       </div>
     </div>
 
-    <!-- Player Setup Screen (Character/Role Selection) -->
+    <!-- Player Setup Screen (Character/Role Selection) - AR-51.2 Horizontal Layout -->
     <div id="player-setup-screen" class="screen">
       <header class="header">
-        <h1 id="player-slot-name">Player Setup</h1>
-        <button id="btn-player-logout" class="btn btn-link">Logout</button>
-      </header>
-
-      <div class="player-setup-container">
-        <section class="setup-section">
-          <h2>Your Character</h2>
-          <div id="character-display" class="character-card">
-            <p class="placeholder">No character imported</p>
-          </div>
-          <div class="character-actions">
-            <button id="btn-import-character" class="btn btn-secondary" title="Import character from JSON, text, or paste from character sheet">Import Character</button>
-            <button id="btn-quick-character" class="btn btn-link" title="Create a basic character with default skills">Quick Create</button>
-          </div>
-        </section>
-
-        <section class="setup-section">
-          <h2>Select Ship</h2>
-          <div id="ship-select-list" class="ship-select-list">
-            <!-- Populated dynamically -->
-          </div>
-        </section>
-
-        <section class="setup-section">
-          <h2>Select Crew Role</h2>
-          <div id="role-select-list" class="role-select-list">
-            <!-- Populated dynamically -->
-          </div>
-        </section>
-
-        <div class="setup-actions">
-          <button id="btn-join-bridge" class="btn btn-primary btn-large" disabled title="Select a role and join the bridge crew">
+        <div class="header-left">
+          <span class="screen-label">Player Setup</span>
+          <h1 id="player-slot-name">Player Name</h1>
+          <button id="btn-join-bridge" class="btn btn-primary" disabled title="Select a role and join the bridge crew">
             Join Bridge
           </button>
         </div>
+        <button id="btn-player-logout" class="btn btn-link">Logout</button>
+      </header>
+
+      <div class="player-setup-container player-setup-horizontal">
+        <!-- Row 1: Character (compact) + Ship selection side by side -->
+        <div class="setup-row">
+          <section class="setup-section setup-section-character-compact">
+            <h3>Your Character</h3>
+            <div id="character-display" class="character-card-compact">
+              <p class="placeholder">No character imported</p>
+            </div>
+            <div class="character-actions-compact">
+              <button id="btn-import-character" class="btn btn-secondary btn-sm" title="Import character from JSON, text, or paste from character sheet">Import</button>
+              <button id="btn-quick-character" class="btn btn-link btn-sm" title="Create a basic character with default skills">Quick Create</button>
+            </div>
+          </section>
+
+          <section class="setup-section setup-section-ship">
+            <h3>Ship</h3>
+            <div id="ship-select-list" class="ship-select-horizontal">
+              <!-- Populated dynamically -->
+            </div>
+          </section>
+        </div>
+
+        <!-- Row 2: Crew Roles (full width, horizontal flow) -->
+        <section class="setup-section setup-section-roles">
+          <h3>Select Crew Role</h3>
+          <div id="role-select-list" class="role-select-horizontal">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
       </div>
     </div>
 
     <!-- Bridge View (Main Operations Screen) -->
     <div id="bridge-screen" class="screen">
       <header class="bridge-header">
+        <span id="bridge-screen-label" class="screen-label">Bridge View</span>
         <div class="ship-info">
           <h1 id="bridge-ship-name">Ship Name</h1>
           <span id="bridge-campaign-name" class="campaign-display"></span>
