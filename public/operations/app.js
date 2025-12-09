@@ -6929,6 +6929,10 @@ state.sharedMapSettings = {
   style: 'poster'  // Map style
 };
 
+// AR-50.2: Track GM's current map view for re-center
+// This is updated when GM opens map and when receiving map click events
+state.gmCurrentMapView = null;
+
 function showSharedMap() {
   // Create fullscreen map overlay with interactive TravellerMap iframe
   const existing = document.getElementById('shared-map-overlay');
@@ -6939,6 +6943,10 @@ function showSharedMap() {
       updateSharedMapFrame(state.sharedMapView);
     } else {
       updateSharedMapIframe();
+      // AR-50.2: Track GM's current view when opening map
+      if (state.isGM) {
+        trackGMMapView();
+      }
     }
     return;
   }
@@ -6962,11 +6970,15 @@ function showSharedMap() {
   overlay.innerHTML = `
     <div class="shared-map-header">
       <h2>Shared Map${state.sharedMapActive ? ' <span class="live-badge">LIVE</span>' : ''}</h2>
-      <div class="shared-map-controls" style="display: flex; gap: 8px; align-items: center;">
-        <span style="color: #888; font-size: 12px;">Centered on: <strong>${systemName}</strong> (${hex})</span>
+      <div class="shared-map-controls" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <span id="map-location-display" style="color: #888; font-size: 12px;">Centered on: <strong>${systemName}</strong> (${hex})</span>
         ${state.isGM ? `
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <input type="text" id="map-hex-input" placeholder="Hex (e.g. 0404)" style="width: 100px; padding: 4px 8px; font-size: 12px; border-radius: 4px; border: 1px solid #444; background: #333; color: #fff;" value="${hex}">
+            <button id="btn-goto-hex" class="btn btn-secondary btn-small" title="Navigate to hex and track for re-center">Go</button>
+          </div>
           <button id="btn-share-map" class="btn btn-primary ${state.sharedMapActive ? 'hidden' : ''}">Share with Players</button>
-          <button id="btn-recenter-players" class="btn btn-secondary ${state.sharedMapActive ? '' : 'hidden'}" title="Sync all players to current location">Re-center Players</button>
+          <button id="btn-recenter-players" class="btn btn-secondary ${state.sharedMapActive ? '' : 'hidden'}" title="Sync all players to tracked location">Re-center Players</button>
           <button id="btn-unshare-map" class="btn btn-danger ${state.sharedMapActive ? '' : 'hidden'}">Stop Sharing</button>
         ` : ''}
         <button id="btn-close-map" class="btn btn-secondary">Close</button>
@@ -6992,22 +7004,53 @@ function showSharedMap() {
   document.getElementById('btn-close-map').addEventListener('click', closeSharedMap);
 
   if (state.isGM) {
+    // AR-50.2: Go to hex button - navigates iframe and tracks location
+    document.getElementById('btn-goto-hex')?.addEventListener('click', () => {
+      const hexInput = document.getElementById('map-hex-input');
+      const hex = hexInput?.value?.trim();
+      if (!hex || !/^\d{4}$/.test(hex)) {
+        showNotification('Enter a valid hex (e.g. 0404)', 'warning');
+        return;
+      }
+      const sector = state.campaign?.current_sector || 'Spinward Marches';
+      navigateToHex(sector, hex);
+    });
+
+    // Also allow Enter key in hex input
+    document.getElementById('map-hex-input')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('btn-goto-hex')?.click();
+      }
+    });
+
     document.getElementById('btn-share-map')?.addEventListener('click', () => {
-      state.socket.emit('ops:shareMap', {
+      // Share using tracked view if available
+      const view = state.gmCurrentMapView || {
         center: state.campaign?.current_system,
         sector: state.campaign?.current_sector,
-        hex: state.campaign?.current_hex,
+        hex: state.campaign?.current_hex
+      };
+      state.socket.emit('ops:shareMap', {
+        center: view.center,
+        sector: view.sector,
+        hex: view.hex,
         scale: state.sharedMapSettings.scale,
         style: state.sharedMapSettings.style
       });
     });
 
-    // AR-50.2: Re-center players button - broadcasts current location to all players
+    // AR-50.2: Re-center players button - broadcasts GM's current view to all players
     document.getElementById('btn-recenter-players')?.addEventListener('click', () => {
-      state.socket.emit('ops:updateMapView', {
+      // Use GM's tracked view if available, fallback to campaign data
+      const view = state.gmCurrentMapView || {
         center: state.campaign?.current_system,
         sector: state.campaign?.current_sector,
-        hex: state.campaign?.current_hex,
+        hex: state.campaign?.current_hex
+      };
+      state.socket.emit('ops:updateMapView', {
+        center: view.center,
+        sector: view.sector,
+        hex: view.hex,
         scale: state.sharedMapSettings.scale,
         style: state.sharedMapSettings.style
       });
@@ -7055,6 +7098,80 @@ function closeSharedMap() {
     overlay.classList.add('hidden');
   }
 }
+
+// AR-50.2: Track GM's current view for re-center functionality
+function trackGMMapView() {
+  const sector = state.campaign?.current_sector || 'Spinward Marches';
+  const hex = state.campaign?.current_hex || '0930';
+  const systemName = state.campaign?.current_system || 'Unknown';
+
+  state.gmCurrentMapView = {
+    center: systemName,
+    sector: sector,
+    hex: hex
+  };
+  console.log('[MAP] GM view tracked:', state.gmCurrentMapView);
+}
+
+// AR-50.2: Navigate GM's map to a specific hex and track it
+function navigateToHex(sector, hex) {
+  const iframe = document.getElementById('shared-map-iframe');
+  if (!iframe) return;
+
+  // Update iframe
+  const url = buildTravellerMapUrl(sector, hex);
+  iframe.src = url;
+
+  // Track this as GM's current view
+  state.gmCurrentMapView = {
+    center: `Hex ${hex}`,
+    sector: sector,
+    hex: hex
+  };
+  console.log('[MAP] GM navigated to:', state.gmCurrentMapView);
+
+  // Update header display
+  const display = document.getElementById('map-location-display');
+  if (display) {
+    display.innerHTML = `Centered on: <strong>Hex ${hex}</strong> (${hex})`;
+  }
+
+  // If already sharing, immediately broadcast to players
+  if (state.sharedMapActive) {
+    state.socket.emit('ops:updateMapView', {
+      center: state.gmCurrentMapView.center,
+      sector: state.gmCurrentMapView.sector,
+      hex: state.gmCurrentMapView.hex,
+      scale: state.sharedMapSettings.scale,
+      style: state.sharedMapSettings.style
+    });
+    showNotification(`Players synced to ${hex}`, 'info');
+  }
+}
+
+// AR-50.2: Listen for TravellerMap postMessage events (clicks)
+// This allows GM to click on a system to set their "current view" for re-center
+window.addEventListener('message', (event) => {
+  // Only process messages from TravellerMap
+  if (!event.origin.includes('travellermap.com')) return;
+  if (!event.data || event.data.source !== 'travellermap') return;
+
+  // Only GM tracks clicks
+  if (!state.isGM) return;
+
+  const { type, location } = event.data;
+  if (type === 'click' || type === 'doubleclick') {
+    // TravellerMap sends x, y in world coordinates (not sector/hex directly)
+    // We need to convert or use the sector/hex from a subsequent lookup
+    // For now, log and note this is a limitation
+    console.log('[MAP] TravellerMap click:', location);
+
+    // The click location gives us world coordinates, but we'd need to convert
+    // to sector/hex. TravellerMap doesn't give us that directly.
+    // Alternative approach: Let GM manually set location via UI
+    // or we track what we programmatically navigate to
+  }
+});
 
 function updateSharedMapBadge(isLive) {
   const badge = document.getElementById('shared-map-badge');

@@ -26,11 +26,32 @@ const server = require('http').createServer(app);
 // Set ALLOWED_ORIGINS env var for production (comma-separated list)
 // Example: ALLOWED_ORIGINS=https://your-app.com,https://www.your-app.com
 const getAllowedOrigins = () => {
+  const origins = [];
+
+  // User-specified origins take priority
   if (process.env.ALLOWED_ORIGINS) {
-    return process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+    origins.push(...process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()));
   }
+
+  // Auto-detect Render.com deployment
+  if (process.env.RENDER_EXTERNAL_URL) {
+    origins.push(process.env.RENDER_EXTERNAL_URL);
+  }
+  // Render.com also provides RENDER_SERVICE_NAME which we can use to build URL
+  if (process.env.RENDER && process.env.RENDER_SERVICE_NAME) {
+    origins.push(`https://${process.env.RENDER_SERVICE_NAME}.onrender.com`);
+  }
+  // Fallback: always allow the known Render URL
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    origins.push('https://traveller-combat-vtt.onrender.com');
+  }
+
   // Development defaults - allow localhost variations
-  return ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'];
+  if (origins.length === 0) {
+    return ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080'];
+  }
+
+  return origins;
 };
 
 const io = require('socket.io')(server, {
