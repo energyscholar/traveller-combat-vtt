@@ -1419,6 +1419,64 @@ input[type="checkbox"] {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* AR-35: Pending orders with ack checkmarks */
+.pending-orders {
+  font-size: 0.85em;
+}
+
+.pending-order {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  margin: 4px 0;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  border-left: 3px solid var(--alert-yellow);
+}
+
+.pending-order.stale {
+  border-left-color: var(--alert-red);
+  opacity: 0.7;
+}
+
+.order-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-acks {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.ack-icon {
+  font-size: 0.75em;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.ack-icon.pending {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+
+.ack-icon.acked {
+  background: var(--success);
+  color: white;
+}
+
+.no-orders {
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: 10px;
+}
+
 /* AR-29: Captain panel sections */
 .captain-alert-section,
 .captain-orders-section,

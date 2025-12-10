@@ -505,10 +505,23 @@ function initSocket() {
     }
   });
 
-  // AR-29: Captain event handlers
+  // AR-29 + AR-35: Captain event handlers with multi-ack tracking
   state.socket.on('ops:orderReceived', (data) => {
     // Show order to targeted crew
-    const { target, order, from, id, requiresAck } = data;
+    const { target, order, from, id, requiresAck, pendingAcks, acknowledgedBy, orderType, contactId } = data;
+
+    // AR-35: Store order in state for pending display
+    if (!state.pendingOrders) state.pendingOrders = [];
+    state.pendingOrders.push({
+      id, target, order, from, requiresAck,
+      pendingAcks: pendingAcks || [],
+      acknowledgedBy: acknowledgedBy || [],
+      timestamp: Date.now(),
+      orderType, contactId
+    });
+    // Keep only last 20 orders
+    if (state.pendingOrders.length > 20) state.pendingOrders.shift();
+
     if (target === 'all' || target === state.selectedRole) {
       showNotification(`Order from ${from}: ${order}`, 'warning');
       // Show acknowledge button for targeted roles
@@ -518,15 +531,32 @@ function initSocket() {
     }
     // Captain sees all orders in panel
     if (state.selectedRole === 'captain') {
-      renderRoleDetailPanel('captain');
+      updatePendingOrdersDisplay();
     }
   });
 
   state.socket.on('ops:orderAcknowledged', (data) => {
-    const { orderId, acknowledgedBy } = data;
+    const { orderId, acknowledgedBy, allAcknowledgedBy, pendingAcks, fullyAcknowledged } = data;
+
+    // AR-35: Update order in state
+    if (state.pendingOrders) {
+      const order = state.pendingOrders.find(o => o.id === orderId);
+      if (order) {
+        order.acknowledgedBy = allAcknowledgedBy || [];
+        order.pendingAcks = pendingAcks || [];
+        if (fullyAcknowledged) {
+          order.status = 'acknowledged';
+        }
+      }
+    }
+
     if (state.selectedRole === 'captain') {
-      showNotification(`${acknowledgedBy} acknowledged order`, 'success');
-      renderRoleDetailPanel('captain');
+      const remaining = pendingAcks?.length || 0;
+      const msg = fullyAcknowledged
+        ? `${acknowledgedBy} acknowledged - Order complete`
+        : `${acknowledgedBy} acknowledged (${remaining} pending)`;
+      showNotification(msg, fullyAcknowledged ? 'success' : 'info');
+      updatePendingOrdersDisplay();
     }
   });
 
@@ -4780,6 +4810,45 @@ function applyAlertBorder(status) {
   if (['yellow', 'red'].includes(normalizedStatus)) {
     rolePanel.classList.add(`alert-${normalizedStatus}`);
   }
+}
+
+/**
+ * AR-35: Update pending orders display with ack checkmarks
+ */
+function updatePendingOrdersDisplay() {
+  const container = document.getElementById('pending-orders');
+  if (!container) return;
+
+  const orders = (state.pendingOrders || [])
+    .filter(o => o.status !== 'acknowledged')
+    .slice(-5); // Show last 5 pending
+
+  if (orders.length === 0) {
+    container.innerHTML = '<div class="no-orders">No pending orders</div>';
+    return;
+  }
+
+  container.innerHTML = orders.map(order => {
+    const allRoles = ['pilot', 'gunner', 'engineer', 'sensor_operator'];
+    const targetRoles = order.target === 'all' ? allRoles : [order.target];
+    const isStale = Date.now() - order.timestamp > 30000; // 30 sec timeout
+
+    const roleIcons = targetRoles.map(role => {
+      const shortName = role === 'sensor_operator' ? 'SEN' :
+                        role.substring(0, 3).toUpperCase();
+      const acked = order.acknowledgedBy?.some(a =>
+        a.toLowerCase().includes(role.substring(0, 3))
+      ) || !order.pendingAcks?.includes(role);
+      return `<span class="ack-icon ${acked ? 'acked' : 'pending'}" title="${role}">${shortName}${acked ? '✓' : '○'}</span>`;
+    }).join('');
+
+    return `
+      <div class="pending-order ${isStale ? 'stale' : ''}">
+        <div class="order-text">${escapeHtml(order.order.substring(0, 50))}</div>
+        <div class="order-acks">${roleIcons}</div>
+      </div>
+    `;
+  }).join('');
 }
 
 /**
