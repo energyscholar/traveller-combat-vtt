@@ -504,9 +504,9 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
   const assignedTurret = roleInstance <= turretCount ? roleInstance : null;
   const turretWeapons = assignedTurret ? weapons.filter((w, i) => i === assignedTurret - 1) : weapons;
 
-  // Filter to authorized/hostile targets
+  // Filter to targetable contacts - AR-53: default is_targetable to true (Gunner override per UQ)
   const hostileContacts = contacts?.filter(c =>
-    c.is_targetable && (c.weapons_free || c.disposition === 'hostile')
+    c.is_targetable !== false
   ) || [];
   const hasTargets = hostileContacts.length > 0;
   const hasWeapons = weapons.length > 0;
@@ -1270,7 +1270,7 @@ function getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemSta
       <div class="detail-stats">
         <div class="stat-row">
           <span>Current System:</span>
-          <span class="stat-value">${campaign?.current_system || 'Unknown'}</span>
+          <span class="stat-value">${campaign?.current_system || (campaign?.current_sector && campaign?.current_hex ? `${campaign.current_sector} ${campaign.current_hex}` : 'Unknown')}</span>
         </div>
         <div class="stat-row">
           <span>Jump Drive:</span>

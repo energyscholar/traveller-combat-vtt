@@ -3255,9 +3255,9 @@ function setupEngineerListeners() {
   });
 }
 
-// Advance game time (AR-30: player time control)
+// Advance game time (AR-30: player time control, AR-53: fix connection check)
 function advanceTime(days, hours, minutes = 0, reason = '') {
-  if (!state.socket || !state.campaignId) {
+  if (!state.socket || !state.socket.connected || !state.campaignId) {
     showNotification('Not connected to campaign', 'error');
     return;
   }
