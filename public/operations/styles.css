@@ -8261,6 +8261,159 @@ body.role-engineer .role-panel .role-actions {
   font-style: italic;
 }
 
+/* AR-57: Transit Calculator (Brachistochrone) */
+.transit-calculator {
+  background: rgba(0, 100, 150, 0.1);
+  border: 1px solid rgba(0, 150, 200, 0.3);
+}
+
+.transit-calculator h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.physics-badge {
+  font-size: 14px;
+  cursor: help;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.physics-badge:hover {
+  opacity: 1;
+}
+
+.transit-form {
+  margin-bottom: 10px;
+}
+
+.transit-form .stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transit-form label {
+  min-width: 70px;
+  font-size: 12px;
+}
+
+.transit-input {
+  width: 100px;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 4px;
+}
+
+.transit-input:focus {
+  border-color: var(--accent-blue);
+  outline: none;
+}
+
+.transit-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 4px;
+}
+
+.transit-results {
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.transit-results .stat-value {
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.transit-formula {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(100, 150, 200, 0.15);
+  border-radius: 4px;
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  color: var(--accent-blue);
+}
+
+.transit-formula code {
+  letter-spacing: 1px;
+}
+
+.formula-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  background: var(--accent-blue);
+  color: var(--bg-dark);
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.formula-help:hover {
+  background: var(--accent-cyan);
+}
+
+/* Physics explanation modal */
+.physics-explanation {
+  text-align: left;
+  line-height: 1.6;
+}
+
+.physics-explanation h3 {
+  margin-bottom: 10px;
+  color: var(--accent-cyan);
+}
+
+.physics-explanation h4 {
+  margin: 15px 0 8px;
+  color: var(--text-primary);
+}
+
+.physics-explanation ol,
+.physics-explanation ul {
+  margin-left: 20px;
+}
+
+.physics-explanation li {
+  margin-bottom: 4px;
+}
+
+.formula-box {
+  padding: 12px;
+  background: rgba(0, 100, 150, 0.2);
+  border-radius: 4px;
+  text-align: center;
+  font-size: 18px;
+  margin: 10px 0;
+}
+
+.formula-box code {
+  font-family: 'Monaco', 'Consolas', monospace;
+  color: var(--accent-cyan);
+}
+
+.unit {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* AR-30/33: Time Controls */
 .time-controls {
   display: flex;

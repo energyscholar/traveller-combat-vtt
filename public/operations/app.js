@@ -102,6 +102,8 @@ function initSocket() {
     setupPilotListeners();
     // AR-31: Setup engineer listeners
     setupEngineerListeners();
+    // AR-57: Setup transit calculator
+    setupTransitCalculator();
   });
 
   state.socket.on('disconnect', () => {
@@ -3190,6 +3192,157 @@ function setCourse(destination, eta) {
 function clearCourse() {
   if (!state.socket || !state.campaignId) return;
   state.socket.emit('ops:clearCourse');
+}
+
+// ==================== AR-57: Transit Calculator (Brachistochrone) ====================
+// Educational physics: t = 2 * sqrt(d / a)
+// User learned Newtonian physics from Traveller at age ~12
+
+/**
+ * Calculate brachistochrone transit time and metrics
+ * @param {number} distanceKm - Distance in kilometers
+ * @param {number} accelG - Acceleration in G's
+ * @returns {Object} { timeSeconds, timeFormatted, turnoverKm, maxVelocityKmh, formula }
+ */
+function calculateBrachistochrone(distanceKm, accelG) {
+  const distanceM = distanceKm * 1000;
+  const accelMs2 = accelG * 9.81;
+
+  // t = 2 * sqrt(d / a) - total transit time
+  const timeSeconds = 2 * Math.sqrt(distanceM / accelMs2);
+
+  // v_max = sqrt(a * d) - velocity at turnover
+  const maxVelocityMs = Math.sqrt(accelMs2 * distanceM);
+  const maxVelocityKmh = maxVelocityMs * 3.6;
+
+  return {
+    timeSeconds,
+    timeFormatted: formatTransitTime(timeSeconds),
+    turnoverKm: distanceKm / 2,
+    maxVelocityKmh,
+    formula: `t = 2 × √(${distanceKm.toLocaleString()} km ÷ ${accelG}G) = ${formatTransitTime(timeSeconds)}`
+  };
+}
+
+/**
+ * Format transit time in human-readable format
+ */
+function formatTransitTime(seconds) {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours < 24) return `${hours}h ${minutes}m`;
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  return `${days}d ${remainingHours}h`;
+}
+
+/**
+ * Format large numbers with units (km, Mm, AU)
+ */
+function formatDistance(km) {
+  if (km < 1000) return `${km.toLocaleString()} km`;
+  if (km < 1000000) return `${(km / 1000).toFixed(1)}k km`;
+  if (km < 150000000) return `${(km / 1000000).toFixed(2)} Mkm`;
+  return `${(km / 150000000).toFixed(3)} AU`;
+}
+
+/**
+ * Update transit calculator display
+ */
+function updateTransitCalculator() {
+  const distanceInput = document.getElementById('transit-distance');
+  const accelSelect = document.getElementById('transit-accel');
+  const timeDisplay = document.getElementById('transit-time');
+  const turnoverDisplay = document.getElementById('transit-turnover');
+  const velocityDisplay = document.getElementById('transit-velocity');
+
+  if (!distanceInput || !accelSelect) return;
+
+  const distance = parseFloat(distanceInput.value) || 100000;
+  const accel = parseFloat(accelSelect.value) || 2;
+
+  const result = calculateBrachistochrone(distance, accel);
+
+  if (timeDisplay) timeDisplay.textContent = result.timeFormatted;
+  if (turnoverDisplay) turnoverDisplay.textContent = formatDistance(result.turnoverKm);
+  if (velocityDisplay) {
+    const velocity = result.maxVelocityKmh;
+    if (velocity > 1000000) {
+      velocityDisplay.textContent = `${(velocity / 1000000).toFixed(1)} Mkm/h`;
+    } else if (velocity > 1000) {
+      velocityDisplay.textContent = `${(velocity / 1000).toFixed(1)}k km/h`;
+    } else {
+      velocityDisplay.textContent = `${velocity.toFixed(0)} km/h`;
+    }
+  }
+}
+
+/**
+ * Show physics explanation modal
+ */
+function showPhysicsExplanation() {
+  const explanation = `
+<div class="physics-explanation">
+  <h3>Brachistochrone Transit</h3>
+  <p><strong>"Brachistochrone"</strong> = Greek for "shortest time"</p>
+
+  <h4>How it works:</h4>
+  <ol>
+    <li>Accelerate at constant thrust toward destination</li>
+    <li>At midpoint (<strong>turnover</strong>), flip ship 180°</li>
+    <li>Decelerate at same thrust to arrive stopped</li>
+  </ol>
+
+  <h4>The Formula:</h4>
+  <div class="formula-box">
+    <code>t = 2 × √(d ÷ a)</code>
+  </div>
+  <p>Where: <em>t</em> = time, <em>d</em> = distance, <em>a</em> = acceleration</p>
+
+  <h4>Key Insights:</h4>
+  <ul>
+    <li>Double the distance → only 1.41× longer (√2)</li>
+    <li>Double the thrust → only 0.71× time (1/√2)</li>
+    <li>Max velocity at turnover: <code>v = √(a × d)</code></li>
+  </ul>
+
+  <h4>Example:</h4>
+  <p>100,000 km at 2G = ~1h 46m transit</p>
+  <p>At turnover: 50,000 km out, velocity ~1,400 km/s</p>
+</div>
+  `;
+
+  showModal('Physics: Brachistochrone', explanation);
+}
+
+/**
+ * Initialize transit calculator event listeners
+ */
+function setupTransitCalculator() {
+  // Update on input change
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'transit-distance' || e.target.id === 'transit-accel') {
+      updateTransitCalculator();
+    }
+  });
+
+  document.addEventListener('change', (e) => {
+    if (e.target.id === 'transit-accel') {
+      updateTransitCalculator();
+    }
+  });
+
+  // Physics explanation click
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.formula-help') || e.target.closest('.physics-badge')) {
+      showPhysicsExplanation();
+    }
+  });
+
+  // Initial calculation
+  setTimeout(updateTransitCalculator, 100);
 }
 
 // Listen for pilot events

@@ -237,6 +237,46 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
         ` : ''}
       </div>
     </div>
+    <div class="detail-section transit-calculator">
+      <h4>Transit Calculator
+        <span class="physics-badge" title="Brachistochrone: constant thrust to midpoint, flip, decelerate to stop">⚛</span>
+      </h4>
+      <div class="transit-form">
+        <div class="stat-row">
+          <label for="transit-distance">Distance:</label>
+          <input type="number" id="transit-distance" class="transit-input" value="100000" min="1" step="1000"> <span class="unit">km</span>
+        </div>
+        <div class="stat-row">
+          <label for="transit-accel">Thrust:</label>
+          <select id="transit-accel" class="transit-select">
+            <option value="0.5">0.5G (Gentle)</option>
+            <option value="1">1G (Merchant)</option>
+            <option value="2" selected>2G (Free Trader)</option>
+            <option value="3">3G (Fast)</option>
+            <option value="4">4G (Naval)</option>
+            <option value="6">6G (Military)</option>
+          </select>
+        </div>
+      </div>
+      <div class="transit-results">
+        <div class="stat-row">
+          <span>Transit Time:</span>
+          <span class="stat-value" id="transit-time">--</span>
+        </div>
+        <div class="stat-row">
+          <span>Turnover at:</span>
+          <span class="stat-value" id="transit-turnover">--</span>
+        </div>
+        <div class="stat-row">
+          <span>Max Velocity:</span>
+          <span class="stat-value" id="transit-velocity">--</span>
+        </div>
+      </div>
+      <div class="transit-formula" id="transit-formula-display">
+        <code>t = 2 × √(d ÷ a)</code>
+        <span class="formula-help" title="Click for physics explanation">?</span>
+      </div>
+    </div>
     ${inJump ? `
     <div class="detail-section jump-status-section">
       <h4>IN JUMP SPACE</h4>
