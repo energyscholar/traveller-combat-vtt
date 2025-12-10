@@ -1049,7 +1049,38 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
   // Scan level labels
   const scanLevelLabels = ['Unknown', 'Passive', 'Active', 'Deep'];
 
-  // Render a single contact with detection-based fog of war
+  // AR-55: Range band to KM conversion for tooltips
+  const rangeBandKm = {
+    Adjacent: '< 1 km',
+    Close: '1-10 km',
+    Short: '10-1,250 km',
+    Medium: '1,250-10,000 km',
+    Long: '10,000-25,000 km',
+    VeryLong: '25,000-50,000 km',
+    Distant: '50,000+ km'
+  };
+
+  // AR-55: Compact single-line contact rendering
+  const renderContactCompact = (c) => {
+    const scanLevel = c.scan_level || 0;
+    const scanClass = scanLevel === 0 ? 'undetected' : scanLevel === 1 ? 'passive' : scanLevel === 2 ? 'active' : 'deep';
+    const showName = scanLevel >= 2;
+    const name = showName ? escapeHtml(c.name || c.transponder || '???') : `C-${(c.id || '').slice(0,4)}`;
+    const type = scanLevel >= 1 ? (c.type || '???') : '???';
+    const rangeKm = rangeBandKm[c.range_band] || c.range_band || '???';
+    const tooltip = `${name}\\nType: ${type}\\nRange: ${c.range_band} (${rangeKm})\\nBearing: ${c.bearing || 0}°\\nScan: ${scanLevelLabels[scanLevel]}${c.tonnage && scanLevel >= 3 ? `\\nTonnage: ${c.tonnage} dT` : ''}`;
+
+    return `
+      <div class="sensor-contact-compact ${scanClass}" data-contact-id="${c.id}" title="${tooltip}" onclick="window.showContactTooltip && showContactTooltip('${c.id}')">
+        <span class="contact-type-icon type-${type.toLowerCase()}">${type.charAt(0)}</span>
+        <span class="contact-name-compact">${name}</span>
+        <span class="contact-range-compact">${c.range_band || '???'}</span>
+        ${scanLevel < 3 ? `<span class="scan-indicator" onclick="event.stopPropagation(); scanContact('${c.id}', ${scanLevel + 1})">◎</span>` : ''}
+      </div>
+    `;
+  };
+
+  // Legacy detailed contact rendering (for expanded view)
   const renderContact = (c) => {
     const scanLevel = c.scan_level || 0;
     const scanClass = scanLevel === 0 ? 'undetected' : scanLevel === 1 ? 'passive' : scanLevel === 2 ? 'active' : 'deep';
@@ -1100,37 +1131,18 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
     </div>
     <div class="detail-section sensor-contacts-section">
       <h4>Contacts (${contacts?.length || 0})</h4>
-      <div class="sensor-contacts-list">
-        ${ships.length > 0 ? `
-          <div class="contact-category">
-            <div class="category-header">Ships (${ships.length})</div>
-            ${ships.map(renderContact).join('')}
+      <div class="sensor-contacts-compact">
+        ${ships.length > 0 ? `<div class="category-label">Ships</div>${ships.map(renderContactCompact).join('')}` : ''}
+        ${stations.length > 0 ? `<div class="category-label">Stations</div>${stations.map(renderContactCompact).join('')}` : ''}
+        ${unknowns.length > 0 ? `<div class="category-label">Unknown</div>${unknowns.map(renderContactCompact).join('')}` : ''}
+        ${celestials.length > 0 ? `<div class="category-label">Celestial</div>${celestials.map(c => `
+          <div class="sensor-contact-compact celestial" title="${escapeHtml(c.name || 'Body')}\\nType: ${c.type || 'Planet'}">
+            <span class="contact-type-icon type-celestial">★</span>
+            <span class="contact-name-compact">${escapeHtml(c.name || 'Body')}</span>
+            <span class="contact-range-compact">${c.type || 'Planet'}</span>
           </div>
-        ` : ''}
-        ${stations.length > 0 ? `
-          <div class="contact-category">
-            <div class="category-header">Stations (${stations.length})</div>
-            ${stations.map(renderContact).join('')}
-          </div>
-        ` : ''}
-        ${unknowns.length > 0 ? `
-          <div class="contact-category">
-            <div class="category-header">Unidentified (${unknowns.length})</div>
-            ${unknowns.map(renderContact).join('')}
-          </div>
-        ` : ''}
-        ${celestials.length > 0 ? `
-          <div class="contact-category">
-            <div class="category-header">Celestial (${celestials.length})</div>
-            ${celestials.map(c => `
-              <div class="sensor-contact celestial">
-                <span class="contact-designator">${escapeHtml(c.name || 'Body')}</span>
-                <span class="contact-type">${c.type || 'Planet'}</span>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
-        ${(!contacts || contacts.length === 0) ? '<div class="placeholder">No contacts detected</div>' : ''}
+        `).join('')}` : ''}
+        ${(!contacts || contacts.length === 0) ? '<div class="placeholder">No contacts</div>' : ''}
       </div>
     </div>
     <div id="scan-result-display" class="scan-result-display" style="display: none;">

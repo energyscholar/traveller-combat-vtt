@@ -5195,6 +5195,92 @@ input[type="checkbox"] {
 .sensor-contact.deep { border-left-color: var(--accent-blue); }
 .sensor-contact.celestial { border-left-color: var(--text-secondary); opacity: 0.7; }
 
+/* AR-55: Compact Sensor Contact Display */
+.sensor-contacts-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.category-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 4px 0 2px;
+  margin-top: 4px;
+}
+
+.category-label:first-child {
+  margin-top: 0;
+}
+
+.sensor-contact-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: var(--bg-dark);
+  border-radius: 3px;
+  border-left: 2px solid var(--border-color);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sensor-contact-compact:hover {
+  background: var(--bg-secondary);
+}
+
+.sensor-contact-compact.undetected { border-left-color: var(--text-muted); }
+.sensor-contact-compact.passive { border-left-color: var(--accent-green); }
+.sensor-contact-compact.active { border-left-color: var(--accent-yellow); }
+.sensor-contact-compact.deep { border-left-color: var(--accent-blue); }
+.sensor-contact-compact.celestial { border-left-color: var(--text-secondary); opacity: 0.8; }
+
+.contact-type-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+}
+
+.contact-type-icon.type-ship { background: var(--accent-cyan); color: var(--bg-dark); }
+.contact-type-icon.type-station { background: var(--accent-yellow); color: var(--bg-dark); }
+.contact-type-icon.type-unknown, .contact-type-icon.type-\?\?\? { background: var(--accent-red); color: white; }
+.contact-type-icon.type-celestial { background: var(--text-muted); color: var(--bg-dark); }
+.contact-type-icon.type-patrol { background: var(--accent-orange); color: var(--bg-dark); }
+
+.contact-name-compact {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contact-range-compact {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.scan-indicator {
+  font-size: 14px;
+  color: var(--accent-cyan);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.scan-indicator:hover {
+  opacity: 1;
+}
+
 .contact-header {
   display: flex;
   justify-content: space-between;
