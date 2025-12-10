@@ -3874,6 +3874,25 @@ function breakSensorLock() {
   renderRoleDetailPanel('sensor_operator');
 }
 
+// AR-36: Stealth mode toggle
+function toggleStealth() {
+  const newState = !state.shipState?.stealth;
+  state.socket.emit('ops:setEW', { type: 'stealth', active: newState });
+  if (!state.shipState) state.shipState = {};
+  state.shipState.stealth = newState;
+  showNotification(`Stealth mode ${newState ? 'ENGAGED' : 'disengaged'} - ${newState ? 'Reduced sensor signature' : 'Normal signature'}`, newState ? 'warning' : 'info');
+  renderRoleDetailPanel('sensor_operator');
+}
+
+// AR-36: Set sensor lock on specific contact (alternative to acquireSensorLock)
+function setSensorLock(contactId) {
+  if (contactId) {
+    acquireSensorLock(contactId);
+  } else {
+    breakSensorLock();
+  }
+}
+
 // AR-36: Calculate sensor DM (Mongoose 2e rules)
 function calculateSensorDM(scannerState, targetState, range) {
   let dm = 0;
