@@ -155,6 +155,12 @@ export function getRoleDetailContent(role, context) {
     case 'marines':
       return getMarinesPanel(shipState, template, boardingConditions);
 
+    case 'comms':
+      return getCommsPanel(shipState, contacts, crewOnline);
+
+    case 'steward':
+      return getStewardPanel(shipState, template, crewOnline);
+
     default:
       return `
         <div class="detail-section">
@@ -1698,6 +1704,207 @@ function getMarinesPanel(shipState, template, boardingConditions = null) {
         <button onclick="roleAction('repelBoarders')" class="btn btn-small btn-danger"
                 title="ALERT: Hostile boarders detected! Marines engage enemy forces. Triggers tactical combat resolution.">
           Repel Boarders
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== AR-18 Phase 8: Comms Panel ====================
+
+function getCommsPanel(shipState, contacts = [], crewOnline = []) {
+  // Find hailable contacts (have transponder and are ships/stations)
+  const hailableContacts = contacts?.filter(c =>
+    c.transponder && c.transponder !== 'NONE' &&
+    !c.celestial && c.type &&
+    ['Ship', 'Station', 'Starport', 'Base', 'Patrol', 'Free Trader', 'Far Trader', 'System Defense Boat'].includes(c.type)
+  ) || [];
+
+  // Active hail status
+  const activeHail = shipState.activeHail || null;
+  const transponderStatus = shipState.transponder || 'ACTIVE';
+  const radioStatus = shipState.radioStatus || 'STANDBY';
+
+  // Unread message count
+  const unreadCount = shipState.unreadMailCount || 0;
+
+  return `
+    <div class="detail-section comms-status">
+      <h4>Communications Status</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Transponder:</span>
+          <span class="stat-value ${transponderStatus === 'SILENT' ? 'text-warning' : 'text-success'}">${transponderStatus}</span>
+        </div>
+        <div class="stat-row">
+          <span>Radio:</span>
+          <span class="stat-value">${radioStatus}</span>
+        </div>
+        ${unreadCount > 0 ? `
+        <div class="stat-row">
+          <span>Unread Messages:</span>
+          <span class="stat-value text-warning">${unreadCount}</span>
+        </div>
+        ` : ''}
+      </div>
+      ${activeHail ? `
+      <div class="active-hail" style="margin-top: 8px; padding: 8px; background: rgba(40,167,69,0.15); border-radius: 4px;">
+        <strong>Active Channel:</strong> ${escapeHtml(activeHail.target)}
+        <button onclick="roleAction('endHail')" class="btn btn-small btn-secondary" style="margin-left: 8px;">End</button>
+      </div>
+      ` : ''}
+    </div>
+
+    <div class="detail-section comms-email">
+      <h4>Ship Mail</h4>
+      <div class="action-buttons">
+        <button onclick="window.openEmailApp()" class="btn btn-small ${unreadCount > 0 ? 'btn-warning' : 'btn-primary'}"
+                title="Open ship mail system">
+          ${unreadCount > 0 ? `📬 Messages (${unreadCount})` : '📧 Open Mail'}
+        </button>
+      </div>
+    </div>
+
+    <div class="detail-section comms-hailing">
+      <h4>Hailing</h4>
+      ${hailableContacts.length > 0 ? `
+        <div class="hail-contacts" style="margin-bottom: 8px;">
+          <select id="hail-contact-select" class="hail-select" style="width: 100%;">
+            ${hailableContacts.map(c => `
+              <option value="${c.id}">${escapeHtml(c.transponder || c.name || 'Unknown')}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="action-buttons" style="display: flex; gap: 6px;">
+          <button onclick="window.hailSelectedContact()" class="btn btn-small btn-primary"
+                  title="Open voice channel to selected contact">
+            Hail
+          </button>
+          <button onclick="window.broadcastMessage()" class="btn btn-small btn-secondary"
+                  title="Broadcast message on open frequencies">
+            Broadcast
+          </button>
+        </div>
+      ` : `
+        <div class="placeholder">No contacts with active transponders</div>
+      `}
+    </div>
+
+    <div class="detail-section comms-actions">
+      <h4>Communications Actions</h4>
+      <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <button onclick="roleAction('toggleTransponder')" class="btn btn-small ${transponderStatus === 'SILENT' ? 'btn-warning' : 'btn-secondary'}"
+                title="Toggle ship transponder. Silent running hides identity but violates traffic regulations.">
+          ${transponderStatus === 'SILENT' ? 'Enable Transponder' : 'Go Silent'}
+        </button>
+        <button onclick="roleAction('scanFrequencies')" class="btn btn-small"
+                title="Scan local radio frequencies for chatter, distress signals, or encrypted comms.">
+          Scan Frequencies
+        </button>
+        <button onclick="roleAction('requestDocking')" class="btn btn-small"
+                title="Request docking clearance from starport or station.">
+          Request Docking
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ==================== AR-18 Phase 9: Steward Panel ====================
+
+function getStewardPanel(shipState, template, crewOnline = []) {
+  // Passenger manifest
+  const passengers = shipState.passengers || [];
+  const highPassengers = passengers.filter(p => p.class === 'high').length;
+  const midPassengers = passengers.filter(p => p.class === 'middle').length;
+  const lowPassengers = passengers.filter(p => p.class === 'low').length;
+
+  // Cargo status
+  const cargoUsed = shipState.cargoUsed || 0;
+  const cargoCapacity = template.cargo || 0;
+
+  // Life support
+  const lifeSupport = shipState.lifeSupport || { status: 'NOMINAL', days: 30 };
+
+  // Morale (crew satisfaction)
+  const crewMorale = shipState.crewMorale || 'Good';
+  const moraleColors = { 'Excellent': 'text-success', 'Good': '', 'Fair': 'text-warning', 'Poor': 'text-danger' };
+
+  return `
+    <div class="detail-section steward-passengers">
+      <h4>Passenger Manifest</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>High Passage:</span>
+          <span class="stat-value">${highPassengers}</span>
+        </div>
+        <div class="stat-row">
+          <span>Middle Passage:</span>
+          <span class="stat-value">${midPassengers}</span>
+        </div>
+        <div class="stat-row">
+          <span>Low Berths:</span>
+          <span class="stat-value">${lowPassengers}</span>
+        </div>
+        <div class="stat-row">
+          <span>Total:</span>
+          <span class="stat-value">${passengers.length}</span>
+        </div>
+      </div>
+      ${passengers.length > 0 ? `
+      <div class="passenger-list" style="margin-top: 8px; max-height: 100px; overflow-y: auto;">
+        <ul style="margin: 0; padding-left: 16px; font-size: 0.85em;">
+          ${passengers.slice(0, 5).map(p => `
+            <li>${escapeHtml(p.name || 'Passenger')} (${p.class || 'standard'})</li>
+          `).join('')}
+          ${passengers.length > 5 ? `<li>...and ${passengers.length - 5} more</li>` : ''}
+        </ul>
+      </div>
+      ` : ''}
+    </div>
+
+    <div class="detail-section steward-cargo">
+      <h4>Cargo & Stores</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Cargo Hold:</span>
+          <span class="stat-value ${cargoUsed >= cargoCapacity ? 'text-warning' : ''}">${cargoUsed}/${cargoCapacity} dT</span>
+        </div>
+        <div class="stat-row">
+          <span>Life Support:</span>
+          <span class="stat-value ${lifeSupport.days < 7 ? 'text-danger' : lifeSupport.days < 14 ? 'text-warning' : ''}">${lifeSupport.days} days</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section steward-morale">
+      <h4>Crew Welfare</h4>
+      <div class="detail-stats">
+        <div class="stat-row">
+          <span>Crew Count:</span>
+          <span class="stat-value">${crewOnline.length}</span>
+        </div>
+        <div class="stat-row">
+          <span>Morale:</span>
+          <span class="stat-value ${moraleColors[crewMorale] || ''}">${crewMorale}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-section steward-actions">
+      <h4>Steward Actions</h4>
+      <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <button onclick="roleAction('servePassengers')" class="btn btn-small"
+                title="Attend to passenger needs. Improves satisfaction, may generate tips or trade rumors.">
+          Serve Passengers
+        </button>
+        <button onclick="roleAction('inventoryCheck')" class="btn btn-small"
+                title="Review cargo manifest and consumables. Identifies shortages before they become critical.">
+          Check Inventory
+        </button>
+        <button onclick="roleAction('boostMorale')" class="btn btn-small"
+                title="Organize crew recreation. Costs some consumables but improves morale and reduces stress effects.">
+          Boost Morale
         </button>
       </div>
     </div>
