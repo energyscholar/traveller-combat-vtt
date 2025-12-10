@@ -593,21 +593,31 @@ function getGunnerPanel(shipState, template, contacts, roleInstance = 1, shipWea
     </div>
 
     <div class="detail-section gunner-auth-section">
-      <h4>Weapons Authorization</h4>
-      <div class="weapons-auth-controls" style="display: flex; gap: 8px; margin-top: 8px;">
+      <h4>Rules of Engagement</h4>
+      <div class="weapons-auth-controls" style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
         <button onclick="window.captainWeaponsAuth('hold')"
-                class="btn btn-small ${!weaponsFree ? 'btn-warning active' : 'btn-secondary'}"
-                title="Secure weapons - no firing without direct order">
+                class="btn btn-small ${shipState.roe === 'hold' ? 'btn-warning active' : 'btn-secondary'}"
+                title="HOLD FIRE - No weapons discharge without direct order">
           HOLD
         </button>
+        <button onclick="window.captainWeaponsAuth('defensive')"
+                class="btn btn-small ${shipState.roe === 'defensive' ? 'btn-info active' : 'btn-secondary'}"
+                title="DEFENSIVE - Return fire only when fired upon">
+          DEFENSIVE
+        </button>
         <button onclick="window.captainWeaponsAuth('free')"
-                class="btn btn-small ${weaponsFree ? 'btn-danger active' : 'btn-secondary'}"
-                title="Authorize weapons - engage hostile targets">
+                class="btn btn-small ${shipState.roe === 'free' || weaponsFree ? 'btn-danger active' : 'btn-secondary'}"
+                title="WEAPONS FREE - Engage any hostile target at will">
           FREE
         </button>
       </div>
       <small class="auth-hint" style="color: var(--text-muted); margin-top: 4px; display: block;">
-        ${weaponsFree ? 'Engage hostile targets at will' : 'Awaiting weapons free authorization'}
+        ${shipState.roe === 'free' || weaponsFree ? 'Engage hostile targets at will' :
+          shipState.roe === 'defensive' ? 'Return fire when fired upon' :
+          'Weapons secured - await authorization'}
+      </small>
+      <small class="gunner-override-note" style="color: var(--text-muted); font-size: 10px; display: block;">
+        Gunner: Override available via FIRE button (logs violation)
       </small>
     </div>
 
@@ -1636,10 +1646,19 @@ function getMarinesPanel(shipState, template, boardingConditions = null) {
 
     <div class="detail-section">
       <h4>Tactical Actions</h4>
-      <div class="action-buttons">
-        <button onclick="roleAction('securityPatrol')" class="btn btn-small">Security Patrol</button>
-        <button onclick="roleAction('prepareBoarding')" class="btn btn-small">Prepare Boarding</button>
-        <button onclick="roleAction('repelBoarders')" class="btn btn-small">Repel Boarders</button>
+      <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <button onclick="roleAction('securityPatrol')" class="btn btn-small"
+                title="Deploy marines on patrol routes. Increases internal security, detects intruders earlier. Takes 1 hour to establish full coverage.">
+          Security Patrol
+        </button>
+        <button onclick="roleAction('prepareBoarding')" class="btn btn-small"
+                title="Prep for boarding action: issue weapons, breaching charges, vacc suits. Marines ready at airlock. Takes 10 minutes.">
+          Prep Boarding
+        </button>
+        <button onclick="roleAction('repelBoarders')" class="btn btn-small btn-danger"
+                title="ALERT: Hostile boarders detected! Marines engage enemy forces. Triggers tactical combat resolution.">
+          Repel Boarders
+        </button>
       </div>
     </div>
   `;
