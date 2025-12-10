@@ -331,9 +331,12 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
 }
 
 function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue = []) {
-  // Power allocation state
+  // Power allocation state - AR-54: added power budget tracking
   const power = shipState.power || { mDrive: 75, weapons: 75, sensors: 75, lifeSupport: 75, computer: 75 };
   const powerEffects = shipState.powerEffects || { weaponsDM: 0, sensorsDM: 0, thrustMultiplier: 1.0 };
+  const totalPowerUsed = Object.values(power).reduce((a, b) => a + b, 0);
+  const maxPower = Object.keys(power).length * 100; // 500 for 5 systems
+  const powerPercent = Math.round((totalPowerUsed / maxPower) * 100);
 
   const fs = fuelStatus || {
     total: shipState.fuel ?? template.fuel ?? 40,
@@ -354,6 +357,13 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
   return `
     <div class="detail-section power-section">
       <h4>Power Allocation</h4>
+      <div class="power-budget" title="Total power draw across all systems">
+        <span class="power-budget-label">Power Budget:</span>
+        <div class="power-budget-bar">
+          <div class="power-budget-fill ${powerPercent > 100 ? 'overload' : powerPercent > 80 ? 'high' : ''}" style="width: ${Math.min(powerPercent, 100)}%"></div>
+        </div>
+        <span class="power-budget-value ${powerPercent > 100 ? 'text-danger' : ''}">${powerPercent}%</span>
+      </div>
       <div class="power-presets">
         <button onclick="window.setPowerPreset('combat')" class="btn btn-small ${shipState.powerPreset === 'combat' ? 'btn-active' : ''}" title="Max weapons and sensors">Combat</button>
         <button onclick="window.setPowerPreset('silent')" class="btn btn-small ${shipState.powerPreset === 'silent' ? 'btn-active' : ''}" title="Minimal power signature">Silent</button>
@@ -478,18 +488,23 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
       </div>
       ` : ''}
     </div>
-    <div class="detail-section">
+    <div class="detail-section jump-capability-compact">
       <h4>Jump Capability</h4>
-      <div class="detail-stats">
-        <div class="stat-row">
-          <span>Jump Rating:</span>
-          <span class="stat-value">J-${template.jumpRating || 2}</span>
-        </div>
-        <div class="stat-row">
-          <span>Fuel per Jump:</span>
-          <span class="stat-value">${Math.round((template.tonnage || 100) * 0.1)}t/parsec</span>
-        </div>
-      </div>
+      ${(() => {
+        const jumpRating = template.jumpRating || 2;
+        const tonnage = template.tonnage || 100;
+        const jumpNet = template.jumpNet || 0; // AR-54: Jump Net bonus tonnage
+        const effectiveTonnage = tonnage + jumpNet;
+        const fuelPerParsec = Math.ceil(effectiveTonnage * 0.1);
+        const maxJumps = Math.floor(fs.total / fuelPerParsec);
+        const jumpTooltip = `Ship: ${tonnage}t${jumpNet ? ` + ${jumpNet}t Jump Net` : ''}\\nFuel/parsec: ${fuelPerParsec}t\\nMax jumps with current fuel: ${maxJumps}`;
+        return `
+      <div class="jump-stats-row" title="${jumpTooltip}">
+        <span class="jump-stat">J-${jumpRating}</span>
+        <span class="jump-stat">${fuelPerParsec}t/pc</span>
+        <span class="jump-stat ${maxJumps === 0 ? 'text-danger' : ''}">${maxJumps} jump${maxJumps !== 1 ? 's' : ''}</span>
+      </div>`;
+      })()}
     </div>
   `;
 }

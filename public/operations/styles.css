@@ -1858,6 +1858,74 @@ input[type="checkbox"] {
   margin-bottom: var(--space-md);
 }
 
+/* AR-54: Power Budget Display */
+.power-budget {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+  padding: var(--space-xs);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.power-budget-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.power-budget-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.power-budget-fill {
+  height: 100%;
+  background: var(--accent-green);
+  transition: width 0.3s ease;
+}
+
+.power-budget-fill.high {
+  background: var(--accent-yellow);
+}
+
+.power-budget-fill.overload {
+  background: var(--accent-red);
+}
+
+.power-budget-value {
+  font-size: 12px;
+  font-weight: bold;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* AR-54: Compact Jump Capability */
+.jump-capability-compact {
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.jump-capability-compact h4 {
+  margin-bottom: var(--space-xs);
+  font-size: 12px;
+}
+
+.jump-stats-row {
+  display: flex;
+  gap: var(--space-md);
+  cursor: help;
+}
+
+.jump-stat {
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--accent-cyan);
+}
+
 .power-presets {
   display: flex;
   gap: var(--space-xs);
