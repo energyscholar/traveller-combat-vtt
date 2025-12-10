@@ -1,0 +1,33 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "shuttle",
+  "type": "small_craft",
+  "name": "Shuttle",
+  "tonnage": 95,
+  "role": "transport",
+  "hull": 38,
+  "armour": 2,
+  "thrust": 3,
+  "jump": 0,
+  "fuel": 2,
+  "cargo": 40,
+  "passengers": 20,
+  "lowBerths": 0,
+  "turrets": [],
+  "hardpoints": 0,
+  "hardpointsUsed": 0,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 0,
+    "engineer": 0,
+    "sensors": 0,
+    "steward": 1,
+    "marines": 0
+  },
+  "computer": "Computer/5",
+  "software": ["Manoeuvre/0", "Library"],
+  "sensors": "Civilian Grade",
+  "techLevel": 10,
+  "cost": 28000000,
+  "description": "Standard orbital shuttle. High capacity for passengers and cargo. Workhorse of starport operations worldwide."
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "heavy_fighter",
+  "type": "small_craft",
+  "name": "Heavy Fighter",
+  "tonnage": 50,
+  "role": "military",
+  "hull": 20,
+  "armour": 8,
+  "thrust": 5,
+  "jump": 0,
+  "fuel": 2,
+  "cargo": 2,
+  "passengers": 0,
+  "lowBerths": 0,
+  "turrets": [
+    { "id": "turret1", "type": "double", "weapons": ["Pulse Laser", "Pulse Laser"] },
+    { "id": "turret2", "type": "single", "weapons": ["Missile Rack"] }
+  ],
+  "hardpoints": 2,
+  "hardpointsUsed": 2,
+  "crewRequirements": {
+    "pilot": 1,
+    "gunner": 1,
+    "engineer": 0,
+    "sensors": 0,
+    "marines": 0
+  },
+  "computer": "Computer/15fib",
+  "software": ["Manoeuvre/0", "Evade/2", "Fire Control/3"],
+  "sensors": "Military Grade",
+  "techLevel": 13,
+  "cost": 42000000,
+  "description": "Attack craft with significant firepower. Heavy armour, missile capability. Used for strike missions against larger vessels."
+}

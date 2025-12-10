@@ -1,0 +1,44 @@
+{
+  "$schema": "../schemas/ship.schema.json",
+  "id": "destroyer_escort",
+  "type": "destroyer_escort",
+  "name": "Destroyer Escort",
+  "tonnage": 1000,
+  "role": "military",
+  "hull": 400,
+  "armour": 6,
+  "thrust": 5,
+  "jump": 3,
+  "fuel": 300,
+  "cargo": 20,
+  "passengers": 0,
+  "lowBerths": 0,
+  "turrets": [
+    { "id": "turret1", "type": "triple", "weapons": ["Pulse Laser", "Pulse Laser", "Pulse Laser"] },
+    { "id": "turret2", "type": "triple", "weapons": ["Pulse Laser", "Pulse Laser", "Pulse Laser"] },
+    { "id": "turret3", "type": "triple", "weapons": ["Beam Laser", "Beam Laser", "Beam Laser"] },
+    { "id": "turret4", "type": "triple", "weapons": ["Beam Laser", "Beam Laser", "Beam Laser"] },
+    { "id": "turret5", "type": "triple", "weapons": ["Missile Rack", "Sandcaster", "Sandcaster"] },
+    { "id": "turret6", "type": "triple", "weapons": ["Missile Rack", "Sandcaster", "Sandcaster"] }
+  ],
+  "barbettes": [
+    { "id": "barbette1", "type": "particle", "weapons": ["Particle Barbette"] },
+    { "id": "barbette2", "type": "particle", "weapons": ["Particle Barbette"] }
+  ],
+  "hardpoints": 10,
+  "hardpointsUsed": 8,
+  "crewRequirements": {
+    "pilot": 2,
+    "gunner": 8,
+    "engineer": 4,
+    "sensors": 2,
+    "captain": 1,
+    "marines": 10
+  },
+  "computer": "Computer/25fib",
+  "software": ["Jump Control/3", "Manoeuvre/0", "Library", "Fire Control/4", "Evade/2"],
+  "sensors": "Military Grade",
+  "techLevel": 14,
+  "cost": 512000000,
+  "description": "Fleet screening vessel. Fast, well-armed, capable of independent patrol or fleet escort duties. Backbone of subsector fleets."
+}

@@ -20,6 +20,10 @@
     { "id": "ships_boat", "name": "Ship's Boat", "tonnage": 30, "role": "transport", "file": "ships_boat.json" },
     { "id": "pinnace", "name": "Pinnace", "tonnage": 40, "role": "transport", "file": "pinnace.json" },
     { "id": "cutter", "name": "Cutter", "tonnage": 50, "role": "transport", "file": "cutter.json" },
-    { "id": "light_fighter", "name": "Light Fighter", "tonnage": 10, "role": "military", "file": "light_fighter.json" }
+    { "id": "light_fighter", "name": "Light Fighter", "tonnage": 10, "role": "military", "file": "light_fighter.json" },
+    { "id": "medium_fighter", "name": "Medium Fighter", "tonnage": 20, "role": "military", "file": "medium_fighter.json" },
+    { "id": "heavy_fighter", "name": "Heavy Fighter", "tonnage": 50, "role": "military", "file": "heavy_fighter.json" },
+    { "id": "shuttle", "name": "Shuttle", "tonnage": 95, "role": "transport", "file": "shuttle.json" },
+    { "id": "destroyer_escort", "name": "Destroyer Escort", "tonnage": 1000, "role": "military", "file": "destroyer_escort.json" }
   ]
 }
