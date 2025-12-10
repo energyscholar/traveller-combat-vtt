@@ -449,7 +449,7 @@ function initSocket() {
 
   // Bridge events
   state.socket.on('ops:bridgeJoined', (data) => {
-    state.ship = data.ship;
+    state.ship = data.ship || {};
     state.ship.npcCrew = data.npcCrew || [];  // Store NPC crew on ship object
     state.selectedShipId = data.ship?.id;
     // Filter out any GM entries from crew - GM is observer, not crew
