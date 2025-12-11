@@ -219,10 +219,18 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
     </div>
   ` : '';
 
+  // AR-64: Ship location from current_state
+  const shipLocation = shipState.locationName || shipState.location || 'Unknown';
+  const pendingTravel = typeof window.getPendingTravel === 'function' ? window.getPendingTravel() : null;
+
   return `
     <div class="detail-section">
       <h4>Helm Control</h4>
       <div class="detail-stats">
+        <div class="stat-row">
+          <span>Location:</span>
+          <span class="stat-value">${escapeHtml(shipLocation)}</span>
+        </div>
         <div class="stat-row">
           <span>Speed:</span>
           <span class="stat-value">${shipState.currentThrust || template.thrust || 2}G</span>
@@ -242,6 +250,14 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
         </div>
         ` : ''}
       </div>
+      ${hasDestination && pendingTravel ? `
+      <div class="pilot-nav-controls" style="margin-top: 10px;">
+        <button class="btn btn-primary btn-travel" onclick="travel()" title="Execute transit to destination">
+          TRAVEL (${pendingTravel.travelHours || '?'}h)
+        </button>
+        <button class="btn btn-small btn-secondary" onclick="clearCourse()" title="Cancel course">Clear</button>
+      </div>
+      ` : ''}
     </div>
     <div class="detail-section transit-calculator">
       <h4>Transit Calculator

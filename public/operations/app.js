@@ -3210,18 +3210,70 @@ function changeRange(action) {
   state.socket.emit('ops:setRange', { contactId, action });
 }
 
-function setCourse(destination, eta) {
+// AR-64: Store pending travel data for TRAVEL button
+let pendingTravelData = null;
+
+function setCourse(destination, eta, travelData = null) {
   if (!state.socket || !state.campaignId) {
     showNotification('Not connected to campaign', 'error');
     return;
   }
 
-  state.socket.emit('ops:setCourse', { destination, eta });
+  // Store travel data for TRAVEL button
+  pendingTravelData = travelData;
+
+  state.socket.emit('ops:setCourse', {
+    destination,
+    eta,
+    travelTime: travelData?.travelHours || null
+  });
+
+  // Re-render pilot panel to show TRAVEL button
+  if (state.role === 'pilot') {
+    renderRoleDetailPanel('pilot');
+  }
 }
 
 function clearCourse() {
   if (!state.socket || !state.campaignId) return;
+  pendingTravelData = null;
   state.socket.emit('ops:clearCourse');
+}
+
+/**
+ * AR-64: Execute travel to the set destination
+ * Advances time and moves ship to destination location
+ */
+function travel() {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+
+  if (!pendingTravelData?.locationId) {
+    showNotification('No destination set - select a destination from the system map', 'warning');
+    return;
+  }
+
+  // Confirm travel
+  const hours = pendingTravelData.travelHours || 4;
+  const confirmMsg = `Travel to destination? (${hours}h transit)`;
+
+  if (!confirm(confirmMsg)) return;
+
+  state.socket.emit('ops:travel', {
+    destinationId: pendingTravelData.locationId
+  });
+
+  // Clear pending travel after sending
+  pendingTravelData = null;
+}
+
+/**
+ * Get current pending travel data (for UI)
+ */
+function getPendingTravel() {
+  return pendingTravelData;
 }
 
 // ==================== AR-57: Transit Calculator (Brachistochrone) ====================
@@ -3511,6 +3563,34 @@ function setupPilotListeners() {
 
   state.socket.on('ops:courseCleared', () => {
     showNotification('Course cleared', 'info');
+  });
+
+  // AR-64: Travel complete - ship arrived at destination
+  state.socket.on('ops:travelComplete', (data) => {
+    // Update ship state with new location
+    if (state.shipState) {
+      state.shipState.systemHex = data.systemHex;
+      state.shipState.locationId = data.locationId;
+      state.shipState.locationName = data.locationName;
+    }
+
+    // Update campaign date
+    if (state.campaign && data.newDate) {
+      state.campaign.current_date = data.newDate;
+      const dateEl = document.getElementById('bridge-date');
+      if (dateEl) dateEl.textContent = data.newDate;
+    }
+
+    // Clear pending travel
+    pendingTravelData = null;
+
+    // Show notification
+    showNotification(`Arrived at ${data.locationName} (${data.travelHours}h transit)`, 'success');
+
+    // Re-render pilot panel to remove TRAVEL button
+    if (state.role === 'pilot') {
+      renderRoleDetailPanel('pilot');
+    }
   });
 
   state.socket.on('ops:timeAdvanced', (data) => {
@@ -10362,6 +10442,9 @@ window.changeRange = changeRange;
 window.setCourse = setCourse;
 window.clearCourse = clearCourse;
 window.advanceTime = advanceTime;
+// AR-64: Travel/Navigation
+window.travel = travel;
+window.getPendingTravel = getPendingTravel;
 // AR-31: Engineer Power Management
 window.setPowerPreset = setPowerPreset;
 window.updatePower = updatePower;

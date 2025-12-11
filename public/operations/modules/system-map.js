@@ -436,11 +436,53 @@ function centerOnBodyWithVariant(body, zoomMultiplier) {
 }
 
 /**
- * Set destination (stub for future travel system)
+ * AR-64: Set destination and course for pilot navigation
+ * @param {string} locationId - Location ID from system JSON (e.g., 'loc-dock-highport')
  */
-function setDestination(bodyId) {
-  console.log('[SystemMap] Destination set:', bodyId);
-  // TODO: Integrate with astrogation/pilot systems
+function setDestination(locationId) {
+  console.log('[SystemMap] Setting destination:', locationId);
+
+  // Find location in current system
+  const system = systemMapState.system;
+  if (!system?.locations) {
+    console.error('[SystemMap] No system loaded or system has no locations');
+    return;
+  }
+
+  const location = system.locations.find(loc => loc.id === locationId);
+  if (!location) {
+    console.error('[SystemMap] Location not found:', locationId);
+    return;
+  }
+
+  // Calculate travel time from current location if available
+  const shipState = window.state?.shipState || {};
+  const currentLocationId = shipState.locationId;
+  let travelHours = 4; // Default
+  if (currentLocationId && location.travelTimeHours?.[currentLocationId]) {
+    travelHours = location.travelTimeHours[currentLocationId];
+  }
+
+  // Format ETA
+  const etaText = travelHours >= 24
+    ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
+    : `${travelHours}h`;
+
+  // Call setCourse via global function (defined in app.js)
+  if (typeof window.setCourse === 'function') {
+    window.setCourse(location.name, etaText, {
+      locationId: location.id,
+      travelHours
+    });
+  }
+
+  // Update info panel to show it's selected as destination
+  hideBodyInfoPanel();
+
+  // Show notification
+  if (typeof window.showNotification === 'function') {
+    window.showNotification(`Course set for ${location.name} (${etaText})`, 'success');
+  }
 }
 
 // Global access for UI
