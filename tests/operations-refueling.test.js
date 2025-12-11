@@ -50,7 +50,7 @@ console.log('\n=== Refueling System Tests ===\n');
 const testCampaignId = generateId();
 db.prepare(`
   INSERT INTO campaigns (id, name, gm_name, current_date, current_system)
-  VALUES (?, 'Test Campaign', 'Test GM', '1105-001 12:00', 'Regina')
+  VALUES (?, 'Test Campaign', 'Test GM', '1105-001 12:00', 'Flammarion')
 `).run(testCampaignId);
 
 // Create test ship with fuel processor

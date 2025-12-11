@@ -53,7 +53,7 @@ let testShipId = generateId();
 db.prepare(`
   INSERT INTO campaigns (id, name, gm_name, current_date, current_system)
   VALUES (?, ?, ?, ?, ?)
-`).run(testCampaignId, 'Jump Test Campaign', 'Test GM', '1105-100 12:00', 'Regina');
+`).run(testCampaignId, 'Jump Test Campaign', 'Test GM', '1105-100 12:00', 'Flammarion');
 
 // Create test ship with fuel
 db.prepare(`
@@ -181,7 +181,7 @@ test('Fuel was consumed', () => {
 });
 
 test('Cannot initiate jump while already in jump', () => {
-  const result = jump.initiateJump(testShipId, testCampaignId, 'Regina', 1);
+  const result = jump.initiateJump(testShipId, testCampaignId, 'Flammarion', 1);
   assertFalse(result.success);
   assertTrue(result.error.includes('Already in jump'));
 });
@@ -254,7 +254,7 @@ let noFuelShipId = generateId();
 db.prepare(`
   INSERT INTO campaigns (id, name, gm_name, current_date, current_system)
   VALUES (?, ?, ?, ?, ?)
-`).run(noFuelCampaignId, 'No-Fuel Test Campaign', 'Test GM', '1105-200 12:00', 'Regina');
+`).run(noFuelCampaignId, 'No-Fuel Test Campaign', 'Test GM', '1105-200 12:00', 'Flammarion');
 
 db.prepare(`
   INSERT INTO ships (id, campaign_id, name, template_id, ship_data, current_state)

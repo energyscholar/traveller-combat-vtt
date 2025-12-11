@@ -62,7 +62,7 @@ const patronTests = {
 const authorityTests = {
   'Starport control sends berthing assignment': () => {
     const email = createAuthorityEmail('berthing', {
-      starportName: 'Regina Highport',
+      starportName: 'Flammarion Highport',
       berthNumber: 'B-42',
       duration: '7 days'
     });
@@ -143,7 +143,7 @@ const servicesTests = {
 
   'Berth services sends invoice': () => {
     const email = createServicesEmail('berth_invoice', {
-      facilityName: 'Regina Highport',
+      facilityName: 'Flammarion Highport',
       days: 7,
       dailyRate: 100,
       total: 700
@@ -209,7 +209,7 @@ const shipEntityTests = {
 
     // Receive emails from starport
     receiveShipEmail(ship, createAuthorityEmail('berthing', {
-      starportName: 'Regina Highport',
+      starportName: 'Flammarion Highport',
       berthNumber: 'B-42',
       duration: '7 days'
     }));
@@ -224,7 +224,7 @@ const shipEntityTests = {
   'Traffic control contacts SHIP directly': () => {
     const ship = createShipEntity('free_trader', 'Beowulf');
     const email = createTrafficControlEmail('departure_vector', {
-      starportName: 'Regina Highport',
+      starportName: 'Flammarion Highport',
       vector: '045 mark 12',
       clearanceCode: 'RH-7742'
     });
@@ -235,7 +235,7 @@ const shipEntityTests = {
 
   'SHIP can send email as vessel': () => {
     const ship = createShipEntity('free_trader', 'Beowulf');
-    const email = sendShipEmail(ship, 'Regina Highport Control', 'Requesting departure clearance.');
+    const email = sendShipEmail(ship, 'Flammarion Highport Control', 'Requesting departure clearance.');
 
     assert.equal(email.from, 'Beowulf');
     assert.equal(email.fromType, 'ship');

@@ -71,9 +71,9 @@ test('getAllCampaigns returns array', () => {
 
 test('updateCampaign updates fields', () => {
   const updated = operations.updateCampaign(testCampaignId, {
-    current_system: 'Mora'
+    current_system: 'Asteltine'
   });
-  assertEqual(updated.current_system, 'Mora', 'System updated');
+  assertEqual(updated.current_system, 'Asteltine', 'System updated');
 });
 
 // ==================== Player Account Tests ====================
@@ -318,9 +318,9 @@ test('shareMap sets campaign map sharing state', () => {
     console.log('  ⏭ Skipped (module not yet created)');
     return;
   }
-  const result = sharedMap.shareMap(mapTestCampaignId, { center: 'Regina', zoom: 64 });
+  const result = sharedMap.shareMap(mapTestCampaignId, { center: 'Flammarion', zoom: 64 });
   assertEqual(result.shared, true, 'Map is shared');
-  assertEqual(result.center, 'Regina', 'Center is set');
+  assertEqual(result.center, 'Flammarion', 'Center is set');
 });
 
 test('getMapState returns current sharing state', () => {
@@ -347,7 +347,7 @@ test('updateMapView updates center and zoom', () => {
     console.log('  ⏭ Skipped (module not yet created)');
     return;
   }
-  sharedMap.shareMap(mapTestCampaignId, { center: 'Mora', zoom: 32 });
+  sharedMap.shareMap(mapTestCampaignId, { center: 'Asteltine', zoom: 32 });
   sharedMap.updateMapView(mapTestCampaignId, { center: 'Rhylanor', zoom: 128 });
   const state = sharedMap.getMapState(mapTestCampaignId);
   assertEqual(state.center, 'Rhylanor', 'Center updated');

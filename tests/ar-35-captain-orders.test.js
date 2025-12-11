@@ -27,7 +27,7 @@ function runTests(tests) {
 const acknowledgmentTests = {
   'Order has unique ID for tracking': () => {
     // When captain issues order, it gets unique orderId
-    const order = createOrder('pilot', 'Set course for Regina');
+    const order = createOrder('pilot', 'Set course for Flammarion');
     assert.ok(order.id, 'Order should have ID');
     assert.ok(order.id.startsWith('ord-'), 'Order ID should have prefix');
   },

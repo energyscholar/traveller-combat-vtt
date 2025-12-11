@@ -351,7 +351,7 @@ test('Export battle state with multiple ships', () => {
     turn: 3,
     phase: 'combat',
     initiative: [{ id: 'ship-1', value: 12 }, { id: 'ship-2', value: 8 }],
-    location: { system: 'Regina', sector: 'Spinward Marches' },
+    location: { system: 'Flammarion', sector: 'Spinward Marches' },
     combatLog: ['Turn 1: Battle begins', 'Turn 2: Defender fires']
   };
 

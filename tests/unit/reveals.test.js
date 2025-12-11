@@ -60,7 +60,7 @@ function setupTestCampaign() {
   db.prepare(`
     INSERT INTO campaigns (id, name, gm_name, current_date, current_system)
     VALUES (?, ?, ?, ?, ?)
-  `).run(TEST_CAMPAIGN_ID, 'Test Campaign', 'Test GM', '001-1105', 'Regina');
+  `).run(TEST_CAMPAIGN_ID, 'Test Campaign', 'Test GM', '001-1105', 'Flammarion');
 }
 
 // ==================== Tests ====================
