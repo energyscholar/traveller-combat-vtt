@@ -30,7 +30,8 @@ import {
   showPlacesOverlay,
   hidePlacesOverlay,
   resizeCanvas as resizeSystemMapCanvas,
-  updateMapContacts  // AR-71: Sync contacts to system map
+  updateMapContacts,  // AR-71: Sync contacts to system map
+  loadSystemFromJSON  // Load systems from JSON files
 } from './modules/system-map.js';
 
 // ==================== Debug Configuration ====================
@@ -7783,9 +7784,7 @@ function showSystemMap() {
       <h2>Shared System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
       <div class="system-map-controls">
         <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;" title="Select a star system to view">
-          <option value="caladbolg">Caladbolg</option>
-          <option value="dorannia">Dorannia</option>
-          <option value="flammarion" selected>Flammarion</option>
+          <option value="">Loading systems...</option>
         </select>
         <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;" title="Load the selected star system">SWITCH STARSYSTEM</button>
         <button id="btn-places" class="btn btn-info" title="Show clickable destinations in this system">📍 Places</button>
@@ -7834,23 +7833,49 @@ function showSystemMap() {
 
   // Initialize canvas after layout is complete (using double rAF to ensure layout)
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
       // Use scoped query - there's another system-map-container in HTML that's hidden
       const container = overlay.querySelector('#system-map-container');
       if (container) {
         initSystemMap(container);
 
-        // AR-66: Load current system, show actual name even if map not available
-        const currentSystemName = state.campaign?.current_system || 'Unknown System';
-        const currentSystemKey = currentSystemName.toLowerCase().replace(/\s+/g, '');
-        document.getElementById('system-map-name').textContent = currentSystemName;
+        // Populate system selector from index
+        const select = document.getElementById('test-system-select');
+        try {
+          const indexRes = await fetch('/data/star-systems/_index.json');
+          const index = await indexRes.json();
+          const systems = index.systems
+            .filter(s => !s.special)  // Exclude jumpspace
+            .sort((a, b) => a.name.localeCompare(b.name));
 
-        if (TEST_SYSTEMS[currentSystemKey]) {
-          loadTestSystem(currentSystemKey);
-        } else {
-          // System not in TEST_SYSTEMS - show placeholder message
-          console.log(`[SystemMap] System '${currentSystemName}' not in TEST_SYSTEMS, showing first available`);
-          loadTestSystem('flammarion'); // Load a map for navigation, but title shows actual system
+          select.innerHTML = systems
+            .map(s => `<option value="${s.id}">${s.name}</option>`)
+            .join('');
+
+          // Try to select current system or default to flammarion
+          const currentSystemName = state.campaign?.current_system || 'Flammarion';
+          const currentSystemId = currentSystemName.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
+          const matchingSystem = systems.find(s =>
+            s.id === currentSystemId ||
+            s.name.toLowerCase() === currentSystemName.toLowerCase()
+          );
+          if (matchingSystem) {
+            select.value = matchingSystem.id;
+          } else {
+            select.value = 'flammarion';
+          }
+
+          // Load the selected system
+          await loadSelectedSystemFromJSON(select.value);
+          document.getElementById('system-map-name').textContent = systems.find(s => s.id === select.value)?.name || currentSystemName;
+
+        } catch (err) {
+          console.error('[SystemMap] Failed to load system index:', err);
+          // Fallback to TEST_SYSTEMS
+          select.innerHTML = Object.entries(TEST_SYSTEMS)
+            .map(([key, sys]) => `<option value="${key}">${sys.name}</option>`)
+            .join('');
+          loadTestSystem('flammarion');
         }
 
         // Resize canvas after a short delay to ensure proper dimensions
@@ -7860,6 +7885,25 @@ function showSystemMap() {
       }
     });
   });
+
+  // Helper to load system from JSON
+  async function loadSelectedSystemFromJSON(systemId) {
+    try {
+      const res = await fetch(`/data/star-systems/${systemId}.json`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const systemData = await res.json();
+      loadSystemFromJSON(systemData);
+      resetMapTime();
+      updateSimulatedDate();
+      setTimeout(() => updateObjectSelector(), 100);
+    } catch (err) {
+      console.error(`[SystemMap] Failed to load ${systemId}.json:`, err);
+      // Fallback to TEST_SYSTEMS if available
+      if (TEST_SYSTEMS[systemId]) {
+        loadTestSystem(systemId);
+      }
+    }
+  }
 
   document.getElementById('btn-share-system-map')?.addEventListener('click', () => {
     if (!systemMapState.system) {
@@ -7887,16 +7931,13 @@ function showSystemMap() {
   });
 
   // Load button switches to selected system
-  document.getElementById('btn-load-system').addEventListener('click', () => {
+  document.getElementById('btn-load-system').addEventListener('click', async () => {
     const select = document.getElementById('test-system-select');
-    if (select.value && TEST_SYSTEMS[select.value]) {
-      loadTestSystem(select.value);
-      document.getElementById('system-map-name').textContent = TEST_SYSTEMS[select.value].name;
-      resetMapTime();
-      updateSimulatedDate();
-      // AR-38: Update GO TO dropdown when system changes
-      setTimeout(() => updateObjectSelector(), 100);
-      showNotification(`Switched to ${TEST_SYSTEMS[select.value].name} system`, 'success');
+    if (select.value) {
+      const systemName = select.options[select.selectedIndex]?.text || select.value;
+      await loadSelectedSystemFromJSON(select.value);
+      document.getElementById('system-map-name').textContent = systemName;
+      showNotification(`Switched to ${systemName} system`, 'success');
     }
   });
 

@@ -1574,6 +1574,127 @@ function loadTestSystem(systemKey) {
   return system;
 }
 
+/**
+ * Load a star system directly from JSON data (from data/star-systems/*.json)
+ * @param {Object} jsonData - The parsed JSON system data
+ * @returns {Object} The loaded system
+ */
+function loadSystemFromJSON(jsonData) {
+  if (!jsonData || !jsonData.celestialObjects) {
+    console.warn('[SystemMap] Invalid system JSON data');
+    return null;
+  }
+
+  // Convert celestialObjects to the expected planet format
+  const celestialObjects = jsonData.celestialObjects || [];
+
+  // Extract stars
+  const stars = celestialObjects
+    .filter(obj => obj.type === 'Star')
+    .map(star => ({
+      type: star.stellarClass?.[0] || 'G',
+      subtype: parseInt(star.stellarClass?.slice(1)) || 2,
+      luminosity: star.stellarClass?.split(' ')[1] || 'V',
+      radius: getStarRadiusFromClass(star.stellarClass || 'G2 V'),
+      position: { x: star.orbitAU || 0, y: 0 }
+    }));
+
+  // Default star if none found
+  if (stars.length === 0) {
+    const stellarClass = jsonData.stellar?.primary || 'G2 V';
+    stars.push({
+      type: stellarClass[0] || 'G',
+      subtype: parseInt(stellarClass.slice(1)) || 2,
+      luminosity: stellarClass.split(' ')[1] || 'V',
+      radius: getStarRadiusFromClass(stellarClass),
+      position: { x: 0, y: 0 }
+    });
+  }
+
+  // Extract planets (type: Planet or similar)
+  const planets = celestialObjects
+    .filter(obj => obj.type === 'Planet' || obj.type === 'Gas Giant' || obj.type === 'Ice Giant')
+    .map((planet, i) => ({
+      id: planet.id || `planet_${i}`,
+      name: planet.name,
+      type: getPlanetType(planet),
+      orbitAU: planet.orbitAU || 1,
+      orbitPeriod: Math.sqrt(Math.pow(planet.orbitAU || 1, 3)) * 365,
+      size: estimatePlanetSize(planet),
+      isMainworld: planet.uwp ? true : false,
+      hasRings: planet.hasRings || false,
+      moons: [],
+      inGoldilocks: planet.inGoldilocks || false
+    }));
+
+  // Extract asteroid belts
+  const asteroidBelts = celestialObjects
+    .filter(obj => obj.type === 'Belt' || obj.type === 'Asteroid Belt')
+    .map((belt, i) => ({
+      id: belt.id || `belt_${i}`,
+      innerRadius: belt.innerAU || (belt.orbitAU * 0.8) || 2.0,
+      outerRadius: belt.outerAU || (belt.orbitAU * 1.2) || 3.0,
+      density: belt.density || 0.4,
+      canMine: true
+    }));
+
+  // Build system object
+  const system = {
+    name: jsonData.name,
+    uwp: jsonData.uwp || 'X000000-0',
+    hex: jsonData.hex || '0000',
+    stars,
+    planets,
+    asteroidBelts,
+    fromJSON: true
+  };
+
+  // Calculate habitable zone from primary star
+  if (stars[0]) {
+    system.habitableZone = getHabitableZone(stars[0].type);
+  }
+
+  systemMapState.system = system;
+  systemMapState.hex = jsonData.hex || '0000';
+  systemMapState.zoom = 1;
+  systemMapState.offsetX = 0;
+  systemMapState.offsetY = 0;
+
+  console.log(`[SystemMap] Loaded JSON system: ${jsonData.name}`, system);
+  return system;
+}
+
+// Helper to get star radius from stellar class string
+function getStarRadiusFromClass(stellarClass) {
+  const type = stellarClass?.[0] || 'G';
+  const lum = stellarClass?.split(' ')[1] || 'V';
+  const baseRadius = { O: 15, B: 8, A: 2.5, F: 1.4, G: 1.0, K: 0.8, M: 0.5, L: 0.2, T: 0.1, D: 0.01 };
+  const lumMultiplier = { Ia: 100, Ib: 50, II: 25, III: 10, IV: 3, V: 1, VI: 0.5, D: 0.01 };
+  return (baseRadius[type] || 1) * (lumMultiplier[lum] || 1);
+}
+
+// Helper to determine planet type from JSON
+function getPlanetType(planet) {
+  const type = planet.type?.toLowerCase() || '';
+  if (type.includes('gas')) return 'gas';
+  if (type.includes('ice')) return 'ice';
+  if (planet.inGoldilocks || planet.breathable) return 'habitable';
+  return 'rocky';
+}
+
+// Helper to estimate planet size from JSON
+function estimatePlanetSize(planet) {
+  const type = planet.type?.toLowerCase() || '';
+  if (type.includes('gas')) return 80000 + Math.random() * 40000;
+  if (type.includes('ice')) return 20000 + Math.random() * 15000;
+  // Use UWP size digit if available
+  if (planet.uwp) {
+    const sizeDigit = parseInt(planet.uwp[1], 16) || 5;
+    return 2000 + sizeDigit * 1000;
+  }
+  return 5000 + Math.random() * 5000;
+}
+
 // ==================== Time Controls ====================
 
 /**
@@ -2111,6 +2232,7 @@ export {
   generateSystem,
   TEST_SYSTEMS,
   loadTestSystem,
+  loadSystemFromJSON,
   togglePause,
   setTimeSpeed,
   advanceTime,
