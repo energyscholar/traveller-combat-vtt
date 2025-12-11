@@ -1611,31 +1611,46 @@ function loadSystemFromJSON(jsonData) {
     });
   }
 
-  // Extract planets (type: Planet or similar)
+  // Extract planets (include Planet, Moon as renderable bodies)
   const planets = celestialObjects
-    .filter(obj => obj.type === 'Planet' || obj.type === 'Gas Giant' || obj.type === 'Ice Giant')
-    .map((planet, i) => ({
-      id: planet.id || `planet_${i}`,
-      name: planet.name,
-      type: getPlanetType(planet),
-      orbitAU: planet.orbitAU || 1,
-      orbitPeriod: Math.sqrt(Math.pow(planet.orbitAU || 1, 3)) * 365,
-      size: estimatePlanetSize(planet),
-      isMainworld: planet.uwp ? true : false,
-      hasRings: planet.hasRings || false,
-      moons: [],
-      inGoldilocks: planet.inGoldilocks || false
-    }));
+    .filter(obj => obj.type === 'Planet' || obj.type === 'Moon')
+    .map((planet, i) => {
+      const size = estimatePlanetSize(planet);
+      return {
+        id: planet.id || `planet_${i}`,
+        name: planet.name,
+        type: getPlanetType(planet),
+        orbitAU: planet.orbitAU || 1,
+        orbitPeriod: Math.sqrt(Math.pow(planet.orbitAU || 1, 3)) * 365,
+        size: isFinite(size) && size > 0 ? size : 5000,  // Ensure valid size
+        isMainworld: !!planet.uwp,
+        hasRings: planet.hasRings || false,
+        moons: [],
+        inGoldilocks: planet.inGoldilocks || false
+      };
+    });
 
-  // Extract asteroid belts
+  // Extract asteroid belts (Planetoid Belt in JSON)
   const asteroidBelts = celestialObjects
-    .filter(obj => obj.type === 'Belt' || obj.type === 'Asteroid Belt')
+    .filter(obj => obj.type === 'Belt' || obj.type === 'Asteroid Belt' || obj.type === 'Planetoid Belt')
     .map((belt, i) => ({
       id: belt.id || `belt_${i}`,
-      innerRadius: belt.innerAU || (belt.orbitAU * 0.8) || 2.0,
-      outerRadius: belt.outerAU || (belt.orbitAU * 1.2) || 3.0,
+      innerRadius: belt.innerAU || ((belt.orbitAU || 2) * 0.8),
+      outerRadius: belt.outerAU || ((belt.orbitAU || 2) * 1.2),
       density: belt.density || 0.4,
       canMine: true
+    }));
+
+  // Generate places array from celestialObjects for Places overlay
+  const places = celestialObjects
+    .filter(obj => obj.type === 'Planet' || obj.type === 'Station' || obj.type === 'Naval Base' || obj.type === 'Scout Base')
+    .map(obj => ({
+      id: obj.id,
+      name: obj.name,
+      icon: getPlaceIcon(obj.type),
+      description: obj.gmNotes || obj.type,
+      orbitAU: obj.orbitAU || 1,
+      type: obj.type
     }));
 
   // Build system object
@@ -1646,6 +1661,7 @@ function loadSystemFromJSON(jsonData) {
     stars,
     planets,
     asteroidBelts,
+    places,
     fromJSON: true
   };
 
@@ -1662,6 +1678,18 @@ function loadSystemFromJSON(jsonData) {
 
   console.log(`[SystemMap] Loaded JSON system: ${jsonData.name}`, system);
   return system;
+}
+
+// Helper to get icon for place type
+function getPlaceIcon(type) {
+  const icons = {
+    'Planet': '🪐',
+    'Station': '🛰️',
+    'Naval Base': '⚓',
+    'Scout Base': '🔭',
+    'Moon': '🌙'
+  };
+  return icons[type] || '📍';
 }
 
 // Helper to get star radius from stellar class string
