@@ -222,6 +222,7 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
   // AR-64: Ship location from current_state
   const shipLocation = shipState.locationName || shipState.location || 'Unknown';
   const pendingTravel = typeof window.getPendingTravel === 'function' ? window.getPendingTravel() : null;
+  const isDocked = (shipState.locationId || '').includes('dock');
 
   return `
     <div class="detail-section">
@@ -230,6 +231,7 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
         <div class="stat-row">
           <span>Location:</span>
           <span class="stat-value">${escapeHtml(shipLocation)}</span>
+          ${isDocked ? '<button class="btn btn-small btn-warning" onclick="undock()" style="margin-left: 10px;">UNDOCK</button>' : ''}
         </div>
         <div class="stat-row">
           <span>Speed:</span>
@@ -540,7 +542,7 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
       <div class="fuel-actions">
         <button onclick="openRefuelModal()" class="btn btn-small" title="Refuel ship from starport, gas giant, or water source">Refuel</button>
         ${fs.fuelProcessor && fuelBreakdown.unrefined > 0 ? `
-        <button onclick="openProcessFuelModal()" class="btn btn-small" title="Process unrefined fuel to remove misjump risk (takes time)">Process Fuel</button>
+        <button onclick="processFuel()" class="btn btn-small" title="Process unrefined fuel to remove misjump risk (takes time)">Process Fuel</button>
         ` : ''}
       </div>
       ${fs.processing ? `

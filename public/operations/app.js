@@ -3270,6 +3270,20 @@ function travel() {
 }
 
 /**
+ * Undock from station
+ */
+function undock() {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+
+  if (!confirm('Release docking clamps and undock?')) return;
+
+  state.socket.emit('ops:undock');
+}
+
+/**
  * Get current pending travel data (for UI)
  */
 function getPendingTravel() {
@@ -3588,6 +3602,23 @@ function setupPilotListeners() {
     showNotification(`Arrived at ${data.locationName} (${data.travelHours}h transit)`, 'success');
 
     // Re-render pilot panel to remove TRAVEL button
+    if (state.role === 'pilot') {
+      renderRoleDetailPanel('pilot');
+    }
+  });
+
+  // Undock from station - ship location changed
+  state.socket.on('ops:undocked', (data) => {
+    // Update ship state with new location
+    if (state.shipState) {
+      state.shipState.locationId = data.locationId;
+      state.shipState.locationName = data.toLocation;
+    }
+
+    // Show notification
+    showNotification(`Undocked from ${data.fromLocation}`, 'success');
+
+    // Re-render pilot panel to update location and hide UNDOCK button
     if (state.role === 'pilot') {
       renderRoleDetailPanel('pilot');
     }
@@ -4787,8 +4818,32 @@ function openRefuelModal() {
   showModal('template-refuel');
 }
 
-function openProcessFuelModal() {
-  showModal('template-process-fuel');
+function processFuel() {
+  if (!state.socket || !state.campaignId) {
+    showNotification('Not connected to campaign', 'error');
+    return;
+  }
+
+  // Get unrefined fuel amount from ship state
+  const fuel = state.shipState?.fuel || {};
+  const unrefined = fuel.unrefined || 0;
+
+  if (unrefined <= 0) {
+    showNotification('No unrefined fuel to process', 'warning');
+    return;
+  }
+
+  // Prompt for amount
+  const tons = prompt(`Process how many tons of unrefined fuel? (0-${unrefined})`, unrefined);
+  if (tons === null) return;
+
+  const amount = parseFloat(tons);
+  if (isNaN(amount) || amount <= 0 || amount > unrefined) {
+    showNotification('Invalid amount', 'error');
+    return;
+  }
+
+  state.socket.emit('ops:startFuelProcessing', { tons: amount });
 }
 
 function populateRefuelModal() {
@@ -10359,7 +10414,9 @@ document.addEventListener('fullscreenchange', () => {
 // ES6 modules scope functions, but onclick handlers need global access
 window.attemptRepair = attemptRepair;
 window.openRefuelModal = openRefuelModal;
-window.openProcessFuelModal = openProcessFuelModal;
+window.processFuel = processFuel;
+window.updatePower = updatePower;
+window.executeRefuel = executeRefuel;
 window.completeJump = completeJump;
 window.initiateJump = initiateJump;
 window.plotJumpCourse = plotJumpCourse;
@@ -10461,6 +10518,7 @@ window.advanceTime = advanceTime;
 // AR-64: Travel/Navigation
 window.travel = travel;
 window.getPendingTravel = getPendingTravel;
+window.undock = undock;
 // AR-31: Engineer Power Management
 window.setPowerPreset = setPowerPreset;
 window.updatePower = updatePower;
