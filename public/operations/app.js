@@ -6857,7 +6857,7 @@ function showContactTooltip(contactId, targetElement) {
   if (canHail && isHailable) {
     content += `
       <div class="tooltip-actions">
-        <button class="btn btn-primary btn-hail" onclick="hailContact('${contactId}')">
+        <button class="btn btn-primary btn-hail" onclick="window.hailContact('${contactId}')">
           📡 Hail ${contact.transponder}
         </button>
       </div>
