@@ -900,6 +900,16 @@ function initSocket() {
     }
   });
 
+  // AR-68: Position verification result
+  state.socket.on('ops:positionVerified', (data) => {
+    if (state.shipState) {
+      state.shipState.positionVerified = true;
+    }
+    showNotification(data.message, data.success ? 'success' : 'warning');
+    renderRoleDetailPanel(state.selectedRole);
+    renderBridge();
+  });
+
   state.socket.on('ops:locationChanged', (data) => {
     state.campaign.current_system = data.newLocation;
     if (data.newDate) {
@@ -3814,6 +3824,11 @@ function plotJumpCourse() {
     destination,
     distance
   });
+}
+
+// AR-68: Verify position after jump exit
+function verifyPosition() {
+  state.socket.emit('ops:verifyPosition');
 }
 
 // Handle plotJump result
@@ -10467,6 +10482,7 @@ window.executeRefuel = executeRefuel;
 window.completeJump = completeJump;
 window.initiateJump = initiateJump;
 window.plotJumpCourse = plotJumpCourse;
+window.verifyPosition = verifyPosition;  // AR-68
 window.initiateJumpFromPlot = initiateJumpFromPlot;
 window.performScan = performScan;
 window.toggleECM = toggleECM;

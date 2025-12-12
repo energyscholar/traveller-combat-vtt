@@ -1441,6 +1441,23 @@ function getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemSta
     `;
   }
 
+  // AR-68: Check if position needs verification after jump exit
+  const needsVerification = shipState.positionVerified === false;
+  if (needsVerification) {
+    return `
+      <div class="detail-section position-verification">
+        <h4>POSITION VERIFICATION REQUIRED</h4>
+        <div class="verification-notice">
+          Ship has just exited jump space. Verify position before pilot can navigate.
+        </div>
+        <button onclick="verifyPosition()" class="btn btn-primary">
+          Verify Position
+        </button>
+        <small class="verification-note">Electronics (Sensors) check with +4 DM</small>
+      </div>
+    `;
+  }
+
   const hasSectorData = campaign?.current_sector && campaign?.current_hex;
 
   return `
