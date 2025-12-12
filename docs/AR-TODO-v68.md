@@ -40,22 +40,42 @@
 ## AR-70: Sensor Role Enhancement - Scan Buttons
 **Priority:** HIGH (core gameplay)
 **Source:** prompts_for_TODOS_v68.txt line 10
-**Risk:** MEDIUM → Needs rules research
+**Risk:** LOW → Rules research COMPLETE
 
 **Description:** Popup panels for clicked objects include scan buttons (Passive, Active, Deep) with LED indicators.
 
+### Mongoose Traveller Sensor Rules (Researched)
+
+**Sources:** [Traveller Wiki - Sensor](https://wiki.travellerrpg.com/Sensor), [Gaming Chronicles - System Sensors](https://blog.notasnark.net/2021/07/system-sensors.html), [Mongoose Forums](https://forum.mongoosepublishing.com/threads/alternative-sensors-rules.121405/)
+
+| Scan Type | DM | Detectability | Info Revealed |
+|-----------|-----|---------------|---------------|
+| Passive | -2 | None (silent) | Basic: type, size, bearing |
+| Active | 0 | Ship detectable | Full: transponder, velocity, designation |
+| Deep | +2 | Very detectable | Detailed: cargo, crew count, weapons, damage |
+
+**Skill Check:** Electronics (Sensors) + INT, 8+ success
+**Effect Levels:**
+- Effect 0-2: Basic info (type, range, bearing)
+- Effect 3-5: +transponder, velocity, hull class
+- Effect 6+: +cargo manifest, crew estimate, weapon mounts
+
 **Implementation:**
-1. Expand object popup panel size
-2. Add scan buttons: Passive Scan, Active Scan, Deep Scan
-3. LED indicator per scan (red→green when complete)
-4. Skill rolls per Mongoose Traveller rules:
-   - Passive: -2 penalty, no signature
-   - Active: Normal roll, detectable
-   - Deep: +2 bonus, very detectable
-5. Scan reveals info based on Effect
+1. Add `scanLevel` field to contacts: `{ passive: false, active: false, deep: false }`
+2. Popup panel shows 3 scan buttons with LED indicators (🔴→🟢)
+3. Clicking scan → `ops:scanContact` socket event
+4. Server rolls Electronics (Sensors) check with DM
+5. Updates `contact.scanLevel` and `contact.revealedInfo`
+6. Broadcasts `ops:contactScanned` to bridge
+7. UI updates LED and shows revealed info
+
+**Files:**
+- `lib/socket-handlers/ops/sensors.js` - Add `ops:scanContact` handler
+- `public/operations/modules/system-map.js` - Update `showBodyInfoPanel()` with scan buttons
+- `public/operations/app.js` - Wire `scanContact()` function
 
 **Risk Mitigation:**
-- [ ] Confirm Mongoose Traveller sensor rules accessible
+- [x] Confirm Mongoose Traveller sensor rules accessible ✓ COMPLETE
 - [ ] Unit test for each scan type
 - [ ] Puppeteer test for UI workflow
 
