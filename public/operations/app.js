@@ -935,7 +935,7 @@ function initSocket() {
     handleScanResult(data);
   });
 
-  // Autorun 11: Handle targeted scan results
+  // Autorun 11: Handle targeted scan results (AR-70: Enhanced with skill rolls)
   state.socket.on('ops:scanContactResult', (data) => {
     if (data.success) {
       // Update contact in state
@@ -945,9 +945,13 @@ function initSocket() {
       }
       renderContacts();
       renderRoleDetailPanel(state.selectedRole);
-      showNotification(data.message || 'Scan complete', 'success');
+      // AR-70: Show roll details if available
+      const rollInfo = data.roll ? ` (${data.roll.join('+')}=${data.total})` : '';
+      showNotification(data.message + rollInfo || 'Scan complete', 'success');
     } else {
-      showNotification(data.message || 'Scan failed', 'error');
+      // AR-70: Failed scan shows roll details
+      const rollInfo = data.roll ? ` (Roll: ${data.roll.join('+')}=${data.total})` : '';
+      showNotification(data.message + rollInfo || 'Scan inconclusive', 'warning');
     }
   });
 
@@ -6913,6 +6917,23 @@ function hideContactTooltip() {
 }
 
 /**
+ * AR-70: Scan a contact (targeted sensor scan)
+ * @param {string} contactId - Contact ID to scan
+ * @param {string} scanType - 'passive', 'active', or 'deep'
+ */
+function scanContact(contactId, scanType = 'active') {
+  const contact = state.contacts.find(c => c.id === contactId);
+  if (!contact) {
+    showNotification('Contact not found', 'error');
+    return;
+  }
+
+  // Emit scan event to server
+  state.socket.emit('ops:scanContact', { contactId, scanType });
+  showNotification(`Initiating ${scanType} scan...`, 'info');
+}
+
+/**
  * Hail a contact (ship/station)
  * Creates comms log entry and may create NPC contact if they respond
  * @param {string} contactId - Contact ID to hail
@@ -10536,6 +10557,7 @@ window.setMapSize = setMapSize;
 window.showAddNPCContactForm = showAddNPCContactForm;
 window.submitNPCContact = submitNPCContact;
 window.hailContact = hailContact;
+window.scanContact = scanContact;  // AR-70
 window.hailSelectedContact = hailSelectedContact;
 window.broadcastMessage = broadcastMessage;
 window.sendCommsMessage = sendCommsMessage;

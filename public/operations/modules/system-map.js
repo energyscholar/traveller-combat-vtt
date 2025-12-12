@@ -285,6 +285,12 @@ function showBodyInfoPanel(body) {
       ? `${(rangeKm / 1000000).toFixed(1)}M km`
       : `${Math.round(rangeKm).toLocaleString()} km`;
 
+    // AR-70: Scan level LED indicators
+    const scanLevel = body.scan_level || 0;
+    const passiveLed = scanLevel >= 1 ? '🟢' : '🔴';
+    const activeLed = scanLevel >= 2 ? '🟢' : '🔴';
+    const deepLed = scanLevel >= 3 ? '🟢' : '🔴';
+
     panel.innerHTML = `
       <div class="info-panel-header">
         <h3>${body.name || 'Unknown Contact'}</h3>
@@ -296,6 +302,26 @@ function showBodyInfoPanel(body) {
         <div class="info-row"><span class="info-label">Bearing:</span> <span class="info-value">${body.bearing || 0}°</span></div>
         ${body.signature ? `<div class="info-row"><span class="info-label">Signature:</span> <span class="info-value">${body.signature}</span></div>` : ''}
         ${body.transponder ? `<div class="info-row"><span class="info-label">Transponder:</span> <span class="info-value">${body.transponder}</span></div>` : ''}
+        <div class="info-section scan-section">
+          <div class="info-section-title">Sensor Scans</div>
+          <div class="scan-buttons" style="display: flex; gap: 4px; margin-top: 4px;">
+            <button class="btn btn-sm ${scanLevel >= 1 ? 'btn-success' : 'btn-secondary'}"
+                    onclick="window.scanContact('${body.id}', 'passive')"
+                    title="Passive scan: -2 DM, silent">
+              ${passiveLed} Passive
+            </button>
+            <button class="btn btn-sm ${scanLevel >= 2 ? 'btn-success' : 'btn-secondary'}"
+                    onclick="window.scanContact('${body.id}', 'active')"
+                    title="Active scan: 0 DM, detectable">
+              ${activeLed} Active
+            </button>
+            <button class="btn btn-sm ${scanLevel >= 3 ? 'btn-success' : 'btn-secondary'}"
+                    onclick="window.scanContact('${body.id}', 'deep')"
+                    title="Deep scan: +2 DM, very detectable (GM only)">
+              ${deepLed} Deep
+            </button>
+          </div>
+        </div>
         <div class="info-section">
           <button class="btn btn-sm btn-primary" onclick="window.setContactDestination('${body.id}')">Plot Intercept</button>
           <button class="btn btn-sm btn-secondary" onclick="window.hailContact('${body.id}')">Hail</button>
