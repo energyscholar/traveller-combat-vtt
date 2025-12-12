@@ -1,0 +1,117 @@
+{
+  "$schema": "../schemas/ship-template-v2.schema.json",
+  "id": "ships_boat",
+  "type": "Small Craft",
+  "name": "Ship's Boat",
+  "designation": "Ship's Boat",
+  "className": "Ship's Boat",
+  "tonnage": 30,
+  "techLevel": 8,
+  "role": "transport",
+  "thrust": 6,
+  "turrets": [],
+
+  "hull": {
+    "tonnage": 30,
+    "configuration": "streamlined",
+    "hullPoints": 12,
+    "cost": 1800000
+  },
+
+  "armour": {
+    "type": "none",
+    "rating": 0,
+    "tonnage": 0,
+    "cost": 0
+  },
+
+  "drives": {
+    "manoeuvre": {
+      "thrust": 6,
+      "tonnage": 4,
+      "cost": 8000000
+    },
+    "jump": null
+  },
+
+  "power": {
+    "type": "fusion_tl8",
+    "output": 20,
+    "tonnage": 2,
+    "cost": 1000000
+  },
+
+  "fuel": {
+    "total": 2,
+    "jump": 0,
+    "powerPlant": 2,
+    "weeks": 4
+  },
+
+  "bridge": {
+    "type": "cockpit",
+    "tonnage": 3,
+    "cost": 500000,
+    "crewPositions": ["pilot"]
+  },
+
+  "computer": {
+    "type": "Model/1",
+    "rating": 5,
+    "tonnage": 0,
+    "cost": 30000
+  },
+
+  "sensors": {
+    "type": "civilian",
+    "dm": -2,
+    "tonnage": 1,
+    "cost": 50000
+  },
+
+  "crew": {
+    "required": {
+      "pilot": 1
+    },
+    "optional": {},
+    "passengers": {
+      "high": 0,
+      "middle": 0,
+      "low": 0,
+      "basic": 8
+    }
+  },
+
+  "cargo": {
+    "capacity": 12,
+    "units": "tons"
+  },
+
+  "smallCraft": [],
+
+  "software": [
+    { "name": "Manoeuvre/0", "bandwidth": 0, "cost": 0 },
+    { "name": "Library", "bandwidth": 0, "cost": 0 }
+  ],
+
+  "staterooms": {
+    "standard": 0,
+    "high": 0,
+    "low": 0
+  },
+
+  "description": "The 30-ton ship's boat is a fast, versatile small craft used for a variety of missions including personnel transfer, light cargo runs, and emergency evacuation. Its 6G acceleration makes it one of the fastest small craft available.",
+
+  "notes": [
+    "Streamlined for atmospheric operations",
+    "High acceleration for rapid transit",
+    "Commonly carried on larger vessels",
+    "Can serve as a lifeboat"
+  ],
+
+  "cost": {
+    "base": 11380000,
+    "discount": 0,
+    "final": 11380000
+  }
+}
