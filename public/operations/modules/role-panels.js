@@ -1500,8 +1500,8 @@ function getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemSta
           }).join('')}
         </select>
         <select id="jump-map-style" class="jump-select" onchange="updateJumpMap()" title="Map display style">
-          <option value="terminal">Terminal</option>
           <option value="poster">Poster</option>
+          <option value="terminal">Terminal</option>
           <option value="candy">Candy</option>
           <option value="atlas">Atlas</option>
         </select>

@@ -2569,7 +2569,10 @@ function renderBridge() {
   }
 
   // Ship name
-  document.getElementById('bridge-ship-name').textContent = state.ship?.name || 'Unknown Ship';
+  const shipNameEl = document.getElementById('bridge-ship-name');
+  shipNameEl.textContent = state.ship?.name || 'Unknown Ship';
+  // AR-92: Campaign name as tooltip on ship name
+  shipNameEl.title = state.campaign?.name ? `Campaign: ${state.campaign.name}` : '';
 
   // AR-51.2: Update screen label with role
   const screenLabel = document.getElementById('bridge-screen-label');
@@ -2579,7 +2582,7 @@ function renderBridge() {
     screenLabel.textContent = `Bridge · ${roleName}`;
   }
 
-  // Campaign name (Phase 1 requirement)
+  // Campaign name (AR-92: now hidden, shown as tooltip on ship name)
   const campaignNameEl = document.getElementById('bridge-campaign-name');
   if (campaignNameEl) {
     campaignNameEl.textContent = state.campaign?.name || '';
@@ -3400,38 +3403,44 @@ function updateTransitCalculator() {
  * Show physics explanation modal
  */
 function showPhysicsExplanation() {
-  const explanation = `
-<div class="physics-explanation">
-  <h3>Brachistochrone Transit</h3>
-  <p><strong>"Brachistochrone"</strong> = Greek for "shortest time"</p>
+  const html = `
+    <div class="modal-header">
+      <h2>Physics: Brachistochrone</h2>
+      <button class="btn-close" data-close-modal>×</button>
+    </div>
+    <div class="modal-body">
+      <div class="physics-explanation">
+        <h3>Brachistochrone Transit</h3>
+        <p><strong>"Brachistochrone"</strong> = Greek for "shortest time"</p>
 
-  <h4>How it works:</h4>
-  <ol>
-    <li>Accelerate at constant thrust toward destination</li>
-    <li>At midpoint (<strong>turnover</strong>), flip ship 180°</li>
-    <li>Decelerate at same thrust to arrive stopped</li>
-  </ol>
+        <h4>How it works:</h4>
+        <ol>
+          <li>Accelerate at constant thrust toward destination</li>
+          <li>At midpoint (<strong>turnover</strong>), flip ship 180°</li>
+          <li>Decelerate at same thrust to arrive stopped</li>
+        </ol>
 
-  <h4>The Formula:</h4>
-  <div class="formula-box">
-    <code>t = 2 × √(d ÷ a)</code>
-  </div>
-  <p>Where: <em>t</em> = time, <em>d</em> = distance, <em>a</em> = acceleration</p>
+        <h4>The Formula:</h4>
+        <div class="formula-box">
+          <code>t = 2 × √(d ÷ a)</code>
+        </div>
+        <p>Where: <em>t</em> = time, <em>d</em> = distance, <em>a</em> = acceleration</p>
 
-  <h4>Key Insights:</h4>
-  <ul>
-    <li>Double the distance → only 1.41× longer (√2)</li>
-    <li>Double the thrust → only 0.71× time (1/√2)</li>
-    <li>Max velocity at turnover: <code>v = √(a × d)</code></li>
-  </ul>
+        <h4>Key Insights:</h4>
+        <ul>
+          <li>Double the distance → only 1.41× longer (√2)</li>
+          <li>Double the thrust → only 0.71× time (1/√2)</li>
+          <li>Max velocity at turnover: <code>v = √(a × d)</code></li>
+        </ul>
 
-  <h4>Example:</h4>
-  <p>100,000 km at 2G = ~1h 46m transit</p>
-  <p>At turnover: 50,000 km out, velocity ~1,400 km/s</p>
-</div>
+        <h4>Example:</h4>
+        <p>100,000 km at 2G = ~1h 46m transit</p>
+        <p>At turnover: 50,000 km out, velocity ~1,400 km/s</p>
+      </div>
+    </div>
   `;
 
-  showModal('Physics: Brachistochrone', explanation);
+  showModalContent(html);
 }
 
 /**
@@ -4648,7 +4657,7 @@ async function updateJumpMap() {
   if (!sector || !hex) return;
 
   const range = parseInt(document.getElementById('jump-map-range')?.value) || 2;
-  const style = document.getElementById('jump-map-style')?.value || 'terminal';
+  const style = document.getElementById('jump-map-style')?.value || 'poster';
 
   const mapImg = document.getElementById('jump-map-image');
   const loadingEl = document.querySelector('.jump-map-loading');
@@ -4994,7 +5003,11 @@ function renderShipLog() {
 function updateAlertStatus(status) {
   const alertEl = document.getElementById('alert-status');
   if (alertEl) {
-    alertEl.className = `alert-status ${status.toLowerCase()}`;
+    // AR-92: Preserve alert-status-led class if present
+    const isLed = alertEl.classList.contains('alert-status-led');
+    alertEl.className = `alert-status ${isLed ? 'alert-status-led ' : ''}${status.toLowerCase()}`;
+    // AR-92: Update tooltip for LED version
+    alertEl.title = `Alert Status: ${status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}`;
     const textEl = alertEl.querySelector('.alert-text');
     if (textEl) textEl.textContent = status.toUpperCase();
   }
@@ -7183,6 +7196,15 @@ document.addEventListener('DOMContentLoaded', () => {
   initBridgeScreen();
   initEmailAppHandlers();
 
+  // AR-101: Fetch and display version
+  fetch('/api/version')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('app-version');
+      if (el) el.textContent = `v${data.version}`;
+    })
+    .catch(() => {}); // Silently fail if version unavailable
+
   // GM-2: Check for campaign code in URL parameters
   const urlParams = new URLSearchParams(window.location.search);
   const campaignCode = urlParams.get('code') || urlParams.get('campaign');
@@ -7966,6 +7988,10 @@ function showSystemMap() {
       const systemName = select.options[select.selectedIndex]?.text || select.value;
       await loadSelectedSystemFromJSON(select.value);
       document.getElementById('system-map-name').textContent = systemName;
+      // AR-86: Refresh places overlay if visible
+      if (placesVisible) {
+        showPlacesOverlay();
+      }
       showNotification(`Switched to ${systemName} system`, 'success');
     }
   });
@@ -8114,6 +8140,124 @@ function closeSystemMap() {
 // Expose system map functions globally
 window.showSystemMap = showSystemMap;
 window.closeSystemMap = closeSystemMap;
+
+// ==================== AR-94: Embedded System Map for Pilot View ====================
+
+/**
+ * AR-94: Show embedded system map in pilot-map layout
+ * Creates a simplified system map embedded in the bridge view (right 2/3)
+ */
+function showEmbeddedSystemMap() {
+  const bridgeMain = document.querySelector('.bridge-main');
+  if (!bridgeMain) return;
+
+  // Check if embedded map already exists
+  let embed = document.getElementById('embedded-system-map');
+  if (embed) {
+    embed.classList.remove('hidden');
+    return;
+  }
+
+  // Create embedded map container
+  embed = document.createElement('div');
+  embed.id = 'embedded-system-map';
+  embed.className = 'embedded-system-map';
+  embed.innerHTML = `
+    <div class="embedded-map-header">
+      <span class="embedded-map-title">Navigation</span>
+      <button class="btn btn-icon btn-small" onclick="expandEmbeddedMap()" title="Expand to full map">⛶</button>
+    </div>
+    <div id="embedded-map-container" class="embedded-map-container">
+      <canvas id="embedded-system-canvas"></canvas>
+    </div>
+    <div class="embedded-map-controls">
+      <button class="btn btn-small btn-outline" onclick="zoomEmbeddedMap(1.3)" title="Zoom In">+</button>
+      <button class="btn btn-small btn-outline" onclick="zoomEmbeddedMap(0.7)" title="Zoom Out">−</button>
+      <button class="btn btn-small" id="btn-pilot-destinations" onclick="showPilotDestinations()" title="Choose destination">📍 Set Course</button>
+    </div>
+  `;
+
+  bridgeMain.appendChild(embed);
+
+  // Initialize embedded canvas using system-map module
+  setTimeout(() => {
+    initEmbeddedSystemCanvas();
+  }, 100);
+}
+
+/**
+ * AR-94: Hide embedded system map
+ */
+function hideEmbeddedSystemMap() {
+  const embed = document.getElementById('embedded-system-map');
+  if (embed) {
+    embed.classList.add('hidden');
+  }
+}
+
+/**
+ * AR-94: Initialize the embedded system canvas
+ */
+function initEmbeddedSystemCanvas() {
+  const canvas = document.getElementById('embedded-system-canvas');
+  const container = document.getElementById('embedded-map-container');
+  if (!canvas || !container) return;
+
+  // Use system-map module's init function if available
+  if (typeof initEmbeddedMap === 'function') {
+    initEmbeddedMap(canvas, container);
+  } else {
+    // Fallback: basic canvas setup
+    const ctx = canvas.getContext('2d');
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+    ctx.fillStyle = '#0a0a14';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#4a9eff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('System Map Loading...', canvas.width / 2, canvas.height / 2);
+  }
+}
+
+/**
+ * AR-94: Zoom embedded map
+ */
+function zoomEmbeddedMap(factor) {
+  if (typeof zoomSystemMap === 'function') {
+    zoomSystemMap(factor);
+  }
+}
+
+/**
+ * AR-94: Expand to full system map overlay
+ */
+function expandEmbeddedMap() {
+  showSystemMap();
+}
+
+/**
+ * AR-94: Show pilot destinations picker
+ */
+function showPilotDestinations() {
+  if (typeof toggleDestinationsPanel === 'function') {
+    toggleDestinationsPanel();
+  } else {
+    showSystemMap();
+    // Click the places button after map opens
+    setTimeout(() => {
+      const placesBtn = document.getElementById('btn-places');
+      if (placesBtn) placesBtn.click();
+    }, 300);
+  }
+}
+
+// Expose AR-94 functions globally
+window.showEmbeddedSystemMap = showEmbeddedSystemMap;
+window.hideEmbeddedSystemMap = hideEmbeddedSystemMap;
+window.zoomEmbeddedMap = zoomEmbeddedMap;
+window.expandEmbeddedMap = expandEmbeddedMap;
+window.showPilotDestinations = showPilotDestinations;
 
 function updateSharedMapButtons() {
   const shareBtn = document.getElementById('btn-share-map');
@@ -10220,8 +10364,8 @@ function showHandoutDetail(handoutId) {
 // ==================== Expandable Role Panel (Stage 13.3) ====================
 
 /**
- * Expand role panel to half-screen or full-screen mode
- * @param {string} mode - 'half' or 'full'
+ * Expand role panel to half-screen, full-screen, or pilot-map mode
+ * @param {string} mode - 'half', 'full', or 'pilot-map'
  */
 function expandRolePanel(mode) {
   const rolePanel = document.getElementById('role-panel');
@@ -10240,6 +10384,13 @@ function expandRolePanel(mode) {
     // Also show detail view in full-screen mode
     const detail = document.getElementById('role-detail-view');
     detail?.classList.remove('hidden');
+  } else if (mode === 'pilot-map') {
+    // AR-94: Pilot default view - panel 1/3, system map 2/3
+    bridgeMain.classList.add('pilot-map-layout');
+    const detail = document.getElementById('role-detail-view');
+    detail?.classList.remove('hidden');
+    // Show embedded system map
+    showEmbeddedSystemMap();
   }
 
   // Remember expansion state for this role
@@ -10258,6 +10409,8 @@ function collapseRolePanel() {
 
   rolePanel.classList.remove('expanded-full');
   bridgeMain.classList.remove('role-expanded-half');
+  bridgeMain.classList.remove('pilot-map-layout');  // AR-94
+  hideEmbeddedSystemMap();  // AR-94
 
   // Clear remembered expansion state
   if (state.selectedRole && state.selectedRolePanelExpanded) {
@@ -10450,10 +10603,14 @@ function updateShipSystemsIndicator(hasDamage, hasCritical) {
 
 /**
  * Restore expansion state when switching roles
+ * AR-94: Pilot defaults to 'pilot-map' layout
  */
 function restoreRolePanelExpansion() {
   if (state.selectedRole && state.selectedRolePanelExpanded?.[state.selectedRole]) {
     expandRolePanel(state.selectedRolePanelExpanded[state.selectedRole]);
+  } else if (state.selectedRole === 'pilot') {
+    // AR-94: Pilot defaults to pilot-map layout
+    expandRolePanel('pilot-map');
   }
 }
 

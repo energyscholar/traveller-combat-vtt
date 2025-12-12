@@ -106,6 +106,12 @@ app.use(express.json());
 // TravellerMap tile proxy with caching
 const tileProxy = require('./lib/operations/tile-proxy');
 
+// AR-101: Version endpoint
+const pkg = require('./package.json');
+app.get('/api/version', (req, res) => {
+  res.json({ version: pkg.version });
+});
+
 app.get('/api/map/tile', async (req, res) => {
   try {
     const { x, y, scale, options, style } = req.query;

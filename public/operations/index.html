@@ -206,28 +206,30 @@
       <header class="bridge-header">
         <span id="bridge-screen-label" class="screen-label">Bridge View</span>
         <div class="ship-info">
-          <h1 id="bridge-ship-name">Ship Name</h1>
-          <span id="bridge-campaign-name" class="campaign-display"></span>
+          <!-- AR-92: Ship name now has campaign as tooltip -->
+          <h1 id="bridge-ship-name" title="">Ship Name</h1>
+          <span id="bridge-campaign-name" class="campaign-display hidden"></span>
+          <!-- AR-92: Location more prominent, before date -->
+          <span id="bridge-location" class="location-display prominent">System</span>
           <span class="header-separator">·</span>
           <span id="bridge-date" class="date-display">1105-001 12:00</span>
-          <span class="header-separator">·</span>
-          <span id="bridge-location" class="location-display">System</span>
         </div>
         <div id="guest-indicator" class="guest-indicator hidden">
           <span class="guest-badge">GUEST</span>
         </div>
-        <div id="alert-status" class="alert-status normal">
+        <!-- AR-92: Alert status now LED only with tooltip -->
+        <div id="alert-status" class="alert-status alert-status-led normal" title="Alert Status: Normal">
           <span class="alert-indicator"></span>
-          <span class="alert-text">NORMAL</span>
         </div>
-        <div id="weapons-auth-indicator" class="weapons-auth-indicator hold" title="Weapons Authorization Status">
+        <!-- AR-92: Weapons Hold removed from top bar (moved to Captain/Gunner) -->
+        <div id="weapons-auth-indicator" class="weapons-auth-indicator hold hidden" title="Weapons Authorization Status">
           <span class="weapons-text">WEAPONS HOLD</span>
         </div>
         <div class="bridge-user-info">
           <span id="bridge-user-name" class="user-name">User</span>
           <span class="user-role-badge" id="bridge-user-role">Role</span>
           <button id="btn-change-role" class="btn btn-small btn-change-role" title="Change Role">Change</button>
-          <span class="user-ship-badge" id="bridge-user-ship">Ship</span>
+          <!-- AR-92: Removed duplicate ship badge -->
         </div>
         <div class="header-actions">
           <button id="btn-ship-systems" class="btn btn-icon ship-systems-btn" title="Ship Systems Status">
@@ -1666,6 +1668,7 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
         <button class="btn btn-icon btn-small" onclick="zoomSystemMap(0.7)" title="Zoom Out">−</button>
         <button class="btn btn-icon btn-small" onclick="resetSystemMapView()" title="Reset View">⟲</button>
         <button class="btn btn-icon btn-small" onclick="toggleSystemMapLabels()" title="Toggle Labels">T</button>
+        <button class="btn btn-small" id="snap-to-now-btn" onclick="snapToNow()" title="Reset time to epoch">NOW</button>
       </div>
       <button class="btn btn-icon" onclick="hideSystemMap()" title="Close">×</button>
     </div>
@@ -1677,6 +1680,7 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
   <!-- Footer - Legal/Attribution (moved from login for cleaner UI) -->
   <footer id="app-footer" class="app-footer">
     <span>Traveller © Far Future Enterprises. Created by Bruce Stephenson. MIT License.</span>
+    <span id="app-version" class="app-version"></span>
   </footer>
 
   <script src="/socket.io/socket.io.js"></script>

@@ -124,13 +124,18 @@ function handleWheel(e) {
   const newZoom = systemMapState.zoom * zoomFactor;
 
   if (newZoom >= systemMapState.MIN_ZOOM && newZoom <= systemMapState.MAX_ZOOM) {
-    // Zoom toward mouse position
+    // AR-90: Zoom toward mouse position (fixed coordinate system)
     const rect = systemMapState.canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
 
-    systemMapState.offsetX = mouseX - (mouseX - systemMapState.offsetX) * zoomFactor;
-    systemMapState.offsetY = mouseY - (mouseY - systemMapState.offsetY) * zoomFactor;
+    // World position under mouse stays fixed during zoom
+    const worldX = mouseX - centerX - systemMapState.offsetX;
+    const worldY = mouseY - centerY - systemMapState.offsetY;
+    systemMapState.offsetX = mouseX - centerX - worldX * zoomFactor;
+    systemMapState.offsetY = mouseY - centerY - worldY * zoomFactor;
     systemMapState.zoom = newZoom;
   }
 }
@@ -453,6 +458,10 @@ function goToPlace(placeId) {
       centerOnBodyWithVariant(planet, VIEW_ZOOM_LEVELS[viewVariantIndex]);
       showBodyInfoPanel(planet);
     }
+  } else {
+    // AR-85: Places without planetId (like Jump Point) - center on system origin
+    centerOnSystemOrigin(VIEW_ZOOM_LEVELS[viewVariantIndex]);
+    systemMapState.selectedBody = null;
   }
 
   console.log('[SystemMap] Going to:', place.name, `(zoom ${VIEW_ZOOM_LEVELS[viewVariantIndex]}x)`);
@@ -500,6 +509,22 @@ function centerOnBodyWithVariant(body, zoomMultiplier) {
   systemMapState.offsetX += centerX - bodyX;
   systemMapState.offsetY += centerY - bodyY;
   systemMapState.zoom = Math.min(zoom * zoomMultiplier, systemMapState.MAX_ZOOM);
+}
+
+/**
+ * AR-85: Center view on system origin (the star)
+ * Used for places without an associated planet (e.g., Jump Point)
+ */
+function centerOnSystemOrigin(zoomMultiplier) {
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  // Reset offsets to center on origin (the star)
+  systemMapState.offsetX = 0;
+  systemMapState.offsetY = 0;
+  // Zoom out to show more of the system (inverse multiplier for wider view)
+  systemMapState.zoom = Math.max(systemMapState.MIN_ZOOM, 1 / zoomMultiplier);
 }
 
 /**
@@ -557,6 +582,7 @@ window.hideSystemMapInfoPanel = hideBodyInfoPanel;
 window.hidePlacesOverlay = hidePlacesOverlay;
 window.goToPlace = goToPlace;
 window.setDestination = setDestination;
+window.snapToNow = snapToNow; // AR-88
 
 /**
  * AR-71: Set contact as pilot destination (intercept course)
@@ -734,6 +760,9 @@ function render() {
 
   // Draw zoom indicator
   drawZoomIndicator(ctx, width, height, zoom);
+
+  // AR-88: Draw date display
+  drawDateDisplay(ctx, width, height);
 }
 
 /**
@@ -1040,6 +1069,57 @@ function drawZoomIndicator(ctx, width, height, zoom) {
   }
 
   ctx.fillText(`Zoom: ${zoom.toFixed(2)}x | Scale: ~${scaleLabel}`, width - 10, height - 10);
+}
+
+/**
+ * AR-88: Draw current Imperial date display on canvas
+ */
+function drawDateDisplay(ctx, width, height) {
+  const date = getDate();
+  const dateStr = `${date.year}.${date.day.toString().padStart(3, '0')}`;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Date: ${dateStr}`, 10, height - 10);
+}
+
+/**
+ * AR-88: Snap to now (reset time to epoch)
+ */
+function snapToNow() {
+  resetTime();
+  console.log('[SystemMap] Snapped to NOW (epoch)');
+}
+
+/**
+ * AR-87: Zoom system map by factor
+ * @param {number} factor - Zoom multiplier (>1 zooms in, <1 zooms out)
+ */
+function zoomSystemMap(factor) {
+  const newZoom = systemMapState.zoom * factor;
+  if (newZoom >= systemMapState.MIN_ZOOM && newZoom <= systemMapState.MAX_ZOOM) {
+    systemMapState.zoom = newZoom;
+    console.log('[SystemMap] Zoom:', newZoom.toFixed(2));
+  }
+}
+
+/**
+ * AR-87: Reset system map view to default
+ */
+function resetSystemMapView() {
+  systemMapState.zoom = 1;
+  systemMapState.offsetX = 0;
+  systemMapState.offsetY = 0;
+  console.log('[SystemMap] View reset');
+}
+
+/**
+ * AR-87: Toggle labels on system map
+ */
+function toggleSystemMapLabels() {
+  systemMapState.showLabels = !systemMapState.showLabels;
+  console.log('[SystemMap] Labels:', systemMapState.showLabels ? 'ON' : 'OFF');
 }
 
 /**
@@ -2277,6 +2357,11 @@ window.resizeSystemMapCanvas = resizeCanvas;
 // AR-36: Goldilocks zone and navigation
 window.toggleGoldilocksZone = toggleGoldilocksZone;
 window.goToObject = goToObject;
+// AR-87/88: Zoom and view controls for HTML onclick handlers
+window.zoomSystemMap = zoomSystemMap;
+window.resetSystemMapView = resetSystemMapView;
+window.toggleSystemMapLabels = toggleSystemMapLabels;
+window.snapToNow = snapToNow;
 
 // Export for ES modules (app.js imports these)
 export {
@@ -2302,5 +2387,10 @@ export {
   toggleRangeBands,
   setMapDestination,
   shipMapState,
-  resizeCanvas
+  resizeCanvas,
+  // AR-87/88: Zoom and view controls
+  zoomSystemMap,
+  resetSystemMapView,
+  toggleSystemMapLabels,
+  snapToNow
 };

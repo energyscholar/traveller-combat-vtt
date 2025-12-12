@@ -269,6 +269,11 @@ input[type="checkbox"] {
   pointer-events: none;
 }
 
+.app-version {
+  margin-left: 12px;
+  opacity: 0.7;
+}
+
 .login-options {
   display: flex;
   gap: var(--space-md);
@@ -968,6 +973,13 @@ input[type="checkbox"] {
   color: var(--text-secondary);
 }
 
+/* AR-92: Prominent location display */
+.location-display.prominent {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 13px;
+}
+
 .header-separator {
   color: var(--text-muted);
   margin: 0 var(--space-xs);
@@ -1160,6 +1172,42 @@ input[type="checkbox"] {
 @keyframes pulse-red {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+/* AR-92: LED-only alert status (compact version) */
+.alert-status.alert-status-led {
+  padding: var(--space-xs);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.alert-status.alert-status-led .alert-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.alert-status.alert-status-led.normal .alert-indicator {
+  background: var(--alert-normal);
+  box-shadow: 0 0 6px var(--alert-normal);
+}
+
+.alert-status.alert-status-led.yellow .alert-indicator {
+  background: var(--alert-yellow);
+  box-shadow: 0 0 6px var(--alert-yellow);
+}
+
+.alert-status.alert-status-led.red .alert-indicator {
+  background: var(--alert-red);
+  box-shadow: 0 0 8px var(--alert-red);
+  animation: pulse-led-red 1s infinite;
+}
+
+@keyframes pulse-led-red {
+  0%, 100% { box-shadow: 0 0 8px var(--alert-red); }
+  50% { box-shadow: 0 0 16px var(--alert-red); }
 }
 
 /* Weapons Authorization Indicator */
@@ -8692,4 +8740,107 @@ body.role-engineer .role-panel .role-actions {
 
 .travel-summary .summary-row:first-child {
   border-bottom: 1px solid var(--border-color);
+}
+
+/* ==================== AR-94: Pilot Map Layout ==================== */
+
+/* Bridge layout when pilot-map is active */
+.bridge-main.pilot-map-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    "panel map"
+    "footer footer";
+  gap: var(--space-sm);
+}
+
+.bridge-main.pilot-map-layout .role-panel {
+  grid-area: panel;
+  position: relative;
+  width: 100%;
+  max-width: none;
+}
+
+.bridge-main.pilot-map-layout .sensor-panel,
+.bridge-main.pilot-map-layout .crew-panel,
+.bridge-main.pilot-map-layout .log-panel,
+.bridge-main.pilot-map-layout .comms-panel {
+  display: none;
+}
+
+/* Embedded System Map Container */
+.embedded-system-map {
+  grid-area: map;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.embedded-system-map.hidden {
+  display: none;
+}
+
+.embedded-map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.embedded-map-title {
+  font-weight: 600;
+  color: var(--text-bright);
+  font-size: 14px;
+}
+
+.embedded-map-container {
+  flex: 1;
+  position: relative;
+  min-height: 300px;
+  background: #0a0a14;
+}
+
+.embedded-map-container canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.embedded-map-controls {
+  display: flex;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-color);
+}
+
+.embedded-map-controls .btn {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Show role detail in pilot-map mode */
+.bridge-main.pilot-map-layout .role-detail {
+  display: block;
+}
+
+/* Responsive: stack vertically on small screens */
+@media (max-width: 900px) {
+  .bridge-main.pilot-map-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "panel"
+      "map"
+      "footer";
+  }
+
+  .embedded-map-container {
+    min-height: 250px;
+  }
 }

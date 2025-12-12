@@ -42,6 +42,27 @@ const SYSTEMS_TO_GENERATE = {
   ]
 };
 
+// AR-91: Calculate orbital distance based on atmosphere
+// Atmo 6 = center of goldilocks (~1.0 AU), further from 6 = further from center
+function calculateOrbitAU(atmosphere) {
+  // Goldilocks zone: atmo 3-8
+  if (atmosphere >= 3 && atmosphere <= 8) {
+    // Distance from ideal (atmo 6)
+    const distFromIdeal = Math.abs(atmosphere - 6);
+    // Base orbit: 1.0 AU for atmo 6, +/- 0.1 AU per step
+    const baseOrbit = 1.0 + distFromIdeal * 0.1;
+    // Add 2nd order randomness (+/- 0.05 AU)
+    return baseOrbit + (Math.random() - 0.5) * 0.1;
+  }
+  // Non-goldilocks: variable orbits
+  if (atmosphere < 3) {
+    // Too thin/none: closer to star (0.4-0.8 AU)
+    return 0.4 + Math.random() * 0.4;
+  }
+  // Too thick: further from star (1.5-2.5 AU)
+  return 1.5 + Math.random() * 1.0;
+}
+
 // UWP parsing
 function parseUWP(uwp) {
   const chars = uwp.split('');
@@ -110,13 +131,14 @@ function generateSystemJSON(systemData, subsector) {
         id: `${id}-mainworld`,
         name: systemData.name,
         type: 'Planet',
-        orbitAU: 1.0 + Math.random() * 0.5,
+        orbitAU: calculateOrbitAU(uwp.atmosphere),
         bearing: Math.floor(Math.random() * 360),
         uwp: systemData.uwp,
         tradeCodes: systemData.tradeCodes,
         atmosphere: getAtmosphereDesc(uwp.atmosphere),
         breathable: uwp.atmosphere >= 5 && uwp.atmosphere <= 8,
-        inGoldilocks: uwp.atmosphere >= 2 && uwp.atmosphere <= 9,
+        // AR-91: Goldilocks zone is atmosphere 3-8, not 2-9
+        inGoldilocks: uwp.atmosphere >= 3 && uwp.atmosphere <= 8,
         transponder: `${systemData.name.toUpperCase()} CONTROL`,
         gmNotes: `Mainworld. Pop ${uwp.population > 0 ? '10^' + uwp.population : '0'}. TL${uwp.techLevel}.`
       }

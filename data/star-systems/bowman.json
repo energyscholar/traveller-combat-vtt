@@ -35,8 +35,8 @@
     },
     {
       "id": "bowman-mainworld",
-      "name": "Bowman",
-      "type": "Planet",
+      "name": "Bowman Belt",
+      "type": "Asteroid Belt",
       "orbitAU": 1.0749035098895097,
       "bearing": 183,
       "uwp": "D000300-9",
@@ -49,7 +49,7 @@
       "breathable": false,
       "inGoldilocks": false,
       "transponder": "BOWMAN CONTROL",
-      "gmNotes": "Mainworld. Pop 10^3. TL9."
+      "gmNotes": "Mainworld asteroid belt. Pop 10^3 scattered across mining settlements. TL9."
     },
     {
       "id": "bowman-gasgiant",
