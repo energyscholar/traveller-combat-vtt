@@ -3,7 +3,7 @@
  * Canvas-based system visualization with stars, planets, moons
  */
 
-console.log('[SystemMap] Module loading...');
+console.log('[SystemMap] Module loading... v2024-12-13-UNIFIED-ZOOM-V3');
 
 // System Map State
 const systemMapState = {
@@ -335,7 +335,7 @@ function showBodyInfoPanel(body) {
     `;
   } else {
     // Regular celestial body
-    const travelTime = calculateTravelTime(body.orbitAU);
+    const travelTime = formatTravelTimeFromAU(body.orbitAU);
 
     // Starport info for mainworld
     let starportHtml = '';
@@ -398,7 +398,9 @@ function showPlacesOverlay() {
   overlay.className = 'system-map-places';
 
   const placesHtml = systemMapState.system.places.map(place => `
-    <div class="place-item" data-place-id="${place.id}" onclick="window.goToPlace('${place.id}')">
+    <div class="place-item" data-place-id="${place.id}"
+         onclick="window.goToPlace('${place.id}')"
+         oncontextmenu="event.preventDefault(); window.showPlaceDetails('${place.id}')">
       <span class="place-icon">${place.icon}</span>
       <div class="place-info">
         <div class="place-name">${place.name}</div>
@@ -428,43 +430,280 @@ function hidePlacesOverlay() {
   if (existing) existing.remove();
 }
 
-// AR-38: Track last selected place and view variant for re-click cycling
+/**
+ * Show detailed info panel for a place (right-click handler)
+ * Displays location info, available actions, and linked celestial object
+ */
+// Module-level state for pending course
+let pendingCourseData = null;
+
+/**
+ * Calculate distance between two locations using orbital positions
+ * @returns {object} { distanceAU, distanceKm }
+ */
+function calculateLocationDistance(fromLocationId, toLocationId) {
+  const system = systemMapState.system;
+  if (!system?.places || !system?.celestialObjects) return { distanceAU: 0.1, distanceKm: 14959787 };
+
+  const fromPlace = system.places.find(p => p.id === fromLocationId);
+  const toPlace = system.places.find(p => p.id === toLocationId);
+
+  // Get linked celestial objects
+  const fromObj = fromPlace?.linkedTo
+    ? system.celestialObjects.find(o => o.id === fromPlace.linkedTo)
+    : null;
+  const toObj = toPlace?.linkedTo
+    ? system.celestialObjects.find(o => o.id === toPlace.linkedTo)
+    : null;
+
+  // Default positions (star at center)
+  const fromAU = fromObj?.orbitAU || 0;
+  const toAU = toObj?.orbitAU || 0;
+
+  // Simple distance: difference in orbital radii (approximation)
+  const distanceAU = Math.abs(toAU - fromAU) || 0.1; // Minimum 0.1 AU
+  const distanceKm = distanceAU * 149597870.7;
+
+  return { distanceAU, distanceKm };
+}
+
+/**
+ * Calculate travel time at given thrust (G)
+ * Uses constant acceleration formula: t = 2 * sqrt(d / a)
+ * @param {number} distanceKm - Distance in kilometers
+ * @param {number} thrust - Ship thrust in Gs (default 1)
+ * @returns {number} Travel time in hours
+ */
+function calculateTravelTime(distanceKm, thrust = 1) {
+  const accel = thrust * 9.81 / 1000; // km/s²
+  const distanceM = distanceKm * 1000; // Convert to meters for calculation
+  const accelM = accel * 1000; // m/s²
+
+  // Time = 2 * sqrt(distance / acceleration) for brachistochrone trajectory
+  const timeSeconds = 2 * Math.sqrt(distanceM / accelM);
+  const timeHours = Math.ceil(timeSeconds / 3600);
+
+  return Math.max(1, timeHours); // Minimum 1 hour
+}
+
+/**
+ * Get ship thrust from template
+ * @returns {number} Ship thrust in Gs (default 1)
+ */
+function getShipThrust() {
+  const template = window.state?.shipTemplate;
+  return template?.thrust || 1;
+}
+
+function showPlaceDetails(placeId) {
+  const place = systemMapState.system?.places?.find(p => p.id === placeId);
+  if (!place) return;
+
+  // Remove any existing details panel
+  const existing = document.getElementById('place-details-panel');
+  if (existing) existing.remove();
+
+  // Find linked celestial object if any
+  const linkedObject = place.linkedTo
+    ? systemMapState.system?.celestialObjects?.find(obj => obj.id === place.linkedTo)
+    : null;
+
+  // Calculate distance and travel time from current location
+  const shipState = window.state?.shipState || {};
+  const currentLocationId = shipState.locationId;
+  const thrust = getShipThrust();
+
+  let distanceInfo = '';
+  let travelHours = 4; // Default
+  if (currentLocationId && currentLocationId !== placeId) {
+    const { distanceAU, distanceKm } = calculateLocationDistance(currentLocationId, placeId);
+    travelHours = calculateTravelTime(distanceKm, thrust);
+    const travelText = travelHours >= 24
+      ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
+      : `${travelHours}h`;
+    distanceInfo = `${distanceAU.toFixed(2)} AU · ${travelText} at ${thrust}G`;
+  }
+
+  // Build actions list
+  const actionsHtml = place.actions?.length
+    ? `<div class="detail-actions">
+        <strong>Available Actions:</strong>
+        <ul>${place.actions.map(a => `<li>${a.replace(/_/g, ' ')}</li>`).join('')}</ul>
+      </div>`
+    : '';
+
+  // Build linked object info
+  const linkedHtml = linkedObject
+    ? `<div class="detail-linked">
+        <strong>Location:</strong> ${linkedObject.name} (${linkedObject.type})
+      </div>`
+    : '';
+
+  // Check if course is already set to this destination
+  const hasCourse = pendingCourseData?.locationId === placeId;
+  const isSameLocation = currentLocationId === placeId;
+
+  const panel = document.createElement('div');
+  panel.id = 'place-details-panel';
+  panel.className = 'place-details-panel';
+  panel.innerHTML = `
+    <div class="details-header">
+      <span class="place-icon">${place.icon || '📍'}</span>
+      <h3>${place.name}</h3>
+      <button class="details-close" onclick="window.hidePlaceDetails()">×</button>
+    </div>
+    <div class="details-body">
+      <p class="detail-desc">${place.description || 'No description available'}</p>
+      ${linkedHtml}
+      ${actionsHtml}
+    </div>
+    <div class="details-footer">
+      <button onclick="window.goToPlace('${placeId}'); window.hidePlaceDetails();">Go To</button>
+      <button id="btn-set-course"
+              onclick="window.setCourseFromDetails('${placeId}', ${travelHours});"
+              title="${distanceInfo || 'Set navigation course'}"
+              ${isSameLocation ? 'disabled' : ''}>
+        Set Course
+      </button>
+      <button id="btn-travel"
+              onclick="window.travelFromDetails();"
+              ${hasCourse ? '' : 'disabled'}>
+        Travel
+      </button>
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+}
+
+/**
+ * Set course from details panel
+ */
+function setCourseFromDetails(placeId, travelHours) {
+  const place = systemMapState.system?.places?.find(p => p.id === placeId);
+  if (!place) return;
+
+  pendingCourseData = {
+    locationId: placeId,
+    locationName: place.name,
+    travelHours
+  };
+
+  // Update Travel button state
+  const travelBtn = document.getElementById('btn-travel');
+  if (travelBtn) travelBtn.disabled = false;
+
+  // Update Set Course button appearance
+  const courseBtn = document.getElementById('btn-set-course');
+  if (courseBtn) {
+    courseBtn.textContent = '✓ Course Set';
+    courseBtn.classList.add('course-set');
+  }
+
+  // Also call the main setCourse for pilot panel integration
+  if (typeof window.setCourse === 'function') {
+    const etaText = travelHours >= 24
+      ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
+      : `${travelHours}h`;
+    window.setCourse(place.name, etaText, { locationId: placeId, travelHours });
+  }
+
+  if (typeof window.showNotification === 'function') {
+    window.showNotification(`Course set for ${place.name}`, 'success');
+  }
+}
+
+/**
+ * Execute travel from details panel
+ */
+function travelFromDetails() {
+  if (!pendingCourseData) return;
+
+  // Debug: Log campaign state
+  console.log('[Travel Debug] state.campaign:', window.state?.campaign);
+  console.log('[Travel Debug] campaign.id:', window.state?.campaign?.id);
+  console.log('[Travel Debug] socket:', !!window.state?.socket);
+
+  // Check for campaign connection first
+  if (!window.state?.socket || !window.state?.campaign?.id) {
+    console.log('[Travel Debug] FAILED - campaign.id is falsy');
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('Not connected to campaign', 'error');
+    }
+    return;
+  }
+
+  // Emit travel event to server
+  window.state.socket.emit('ops:travel', {
+    destinationId: pendingCourseData.locationId
+  });
+
+  // Clear pending course
+  const destName = pendingCourseData.locationName;
+  pendingCourseData = null;
+
+  // Close panel
+  hidePlaceDetails();
+
+  if (typeof window.showNotification === 'function') {
+    window.showNotification(`Traveling to ${destName}...`, 'info');
+  }
+}
+
+// Export new functions
+window.setCourseFromDetails = setCourseFromDetails;
+window.travelFromDetails = travelFromDetails;
+
+/**
+ * Hide place details panel
+ */
+function hidePlaceDetails() {
+  const existing = document.getElementById('place-details-panel');
+  if (existing) existing.remove();
+}
+
+// AR-38/AR-102: Track last selected place and camera angle for re-click cycling
 let lastSelectedPlaceId = null;
-let viewVariantIndex = 0;
-const VIEW_ZOOM_LEVELS = [1.5, 3, 5, 8]; // Cycle through these zoom multipliers
+let mainMapCameraAngle = 0;
 
 /**
  * Navigate to a place (center view)
- * AR-38: Re-clicking same place cycles through different zoom levels
+ * AR-38: Re-clicking same place cycles through CAMERA_PRESETS
+ * AR-102: Uses size-based zoom calculation (unified with embedded map)
  */
 function goToPlace(placeId) {
   const place = systemMapState.system?.places?.find(p => p.id === placeId);
   if (!place) return;
 
-  // AR-38: Check if re-clicking same place
+  // AR-38: Check if re-clicking same place - cycle camera angle
   if (placeId === lastSelectedPlaceId) {
-    viewVariantIndex = (viewVariantIndex + 1) % VIEW_ZOOM_LEVELS.length;
-    console.log(`[SystemMap] Cycling view: variant ${viewVariantIndex + 1}/${VIEW_ZOOM_LEVELS.length}`);
+    mainMapCameraAngle = (mainMapCameraAngle + 1) % CAMERA_PRESETS.length;
+    console.log(`[SystemMap] Cycling camera: ${CAMERA_PRESETS[mainMapCameraAngle].name}`);
   } else {
-    viewVariantIndex = 0;
+    mainMapCameraAngle = 0;
     lastSelectedPlaceId = placeId;
   }
+
+  const preset = CAMERA_PRESETS[mainMapCameraAngle];
 
   // Find the associated planet if any
   if (place.planetId) {
     const planet = systemMapState.system.planets.find(p => p.id === place.planetId);
     if (planet) {
       systemMapState.selectedBody = planet;
-      centerOnBodyWithVariant(planet, VIEW_ZOOM_LEVELS[viewVariantIndex]);
+      centerOnBodyWithSizeZoom(planet, preset);
       showBodyInfoPanel(planet);
     }
   } else {
     // AR-85: Places without planetId (like Jump Point) - center on system origin
-    centerOnSystemOrigin(VIEW_ZOOM_LEVELS[viewVariantIndex]);
+    centerOnSystemOrigin(preset.zoomMultiplier * 2); // Use multiplier for origin view
     systemMapState.selectedBody = null;
   }
 
-  console.log('[SystemMap] Going to:', place.name, `(zoom ${VIEW_ZOOM_LEVELS[viewVariantIndex]}x)`);
+  // AR-102: Log the radius being used (from planet if associated, else place)
+  const planet = place.planetId ? systemMapState.system?.planets?.find(p => p.id === place.planetId) : null;
+  const radiusKm = getObjectRadiusKm(planet || place);
+  console.log(`[SystemMap] Going to: ${place.name} (${preset.name}, radius=${radiusKm}km)`);
 }
 
 /**
@@ -475,8 +714,8 @@ function getPlacesOverlayState() {
   return {
     visible: !!overlay,
     lastSelectedPlaceId,
-    viewVariantIndex,
-    currentZoom: VIEW_ZOOM_LEVELS[viewVariantIndex]
+    cameraAngle: mainMapCameraAngle,
+    currentPreset: CAMERA_PRESETS[mainMapCameraAngle]?.name
   };
 }
 
@@ -487,12 +726,45 @@ window.getPlacesOverlayState = getPlacesOverlayState;
  * Center view on a body
  */
 function centerOnBody(body) {
-  centerOnBodyWithVariant(body, 1.5);
+  centerOnBodyWithSizeZoom(body, CAMERA_PRESETS[0]);
 }
 
 /**
- * Center view on a body with specific zoom multiplier
- * AR-38: Supports view cycling with different zoom levels
+ * AR-102: Center view on a body with size-based zoom calculation
+ * Uses the same calculation as embedded map for unified behavior
+ * @param {Object} body - The celestial body to center on
+ * @param {Object} preset - Camera preset with zoomMultiplier and offsets
+ */
+function centerOnBodyWithSizeZoom(body, preset) {
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const { zoom, offsetX, offsetY } = systemMapState;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  // Calculate body's current position
+  const orbitSpeed = 0.1 / Math.sqrt(body.orbitAU || 1);
+  const angle = systemMapState.time * orbitSpeed;
+  const bodyX = centerX + offsetX + Math.cos(angle) * (body.orbitAU || 0) * auToPixels;
+  const bodyY = centerY + offsetY + Math.sin(angle) * (body.orbitAU || 0) * auToPixels * 0.6;
+
+  // Center on body
+  systemMapState.offsetX += centerX - bodyX;
+  systemMapState.offsetY += centerY - bodyY;
+
+  // AR-102: Calculate size-based zoom (unified with embedded map)
+  const radiusKm = getObjectRadiusKm(body);
+  const canvasSize = Math.min(rect.width, rect.height);
+  const baseZoom = calculateZoomForSize(radiusKm, canvasSize, 0.5);
+  const targetZoom = baseZoom * preset.zoomMultiplier;
+
+  systemMapState.zoom = Math.min(Math.max(targetZoom, systemMapState.MIN_ZOOM), systemMapState.MAX_ZOOM);
+}
+
+/**
+ * DEPRECATED: Center view on a body with specific zoom multiplier
+ * Kept for backwards compatibility - use centerOnBodyWithSizeZoom() instead
+ * @deprecated
  */
 function centerOnBodyWithVariant(body, zoomMultiplier) {
   const rect = systemMapState.canvas.getBoundingClientRect();
@@ -525,6 +797,87 @@ function centerOnSystemOrigin(zoomMultiplier) {
   systemMapState.offsetY = 0;
   // Zoom out to show more of the system (inverse multiplier for wider view)
   systemMapState.zoom = Math.max(systemMapState.MIN_ZOOM, 1 / zoomMultiplier);
+}
+
+/**
+ * Animated camera movement to a location
+ * Uses requestAnimationFrame for smooth 300ms ease-out transition
+ * @param {string} locationId - Location ID to animate to
+ * @param {Object} options - Animation options
+ * @param {number} options.duration - Animation duration in ms (default 300)
+ * @param {boolean} options.maxZoom - Use maximum zoom (close-up) when true
+ */
+function animateCameraToLocation(locationId, options = {}) {
+  const duration = options.duration || 300;
+  const useMaxZoom = options.maxZoom !== false; // Default true for travel
+
+  const system = systemMapState.system;
+  if (!system?.places) {
+    console.log('[SystemMap] No system for camera animation');
+    return;
+  }
+
+  const place = system.places.find(p => p.id === locationId);
+  if (!place) {
+    console.log('[SystemMap] Place not found for animation:', locationId);
+    return;
+  }
+
+  // Find celestial body for this place
+  const body = system.celestialObjects?.find(obj => obj.id === place.celestialObject);
+  if (!body) {
+    console.log('[SystemMap] No celestial body for place:', locationId);
+    return;
+  }
+
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  // Calculate target position
+  const orbitSpeed = 0.1 / Math.sqrt(body.orbitAU || 1);
+  const angle = systemMapState.time * orbitSpeed;
+
+  // Calculate target zoom (max zoom = close-up preset)
+  const radiusKm = getObjectRadiusKm(body);
+  const canvasSize = Math.min(rect.width, rect.height);
+  const targetZoom = useMaxZoom
+    ? Math.min(calculateZoomForSize(radiusKm, canvasSize, 0.5) * 1.5, systemMapState.MAX_ZOOM)
+    : systemMapState.zoom;
+
+  // Calculate target offsets (to center on body at target zoom)
+  const auToPixels = systemMapState.AU_TO_PIXELS * targetZoom;
+  const bodyScreenX = Math.cos(angle) * (body.orbitAU || 0) * auToPixels;
+  const bodyScreenY = Math.sin(angle) * (body.orbitAU || 0) * auToPixels * 0.6;
+  const targetOffsetX = -bodyScreenX;
+  const targetOffsetY = -bodyScreenY;
+
+  // Starting values
+  const startOffsetX = systemMapState.offsetX;
+  const startOffsetY = systemMapState.offsetY;
+  const startZoom = systemMapState.zoom;
+  const startTime = performance.now();
+
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+
+    // Ease-out cubic: 1 - (1-t)^3
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    // Interpolate values
+    systemMapState.offsetX = startOffsetX + (targetOffsetX - startOffsetX) * eased;
+    systemMapState.offsetY = startOffsetY + (targetOffsetY - startOffsetY) * eased;
+    systemMapState.zoom = startZoom + (targetZoom - startZoom) * eased;
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      console.log('[SystemMap] Camera animation complete to:', place.name);
+    }
+  }
+
+  requestAnimationFrame(animate);
 }
 
 /**
@@ -583,6 +936,9 @@ window.hidePlacesOverlay = hidePlacesOverlay;
 window.goToPlace = goToPlace;
 window.setDestination = setDestination;
 window.snapToNow = snapToNow; // AR-88
+window.showPlaceDetails = showPlaceDetails;
+window.hidePlaceDetails = hidePlaceDetails;
+window.animateCameraToLocation = animateCameraToLocation; // Animated travel camera
 
 /**
  * AR-71: Set contact as pilot destination (intercept course)
@@ -644,10 +1000,10 @@ function hideBodyInfoPanel() {
 window.hideSystemMapInfoPanel = hideBodyInfoPanel;
 
 /**
- * Calculate travel time to a body at given AU distance
+ * Calculate travel time string for display (AU input)
  * Assumes 1G thrust, simplified Traveller physics
  */
-function calculateTravelTime(auDistance) {
+function formatTravelTimeFromAU(auDistance) {
   // 1 AU = 149,597,870.7 km
   // At 1G (10 m/s²), brachistochrone trajectory:
   // t = 2 * sqrt(d / a) where d is half the distance (accelerate/decelerate)
@@ -1719,6 +2075,7 @@ function loadSystemFromJSON(jsonData) {
   }
 
   // Extract planets (include Planet, Moon, Gas Giant, Ice Giant as renderable bodies)
+  // AR-102: Include radiusKm for size-based zoom calculation (unified with places)
   const planets = celestialObjects
     .filter(obj => ['Planet', 'Moon', 'Gas Giant', 'Ice Giant'].includes(obj.type))
     .map((planet, i) => {
@@ -1733,7 +2090,8 @@ function loadSystemFromJSON(jsonData) {
         isMainworld: !!planet.uwp,
         hasRings: planet.hasRings || false,
         moons: [],
-        inGoldilocks: planet.inGoldilocks || false
+        inGoldilocks: planet.inGoldilocks || false,
+        radiusKm: planet.radiusKm  // AR-102: Pass through for size-based zoom
       };
     });
 
@@ -1748,17 +2106,22 @@ function loadSystemFromJSON(jsonData) {
       canMine: true
     }));
 
-  // Generate places array from celestialObjects for Places overlay
-  const places = celestialObjects
-    .filter(obj => obj.type === 'Planet' || obj.type === 'Station' || obj.type === 'Naval Base' || obj.type === 'Scout Base')
-    .map(obj => ({
-      id: obj.id,
-      name: obj.name,
-      icon: getPlaceIcon(obj.type),
-      description: obj.gmNotes || obj.type,
-      orbitAU: obj.orbitAU || 1,
-      type: obj.type
-    }));
+  // Generate places array from locations (server IDs) for Places overlay
+  // Each location links to a celestialObject via linkedTo field
+  const places = (jsonData.locations || []).map(loc => {
+    // Find linked celestial object for position/radius data
+    const linkedObj = celestialObjects.find(obj => obj.id === loc.linkedTo);
+    return {
+      id: loc.id,  // Use server location ID (loc-dock-highport, etc.)
+      name: loc.name,
+      icon: getPlaceIcon(loc.type),
+      description: loc.type || 'Location',
+      orbitAU: linkedObj?.orbitAU || 1,
+      type: loc.type,
+      radiusKm: linkedObj?.radiusKm,  // AR-102: Get from linked celestial object
+      linkedTo: loc.linkedTo  // Keep reference to celestial object
+    };
+  });
 
   // Build system object
   const system = {
@@ -1783,7 +2146,62 @@ function loadSystemFromJSON(jsonData) {
   systemMapState.offsetX = 0;
   systemMapState.offsetY = 0;
 
-  console.log(`[SystemMap] Loaded JSON system: ${jsonData.name}`, system);
+  // Build celestialObjects array for embedded map renderer
+  // The embedded map expects: { id, name, type, radiusKm, currentX, currentY, orbitRadius, radius, color }
+  // Include ALL celestial objects from JSON for size-based zoom calculation
+  const embeddedObjects = [];
+  const rawObjects = jsonData.celestialObjects || [];
+
+  rawObjects.forEach(obj => {
+    const orbitAU = obj.orbitAU || (obj.orbitKm ? obj.orbitKm / 149597870.7 : 0);
+    const angle = Math.random() * Math.PI * 2; // Random orbital position
+
+    // Determine position based on type
+    let currentX = 0, currentY = 0;
+    if (obj.type === 'Star') {
+      currentX = 0;
+      currentY = 0;
+    } else if (obj.parent) {
+      // Child objects (stations, moons, bases) orbit their parent
+      // For simplicity, place near parent with small offset
+      const parentObj = rawObjects.find(p => p.id === obj.parent);
+      const parentOrbitAU = parentObj?.orbitAU || 0;
+      currentX = Math.cos(angle) * parentOrbitAU + (obj.orbitKm || 500) / 149597870.7 * Math.cos(angle * 2);
+      currentY = Math.sin(angle) * parentOrbitAU * 0.6 + (obj.orbitKm || 500) / 149597870.7 * Math.sin(angle * 2);
+    } else {
+      // Primary celestial bodies orbit the star
+      currentX = Math.cos(angle) * orbitAU;
+      currentY = Math.sin(angle) * orbitAU * 0.6; // Elliptical view
+    }
+
+    // Color by type
+    const colors = {
+      'Star': '#ffff44',
+      'Planet': obj.inGoldilocks ? '#44aa44' : '#8888aa',
+      'Moon': '#aaaaaa',
+      'Station': '#44aaff',
+      'Naval Base': '#ff4444',
+      'Scout Base': '#44ff44',
+      'Planetoid Belt': '#666666',
+      'Gas Giant': '#ff8844'
+    };
+
+    embeddedObjects.push({
+      id: obj.id,
+      name: obj.name,
+      type: obj.type,
+      radiusKm: obj.radiusKm,  // Preserve for size-based zoom
+      currentX,
+      currentY,
+      orbitRadius: orbitAU,
+      radius: obj.type === 'Star' ? 0.1 : 0.02, // Display radius
+      color: colors[obj.type] || '#888888'
+    });
+  });
+
+  systemMapState.celestialObjects = embeddedObjects;
+
+  console.log(`[SystemMap] Loaded JSON system: ${jsonData.name} (${embeddedObjects.length} objects)`, system);
   return system;
 }
 
@@ -2382,11 +2800,66 @@ const embeddedMapState = {
 };
 
 // AR-102: Camera presets for dramatic destination views
+// zoomMultiplier adjusts size-based zoom: 1.0 = fill 50%, 0.5 = fill 25%, 2.0 = fill 100%
 const CAMERA_PRESETS = [
-  { name: 'close-up', zoom: 2.5, offsetX: 0.15, offsetY: 0.1, description: 'Dramatic close-up' },
-  { name: 'wide-context', zoom: 0.6, offsetX: -0.2, offsetY: -0.15, description: 'Wide system view' },
-  { name: 'orbital-view', zoom: 1.2, offsetX: 0, offsetY: 0.25, description: 'Orbital perspective' }
+  { name: 'close-up', zoomMultiplier: 1.0, offsetX: 0.15, offsetY: 0.1, description: 'Fills 50% of canvas' },
+  { name: 'wide-context', zoomMultiplier: 0.1, offsetX: -0.2, offsetY: -0.15, description: 'Wide system view' },
+  { name: 'orbital-view', zoomMultiplier: 0.5, offsetX: 0, offsetY: 0.25, description: 'Medium orbital view' }
 ];
+
+// Constants for zoom calculation
+const AU_TO_KM = 149597870.7;
+
+// Default radiusKm by object type (when not specified in JSON)
+// AR-102: Sensible default radii for size-based zoom when radiusKm not specified
+const DEFAULT_RADIUS_KM = {
+  'Star': 700000,        // Sol-like
+  'Planet': 10000,       // Earth-like default (user preference)
+  'Moon': 1000,          // Typical large moon
+  'Station': 2,          // Large space station (~2km)
+  'Highport': 2,         // Orbital starport
+  'Naval Base': 1,       // Military installation
+  'Scout Base': 0.5,     // Smaller base
+  'Planetoid Belt': 500, // Visual representation
+  'Gas Giant': 70000,    // Jupiter-like
+  'Ice Giant': 25000     // Neptune-like
+};
+
+/**
+ * Get object radiusKm from data or use type-based default
+ * AR-102: Graceful fallback chain ensures sane zoom even with missing data
+ */
+function getObjectRadiusKm(destination) {
+  if (!destination) return 5000;  // Safe fallback for null/undefined
+  if (destination.radiusKm && destination.radiusKm > 0) return destination.radiusKm;
+  // Try type-based default, then category fallback, then generic small object
+  return DEFAULT_RADIUS_KM[destination.type] ||
+         (destination.type?.includes('Base') ? 1 :
+          destination.type?.includes('Station') ? 2 : 5000);
+}
+
+/**
+ * Calculate zoom level to make object fill targetFillFraction of canvas
+ * @param {number} radiusKm - Object radius in km
+ * @param {number} canvasSize - Canvas dimension (use smaller of width/height)
+ * @param {number} targetFillFraction - How much of canvas to fill (0.5 = 50%)
+ */
+function calculateZoomForSize(radiusKm, canvasSize, targetFillFraction = 0.5) {
+  // baseScale = canvasSize / 20 pixels per AU at zoom 1.0
+  // At zoom Z, 1 AU = baseScale * Z pixels
+  // Object diameter = 2 * radiusKm, want it to be canvasSize * targetFillFraction pixels
+  // So: 2 * radiusKm * pixelsPerKm * Z = canvasSize * targetFillFraction
+  // pixelsPerKm = baseScale / AU_TO_KM
+  // Z = (canvasSize * targetFillFraction * AU_TO_KM) / (2 * radiusKm * baseScale)
+  // Since baseScale = canvasSize / 20:
+  // Z = (canvasSize * targetFillFraction * AU_TO_KM) / (2 * radiusKm * canvasSize / 20)
+  // Z = (targetFillFraction * AU_TO_KM * 20) / (2 * radiusKm)
+  // Z = (targetFillFraction * AU_TO_KM * 10) / radiusKm
+
+  const zoom = (targetFillFraction * AU_TO_KM * 10) / radiusKm;
+  // Clamp to reasonable range
+  return Math.max(0.1, Math.min(zoom, 100000000));
+}
 
 /**
  * AR-102: Initialize embedded system map for pilot navigation
@@ -2452,8 +2925,8 @@ function renderEmbeddedMap() {
   ctx.fillStyle = '#0a0a14';
   ctx.fillRect(0, 0, width, height);
 
-  // Check if main system data is loaded
-  if (!systemMapState.systemData) {
+  // Check if main system data is loaded (fixed: was checking .systemData, now checks .system)
+  if (!systemMapState.system) {
     ctx.fillStyle = '#4a9eff';
     ctx.font = '14px monospace';
     ctx.textAlign = 'center';
@@ -2644,6 +3117,7 @@ function handleEmbeddedClick(e) {
 
 /**
  * AR-102: Select destination and animate camera
+ * Size-based zoom: calculates zoom to fill 50% of canvas based on object radiusKm
  */
 function selectEmbeddedDestination(destination) {
   const { lastClickedDestination, currentCameraAngle } = embeddedMapState;
@@ -2658,15 +3132,21 @@ function selectEmbeddedDestination(destination) {
 
   embeddedMapState.selectedDestination = destination;
 
-  // Get camera preset
+  // Get camera preset and object size
   const preset = CAMERA_PRESETS[embeddedMapState.currentCameraAngle];
+  const radiusKm = getObjectRadiusKm(destination);
 
   // Calculate target camera position
   const width = embeddedMapState.container.clientWidth;
   const height = embeddedMapState.container.clientHeight;
-  const baseScale = Math.min(width, height) / 20;
+  const canvasSize = Math.min(width, height);
+  const baseScale = canvasSize / 20;
 
-  const targetZoom = preset.zoom;
+  // Size-based zoom: fill 50% of canvas, then apply preset multiplier
+  const baseZoom = calculateZoomForSize(radiusKm, canvasSize, 0.5);
+  const targetZoom = baseZoom * preset.zoomMultiplier;
+
+  // Calculate offset to center on object with dramatic framing
   const targetOffsetX = -(destination.currentX || 0) * baseScale * targetZoom + width * preset.offsetX;
   const targetOffsetY = -(destination.currentY || 0) * baseScale * targetZoom + height * preset.offsetY;
 
@@ -2678,7 +3158,7 @@ function selectEmbeddedDestination(destination) {
     window.updatePilotTransitCalc(destination);
   }
 
-  console.log(`[EmbeddedMap] Selected: ${destination.name} (${preset.name})`);
+  console.log(`[EmbeddedMap] Selected: ${destination.name} (${preset.name}, radius=${radiusKm}km, zoom=${targetZoom.toFixed(1)})`);
 }
 
 /**
@@ -2739,6 +3219,9 @@ window.zoomEmbeddedMap = zoomEmbeddedMap;
 window.getEmbeddedDestinations = getEmbeddedDestinations;
 window.selectEmbeddedDestinationById = selectEmbeddedDestinationById;
 window.embeddedMapState = embeddedMapState;
+// AR-102: Expose loadSystemFromJSON for early loading at bridge join
+window.loadSystemFromJSON = loadSystemFromJSON;
+window.systemMapState = systemMapState;
 
 // Export for ES modules (app.js imports these)
 export {

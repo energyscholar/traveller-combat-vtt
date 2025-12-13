@@ -968,9 +968,16 @@ input[type="checkbox"] {
 
 .date-display,
 .campaign-display,
-.location-display {
+.location-display,
+.hex-display {
   font-family: var(--font-mono);
   color: var(--text-secondary);
+}
+
+/* AR-103: Hex coordinate display */
+.hex-display {
+  font-weight: 600;
+  color: var(--accent-color, #4fc3f7);
 }
 
 /* AR-92: Prominent location display */
@@ -3953,6 +3960,43 @@ input[type="checkbox"] {
 
 .btn-success:hover {
   background: #22894a;
+}
+
+/* ==================== Settings Section Styles ==================== */
+.settings-section {
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+}
+
+.settings-section h3 {
+  color: var(--accent-blue);
+  margin-bottom: var(--space-sm);
+}
+
+.settings-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.toggle-setting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.toggle-setting input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.settings-hint {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin-top: var(--space-xs);
 }
 
 /* ==================== TIP-3: UWP Tooltip System ==================== */
@@ -8036,10 +8080,48 @@ body.role-engineer .role-panel .role-actions {
   flex-shrink: 0;
 }
 
-.system-map-header h2 {
+/* System Map header - matches bridge header format */
+.system-map-header-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.system-map-header-info .screen-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-right: 0.5em;
+  padding-right: 0.75em;
+  border-right: 1px solid var(--border-color);
+}
+
+.system-map-header-info h1 {
   margin: 0;
   font-size: 18px;
   color: var(--text-primary);
+  font-weight: 500;
+}
+
+.system-map-header-info .hex-display {
+  color: var(--accent-color);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  cursor: help;
+}
+
+.system-map-header-info .header-separator {
+  color: var(--text-secondary);
+}
+
+.system-map-header-info .location-display {
+  color: var(--accent-color);
+  font-weight: normal;
+  font-size: 14px;
+}
+
+.system-map-header-info .date-display {
+  color: var(--text-secondary);
+  font-size: 14px;
 }
 
 .system-map-controls {
@@ -8324,6 +8406,120 @@ body.role-engineer .role-panel .role-actions {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Place Details Panel (right-click on destination) */
+.place-details-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  background: rgba(20, 25, 35, 0.98);
+  border: 1px solid var(--accent-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  z-index: 10002;
+}
+
+.place-details-panel .details-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: rgba(40, 50, 70, 0.8);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 8px 8px 0 0;
+}
+
+.place-details-panel .details-header .place-icon {
+  font-size: 24px;
+}
+
+.place-details-panel .details-header h3 {
+  flex: 1;
+  margin: 0;
+  color: var(--accent-color);
+  font-size: 16px;
+}
+
+.place-details-panel .details-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.place-details-panel .details-close:hover {
+  color: var(--text-primary);
+}
+
+.place-details-panel .details-body {
+  padding: var(--space-md);
+}
+
+.place-details-panel .detail-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0 0 var(--space-md) 0;
+}
+
+.place-details-panel .detail-linked,
+.place-details-panel .detail-actions {
+  margin-bottom: var(--space-sm);
+  font-size: 12px;
+}
+
+.place-details-panel .detail-linked strong,
+.place-details-panel .detail-actions strong {
+  color: var(--text-primary);
+}
+
+.place-details-panel .detail-actions ul {
+  margin: var(--space-xs) 0 0 0;
+  padding-left: var(--space-md);
+  color: var(--text-secondary);
+}
+
+.place-details-panel .detail-actions li {
+  text-transform: capitalize;
+}
+
+.place-details-panel .details-footer {
+  display: flex;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md) var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.place-details-panel .details-footer button {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-light);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.place-details-panel .details-footer button:hover:not(:disabled) {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.place-details-panel .details-footer button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.place-details-panel .details-footer button.course-set {
+  background: var(--success-color, #28a745);
+  border-color: var(--success-color, #28a745);
+  color: white;
 }
 
 /* AR-30: Pilot Controls */

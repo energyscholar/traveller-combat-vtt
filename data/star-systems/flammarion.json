@@ -25,6 +25,7 @@
       "type": "Star",
       "orbitAU": 0,
       "bearing": 0,
+      "radiusKm": 835000,
       "stellarClass": "F8 V",
       "stellarInfo": {
         "temperature": "6,050-6,180 K",
@@ -43,6 +44,7 @@
       "orbitAU": 1.1,
       "orbitKm": 165000000,
       "bearing": 270,
+      "radiusKm": 4800,
       "uwp": "A623514-B",
       "tradeCodes": ["Ni", "Po"],
       "atmosphere": "Very Thin, Tainted",
@@ -58,6 +60,7 @@
       "parent": "flammarion-mainworld",
       "orbitKm": 400,
       "bearing": 268,
+      "radiusKm": 2,
       "uwp": "A623514-B",
       "transponder": "FLAMMARION HIGHPORT",
       "gmNotes": "Class A Excellent starport. Full shipyard facilities. 9,575 port employees.",
@@ -70,6 +73,7 @@
       "parent": "flammarion-mainworld",
       "orbitKm": 85000,
       "bearing": 275,
+      "radiusKm": 500,
       "transponder": "FLAMMARION BASES",
       "gmNotes": "Large moon hosting Imperial Naval Base and Scout/X-Boat station."
     },
@@ -80,6 +84,7 @@
       "parent": "flammarion-moon",
       "orbitKm": 500,
       "bearing": 276,
+      "radiusKm": 0.5,
       "transponder": "INS FLAMMARION",
       "gmNotes": "Imperial Naval Base. Patrol and system defense operations. RESTRICTED.",
       "celestial": false
@@ -91,6 +96,7 @@
       "parent": "flammarion-moon",
       "orbitKm": 500,
       "bearing": 274,
+      "radiusKm": 0.5,
       "transponder": "IISS FLAMMARION",
       "gmNotes": "Imperial Scout Service base. X-Boat link to greater Imperium.",
       "celestial": false
@@ -102,6 +108,7 @@
       "orbitAU": 2.5,
       "orbitKm": 380000000,
       "bearing": 135,
+      "radiusKm": 500,
       "transponder": "NONE",
       "gmNotes": "Main planetoid belt. Mining operations by LSP subsidiaries."
     }

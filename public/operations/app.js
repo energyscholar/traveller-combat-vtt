@@ -84,6 +84,9 @@ const state = {
   prepHandouts: []
 };
 
+// Expose state globally for cross-module access (system-map.js, etc.)
+window.state = state;
+
 // ==================== Socket Setup ====================
 function initSocket() {
   state.socket = io();
@@ -468,6 +471,10 @@ function initSocket() {
     requestSystemStatus();
     // Request jump status for astrogator panel
     requestJumpStatus();
+    // AR-102: Load current system data early for system map and navigation
+    if (data.campaign?.current_system) {
+      loadCurrentSystem(data.campaign.current_system);
+    }
   });
 
   state.socket.on('ops:crewOnBridge', (data) => {
@@ -652,6 +659,12 @@ function initSocket() {
     const locationEl = document.getElementById('bridge-location');
     if (locationEl) {
       locationEl.textContent = data.locationDisplay;
+    }
+    // AR-103: Update hex coordinate display in top bar with system name tooltip
+    const hexEl = document.getElementById('bridge-hex');
+    if (hexEl) {
+      hexEl.textContent = data.hex || '----';
+      hexEl.title = data.locationDisplay || 'Current parsec';
     }
     // Update campaign state with sector/hex for jump map
     if (state.campaign) {
@@ -888,6 +901,15 @@ function initSocket() {
   state.socket.on('ops:jumpCompleted', (data) => {
     state.jumpStatus = { inJump: false };
     state.campaign.current_system = data.arrivedAt;
+    // AR-103: Update hex after jump (parsec location changed) with system tooltip
+    if (data.hex) {
+      state.campaign.current_hex = data.hex;
+      const hexEl = document.getElementById('bridge-hex');
+      if (hexEl) {
+        hexEl.textContent = data.hex;
+        hexEl.title = data.arrivedAt || 'Current parsec';
+      }
+    }
     // Stage 7: Update date after jump
     if (data.newDate) {
       state.campaign.current_date = data.newDate;
@@ -2576,8 +2598,11 @@ function renderBridge() {
   // Ship name
   const shipNameEl = document.getElementById('bridge-ship-name');
   shipNameEl.textContent = state.ship?.name || 'Unknown Ship';
-  // AR-92: Campaign name as tooltip on ship name
-  shipNameEl.title = state.campaign?.name ? `Campaign: ${state.campaign.name}` : '';
+  // AR-103.4: Ship type + campaign as tooltip on ship name
+  const shipType = state.shipTemplate?.name || state.ship?.template_id?.replace(/_/g, ' ') || '';
+  const campaignName = state.campaign?.name ? `Campaign: ${state.campaign.name}` : '';
+  const tooltipParts = [shipType, campaignName].filter(Boolean);
+  shipNameEl.title = tooltipParts.join(' | ');
 
   // AR-51.2: Update screen label with role
   const screenLabel = document.getElementById('bridge-screen-label');
@@ -2596,10 +2621,19 @@ function renderBridge() {
   // Date/time
   document.getElementById('bridge-date').textContent = state.campaign?.current_date || '???';
 
-  // Current system/location (Phase 1 requirement)
+  // Current location within system (e.g., "Flammarion Highport")
   const locationEl = document.getElementById('bridge-location');
   if (locationEl) {
-    locationEl.textContent = state.campaign?.current_system || 'Unknown';
+    // Use ship's locationName, fall back to system name
+    const locationName = state.shipState?.locationName || state.ship?.current_state?.locationName;
+    locationEl.textContent = locationName || state.campaign?.current_system || 'Unknown';
+  }
+
+  // AR-103: Hex coordinate display with system name tooltip
+  const hexEl = document.getElementById('bridge-hex');
+  if (hexEl) {
+    hexEl.textContent = state.campaign?.current_hex || '----';
+    hexEl.title = state.campaign?.current_system || 'Current parsec';
   }
 
   // Guest indicator with skill level
@@ -2630,6 +2664,11 @@ function renderBridge() {
       userRoleEl.textContent = formatRoleName(state.selectedRole);
       userRoleEl.className = `user-role-badge role-${state.selectedRole || 'unknown'}`;
     }
+  }
+  // AR-103.2: Hide change role button for GM (GMs cannot change roles)
+  const changeRoleBtn = document.getElementById('btn-change-role');
+  if (changeRoleBtn) {
+    changeRoleBtn.style.display = state.isGM ? 'none' : '';
   }
   if (userShipEl) {
     userShipEl.textContent = state.ship?.name || 'No Ship';
@@ -2810,6 +2849,11 @@ function renderRoleDetailPanel(role) {
   // Role-specific content from module
   const detailContent = getRoleDetailContent(role, context);
   container.innerHTML = detailContent;
+
+  // AR-102: Show embedded map for pilot role
+  if (role === 'pilot' && state.selectedRole === 'pilot') {
+    expandRolePanel('pilot-map');
+  }
 }
 
 function handleRoleAction(action) {
@@ -3243,7 +3287,7 @@ function changeRange(action) {
 let pendingTravelData = null;
 
 function setCourse(destination, eta, travelData = null) {
-  if (!state.socket || !state.campaignId) {
+  if (!state.socket || !state.campaign?.id) {
     showNotification('Not connected to campaign', 'error');
     return;
   }
@@ -3264,7 +3308,7 @@ function setCourse(destination, eta, travelData = null) {
 }
 
 function clearCourse() {
-  if (!state.socket || !state.campaignId) return;
+  if (!state.socket || !state.campaign?.id) return;
   pendingTravelData = null;
   state.socket.emit('ops:clearCourse');
 }
@@ -3274,7 +3318,7 @@ function clearCourse() {
  * Advances time and moves ship to destination location
  */
 function travel() {
-  if (!state.socket || !state.campaignId) {
+  if (!state.socket || !state.campaign?.id) {
     showNotification('Not connected to campaign', 'error');
     return;
   }
@@ -3585,8 +3629,22 @@ function setupPilotListeners() {
     // Clear pending travel
     pendingTravelData = null;
 
+    // Update system map location display
+    const mapLocationEl = document.getElementById('system-map-location');
+    if (mapLocationEl) mapLocationEl.textContent = data.locationName;
+
+    // Update bridge header location display
+    const bridgeLocationEl = document.getElementById('bridge-location');
+    if (bridgeLocationEl) bridgeLocationEl.textContent = data.locationName;
+
     // Show notification
     showNotification(`Arrived at ${data.locationName} (${data.travelHours}h transit)`, 'success');
+
+    // Animate camera to new location with max zoom (if enabled in settings)
+    const animateCamera = localStorage.getItem('ops-setting-animate-camera') !== 'false';
+    if (animateCamera && typeof window.animateCameraToLocation === 'function' && data.locationId) {
+      window.animateCameraToLocation(data.locationId, { duration: 400, maxZoom: true });
+    }
 
     // Re-render pilot panel to remove TRAVEL button
     if (state.role === 'pilot') {
@@ -3601,6 +3659,10 @@ function setupPilotListeners() {
       state.shipState.locationId = data.locationId;
       state.shipState.locationName = data.toLocation;
     }
+
+    // Update bridge header location display
+    const bridgeLocationEl = document.getElementById('bridge-location');
+    if (bridgeLocationEl) bridgeLocationEl.textContent = data.toLocation;
 
     // Show notification
     showNotification(`Undocked from ${data.fromLocation}`, 'success');
@@ -6980,6 +7042,15 @@ function openHamburgerMenu() {
     menu.classList.add('open');
     overlay?.classList.remove('hidden');
     overlay?.classList.add('visible');
+
+    // Initialize settings from localStorage
+    const animateCameraCheckbox = document.getElementById('setting-animate-camera');
+    if (animateCameraCheckbox) {
+      animateCameraCheckbox.checked = localStorage.getItem('ops-setting-animate-camera') !== 'false';
+      animateCameraCheckbox.onchange = (e) => {
+        localStorage.setItem('ops-setting-animate-camera', e.target.checked ? 'true' : 'false');
+      };
+    }
   }
 }
 
@@ -7532,15 +7603,27 @@ function showSystemMap() {
 
   const systemName = state.campaign?.current_system || 'Demo System';
 
-  // Build test system options
-  const testSystemOptions = Object.keys(TEST_SYSTEMS)
-    .map(key => `<option value="${key}">${TEST_SYSTEMS[key].name}</option>`)
-    .join('');
+  // Get hex and location for header (matching bridge header format)
+  // Check multiple sources: ship.current_state, shipState, campaign
+  const shipCurrentState = state.ship?.current_state || {};
+  const currentHex = shipCurrentState.systemHex || state.shipState?.systemHex || state.campaign?.current_hex || '----';
+  const currentSystemName = state.campaign?.current_system || systemName || 'Unknown';
+  const currentLocation = shipCurrentState.locationName || state.shipState?.locationName || 'Unknown Location';
+  const campaignDate = state.campaign?.current_date || '1105-001';
+  const screenLabel = state.isGM ? 'System Map · GM' : 'System Map · Player';
 
   overlay.innerHTML = `
     <div class="esc-hint">ESC to close</div>
     <div class="system-map-header">
-      <h2>Shared System Map: <span id="system-map-name">${escapeHtml(systemName)}</span></h2>
+      <div class="system-map-header-info">
+        <span class="screen-label">${escapeHtml(screenLabel)}</span>
+        <h1 id="system-map-ship-name">${escapeHtml(state.ship?.name || 'Ship')}</h1>
+        <span id="system-map-hex" class="hex-display" title="${escapeHtml(currentSystemName)}">${escapeHtml(currentHex)}</span>
+        <span class="header-separator">·</span>
+        <span id="system-map-location" class="location-display prominent">${escapeHtml(currentLocation)}</span>
+        <span class="header-separator">·</span>
+        <span id="system-map-date" class="date-display">${escapeHtml(campaignDate)}</span>
+      </div>
       <div class="system-map-controls">
         <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;" title="Select a star system to view">
           <option value="">Loading systems...</option>
@@ -7598,39 +7681,47 @@ function showSystemMap() {
       if (container) {
         initSystemMap(container);
 
-        // Populate system selector from index
+        // Populate system selector from index (20 systems from _index.json, sorted alphabetically)
         const select = document.getElementById('test-system-select');
         try {
           const indexRes = await fetch('/data/star-systems/_index.json');
+          if (!indexRes.ok) throw new Error(`HTTP ${indexRes.status}`);
           const index = await indexRes.json();
           const systems = index.systems
             .filter(s => !s.special)  // Exclude jumpspace
             .sort((a, b) => a.name.localeCompare(b.name));
 
+          console.log(`[SystemMap] Loaded ${systems.length} systems from _index.json`);
+
           select.innerHTML = systems
             .map(s => `<option value="${s.id}">${s.name}</option>`)
             .join('');
 
-          // Try to select current system or default to flammarion
+          // Select current system (must match by name, case-insensitive)
           const currentSystemName = state.campaign?.current_system || 'Flammarion';
-          const currentSystemId = currentSystemName.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
           const matchingSystem = systems.find(s =>
-            s.id === currentSystemId ||
-            s.name.toLowerCase() === currentSystemName.toLowerCase()
+            s.name.toLowerCase() === currentSystemName.toLowerCase() ||
+            s.id.toLowerCase() === currentSystemName.toLowerCase()
           );
           if (matchingSystem) {
             select.value = matchingSystem.id;
+            console.log(`[SystemMap] Selected current system: ${matchingSystem.name}`);
           } else {
-            select.value = 'flammarion';
+            // Default to first system alphabetically (already sorted)
+            select.value = systems[0]?.id || 'flammarion';
+            console.log(`[SystemMap] No match for "${currentSystemName}", defaulting to ${select.value}`);
           }
 
           // Load the selected system
           await loadSelectedSystemFromJSON(select.value);
-          document.getElementById('system-map-name').textContent = systems.find(s => s.id === select.value)?.name || currentSystemName;
+          const nameEl = document.getElementById('system-map-name');
+          if (nameEl) {
+            nameEl.textContent = systems.find(s => s.id === select.value)?.name || currentSystemName;
+          }
 
         } catch (err) {
-          console.error('[SystemMap] Failed to load system index:', err);
-          // Fallback to TEST_SYSTEMS
+          console.error('[SystemMap] Failed to load system index, falling back to TEST_SYSTEMS:', err);
+          // Fallback to TEST_SYSTEMS (3 systems) - this should rarely happen
           select.innerHTML = Object.entries(TEST_SYSTEMS)
             .map(([key, sys]) => `<option value="${key}">${sys.name}</option>`)
             .join('');
@@ -7646,8 +7737,17 @@ function showSystemMap() {
   });
 
   // Helper to load system from JSON
-  async function loadSelectedSystemFromJSON(systemId) {
+  // If forceReload=false, skip if system already loaded (preserves orbital positions)
+  async function loadSelectedSystemFromJSON(systemId, forceReload = false) {
     try {
+      // Check if system already loaded (from bridgeJoined early load)
+      const currentId = window.systemMapState?.system?.id;
+      if (!forceReload && currentId === systemId) {
+        console.log(`[SystemMap] System ${systemId} already loaded, skipping reload`);
+        setTimeout(() => updateObjectSelector(), 100);
+        return;
+      }
+
       const res = await fetch(`/data/star-systems/${systemId}.json`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const systemData = await res.json();
@@ -7689,18 +7789,66 @@ function showSystemMap() {
     }
   });
 
-  // Load button switches to selected system
+  // Load button switches to selected system AND updates ship location
   document.getElementById('btn-load-system').addEventListener('click', async () => {
     const select = document.getElementById('test-system-select');
     if (select.value) {
-      const systemName = select.options[select.selectedIndex]?.text || select.value;
-      await loadSelectedSystemFromJSON(select.value);
-      document.getElementById('system-map-name').textContent = systemName;
-      // AR-86: Refresh places overlay if visible
-      if (placesVisible) {
-        showPlacesOverlay();
+      const systemId = select.value;
+      const systemName = select.options[select.selectedIndex]?.text || systemId;
+
+      // Fetch system data to get hex and exit-jump location
+      try {
+        const res = await fetch(`/data/star-systems/${systemId}.json`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const systemData = await res.json();
+
+        // Find exit-jump location (default arrival point)
+        const exitJump = systemData.locations?.find(loc => loc.id === 'loc-exit-jump');
+        const exitJumpName = exitJump?.name || 'Exit Jump Space';
+        const newHex = systemData.hex || '----';
+
+        // Update ship state locally
+        if (state.shipState) {
+          state.shipState.systemHex = newHex;
+          state.shipState.locationId = 'loc-exit-jump';
+          state.shipState.locationName = exitJumpName;
+        }
+
+        // Update campaign current system
+        if (state.campaign) {
+          state.campaign.current_system = systemName;
+        }
+
+        // Update header elements
+        const hexEl = document.getElementById('system-map-hex');
+        if (hexEl) {
+          hexEl.textContent = newHex;
+          hexEl.title = systemName;
+        }
+        const locEl = document.getElementById('system-map-location');
+        if (locEl) locEl.textContent = exitJumpName;
+
+        // Also update bridge header if visible
+        const bridgeHex = document.getElementById('bridge-hex');
+        if (bridgeHex) {
+          bridgeHex.textContent = newHex;
+          bridgeHex.title = systemName;
+        }
+        const bridgeLoc = document.getElementById('bridge-location');
+        if (bridgeLoc) bridgeLoc.textContent = exitJumpName;
+
+        // Load the system into map
+        await loadSelectedSystemFromJSON(systemId, true); // forceReload=true for explicit switch
+
+        // AR-86: Refresh places overlay if visible
+        if (placesVisible) {
+          showPlacesOverlay();
+        }
+        showNotification(`Arrived at ${systemName} - ${exitJumpName}`, 'success');
+      } catch (err) {
+        console.error(`[SystemMap] Failed to switch to ${systemId}:`, err);
+        showNotification(`Failed to switch to ${systemName}`, 'error');
       }
-      showNotification(`Switched to ${systemName} system`, 'success');
     }
   });
 
@@ -7848,6 +7996,42 @@ function closeSystemMap() {
 // Expose system map functions globally
 window.showSystemMap = showSystemMap;
 window.closeSystemMap = closeSystemMap;
+
+/**
+ * AR-102: Load the current system data at session startup
+ * This is called early (on bridgeJoined) to ensure system data is ready
+ * for any component that needs it (embedded map, navigation, etc.)
+ * @param {string} systemName - Name of the system to load (e.g., 'Flammarion')
+ */
+async function loadCurrentSystem(systemName) {
+  if (!systemName) {
+    console.warn('[loadCurrentSystem] No system name provided');
+    return;
+  }
+
+  // Convert system name to ID (lowercase, no spaces or dashes)
+  const systemId = systemName.toLowerCase().replace(/\s+/g, '').replace(/-/g, '');
+
+  try {
+    const res = await fetch(`/data/star-systems/${systemId}.json`);
+    if (!res.ok) {
+      console.error(`[loadCurrentSystem] Failed to fetch ${systemId}.json: HTTP ${res.status}`);
+      return;
+    }
+    const systemData = await res.json();
+
+    // Use global loadSystemFromJSON exposed from system-map.js
+    if (typeof window.loadSystemFromJSON === 'function') {
+      window.loadSystemFromJSON(systemData);
+      console.log(`[loadCurrentSystem] Loaded system: ${systemName} (${systemData.celestialObjects?.length || 0} objects)`);
+    } else {
+      console.error('[loadCurrentSystem] window.loadSystemFromJSON not available');
+    }
+  } catch (err) {
+    console.error(`[loadCurrentSystem] Error loading ${systemName}:`, err);
+  }
+}
+window.loadCurrentSystem = loadCurrentSystem;
 
 // ==================== AR-94: Embedded System Map for Pilot View ====================
 

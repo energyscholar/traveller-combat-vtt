@@ -209,10 +209,13 @@
           <!-- AR-92: Ship name now has campaign as tooltip -->
           <h1 id="bridge-ship-name" title="">Ship Name</h1>
           <span id="bridge-campaign-name" class="campaign-display hidden"></span>
+          <!-- AR-103: Hex coordinate after ship name, tooltip shows system name -->
+          <span id="bridge-hex" class="hex-display" title="Current parsec">----</span>
+          <span class="header-separator">·</span>
           <!-- AR-92: Location more prominent, before date -->
           <span id="bridge-location" class="location-display prominent">System</span>
           <span class="header-separator">·</span>
-          <span id="bridge-date" class="date-display">1105-001 12:00</span>
+          <span id="bridge-date" class="date-display" title="Imperial Calendar: Day-Year format. The Third Imperium uses a 365-day year starting from its founding in year 0.">1105-001 12:00</span>
         </div>
         <div id="guest-indicator" class="guest-indicator hidden">
           <span class="guest-badge">GUEST</span>
@@ -1452,6 +1455,18 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Settings Section -->
+      <div class="gm-menu-section settings-section">
+        <h3>Settings</h3>
+        <div class="settings-controls">
+          <label class="toggle-setting">
+            <input type="checkbox" id="setting-animate-camera" checked>
+            <span>Animate camera on travel</span>
+          </label>
+        </div>
+        <p class="settings-hint">More settings coming soon</p>
       </div>
     </div>
     <div class="modal-footer">
