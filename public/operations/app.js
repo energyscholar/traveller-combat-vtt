@@ -41,6 +41,110 @@ const debugLog = (...args) => DEBUG && console.log(...args);
 const debugWarn = (...args) => DEBUG && console.warn(...args);
 const debugError = (...args) => DEBUG && console.error(...args);
 
+// ==================== Bridge Clock ====================
+// Ticking clock for bridge display (Imperial calendar style)
+const bridgeClock = {
+  intervalId: null,
+  year: 1115,
+  day: 1,
+  hours: 0,
+  minutes: 0,
+  seconds: 0
+};
+
+// Parse campaign date string (format: "YYYY-DDD HH:MM" or "YYYY-DDD HH:MM:SS")
+function parseCampaignDate(dateStr) {
+  if (!dateStr || dateStr === '???') return null;
+  // Match formats like "1115-310 12:00" or "1115-310 12:00:00"
+  const match = dateStr.match(/^(\d{4})-(\d{3})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  return {
+    year: parseInt(match[1], 10),
+    day: parseInt(match[2], 10),
+    hours: parseInt(match[3], 10),
+    minutes: parseInt(match[4], 10),
+    seconds: match[5] ? parseInt(match[5], 10) : 0
+  };
+}
+
+// Format clock time as HH:MM:SS
+function formatClockTime(h, m, s) {
+  return String(h).padStart(2, '0') + ':' +
+         String(m).padStart(2, '0') + ':' +
+         String(s).padStart(2, '0');
+}
+
+// Format day-year as DDD-YYYY (Traveller style)
+function formatDayYear(day, year) {
+  return String(day).padStart(3, '0') + '-' + year;
+}
+
+// Update bridge clock display
+function updateBridgeClockDisplay() {
+  const timeEl = document.getElementById('bridge-time');
+  const dayYearEl = document.getElementById('bridge-day-year');
+  if (timeEl) timeEl.textContent = formatClockTime(bridgeClock.hours, bridgeClock.minutes, bridgeClock.seconds);
+  if (dayYearEl) dayYearEl.textContent = formatDayYear(bridgeClock.day, bridgeClock.year);
+}
+
+// Tick the clock forward by 1 second
+function tickBridgeClock() {
+  bridgeClock.seconds++;
+  if (bridgeClock.seconds >= 60) {
+    bridgeClock.seconds = 0;
+    bridgeClock.minutes++;
+    if (bridgeClock.minutes >= 60) {
+      bridgeClock.minutes = 0;
+      bridgeClock.hours++;
+      if (bridgeClock.hours >= 24) {
+        bridgeClock.hours = 0;
+        bridgeClock.day++;
+        if (bridgeClock.day > 365) {
+          bridgeClock.day = 1;
+          bridgeClock.year++;
+        }
+      }
+    }
+  }
+  updateBridgeClockDisplay();
+}
+
+// Start the bridge clock from a campaign date
+function startBridgeClock(dateStr) {
+  stopBridgeClock();
+  const parsed = parseCampaignDate(dateStr);
+  if (parsed) {
+    bridgeClock.year = parsed.year;
+    bridgeClock.day = parsed.day;
+    bridgeClock.hours = parsed.hours;
+    bridgeClock.minutes = parsed.minutes;
+    bridgeClock.seconds = parsed.seconds;
+  }
+  updateBridgeClockDisplay();
+  bridgeClock.intervalId = setInterval(tickBridgeClock, 1000);
+}
+
+// Stop the bridge clock
+function stopBridgeClock() {
+  if (bridgeClock.intervalId) {
+    clearInterval(bridgeClock.intervalId);
+    bridgeClock.intervalId = null;
+  }
+}
+
+// Set bridge clock to a new date (used when time advances)
+function setBridgeClockDate(dateStr) {
+  const parsed = parseCampaignDate(dateStr);
+  if (parsed) {
+    bridgeClock.year = parsed.year;
+    bridgeClock.day = parsed.day;
+    bridgeClock.hours = parsed.hours;
+    bridgeClock.minutes = parsed.minutes;
+    bridgeClock.seconds = parsed.seconds;
+    updateBridgeClockDisplay();
+  }
+}
+
 // ==================== State ====================
 const state = {
   socket: null,
@@ -505,7 +609,7 @@ function initSocket() {
   });
 
   state.socket.on('ops:timeAdvanced', (data) => {
-    document.getElementById('bridge-date').textContent = data.newDate;
+    setBridgeClockDate(data.newDate);
     showNotification(`Time advanced to ${data.newDate}`, 'info');
   });
 
@@ -1113,8 +1217,7 @@ function initSocket() {
     if (data.currentDate && state.campaign) {
       state.campaign.current_date = data.currentDate;
       // Update date display
-      const dateEl = document.getElementById('bridge-date');
-      if (dateEl) dateEl.textContent = data.currentDate;
+      setBridgeClockDate(data.currentDate);
       const gmDateEl = document.getElementById('campaign-date');
       if (gmDateEl) gmDateEl.value = data.currentDate;
     }
@@ -2618,8 +2721,8 @@ function renderBridge() {
     campaignNameEl.textContent = state.campaign?.name || '';
   }
 
-  // Date/time
-  document.getElementById('bridge-date').textContent = state.campaign?.current_date || '???';
+  // Date/time - start the ticking clock
+  startBridgeClock(state.campaign?.current_date || '1115-001 00:00');
 
   // Current location within system (e.g., "Flammarion Highport")
   const locationEl = document.getElementById('bridge-location');
@@ -3622,8 +3725,7 @@ function setupPilotListeners() {
     // Update campaign date
     if (state.campaign && data.newDate) {
       state.campaign.current_date = data.newDate;
-      const dateEl = document.getElementById('bridge-date');
-      if (dateEl) dateEl.textContent = data.newDate;
+      setBridgeClockDate(data.newDate);
     }
 
     // Clear pending travel
@@ -3677,8 +3779,7 @@ function setupPilotListeners() {
     if (state.campaign) {
       state.campaign.current_date = data.newDate;
     }
-    const dateEl = document.getElementById('bridge-date');
-    if (dateEl) dateEl.textContent = data.newDate;
+    setBridgeClockDate(data.newDate);
     showNotification(`Time: ${data.newDate}${data.advancedBy ? ` (${data.advancedBy})` : ''}`, 'info');
   });
 }
@@ -5774,6 +5875,19 @@ function showModal(templateId) {
     });
   }
 
+  // AR-108.1: Refuel modal handlers (CSP compliance)
+  if (templateId === 'template-refuel') {
+    document.getElementById('refuel-amount')?.addEventListener('input', () => updateRefuelAmountPreview());
+    document.getElementById('btn-refuel-max')?.addEventListener('click', () => setRefuelMax());
+    document.getElementById('btn-execute-refuel')?.addEventListener('click', () => executeRefuel());
+  }
+
+  // AR-108.1: Process Fuel modal handlers (CSP compliance)
+  if (templateId === 'template-process-fuel') {
+    document.getElementById('btn-process-max')?.addEventListener('click', () => setProcessMax());
+    document.getElementById('btn-execute-process')?.addEventListener('click', () => executeProcessFuel());
+  }
+
   document.getElementById('modal-overlay').classList.remove('hidden');
 }
 
@@ -6994,6 +7108,28 @@ document.addEventListener('DOMContentLoaded', () => {
       closeModal();
     }
   });
+
+  // AR-108.1: Event listeners for migrated inline handlers (CSP compliance)
+  document.getElementById('btn-copy-log')?.addEventListener('click', () => window.copyShipLog());
+  document.getElementById('btn-subsector-map')?.addEventListener('click', () => toggleSubsectorMap());
+  document.getElementById('menu-library')?.addEventListener('click', () => showLibraryComputer());
+  document.getElementById('menu-ship-config')?.addEventListener('click', () => showShipConfiguration());
+  document.getElementById('menu-crew-roster')?.addEventListener('click', () => showCrewRosterMenu());
+  document.getElementById('menu-medical')?.addEventListener('click', () => showMedicalRecords());
+
+  // Sector map controls
+  document.getElementById('btn-sector-zoom-in')?.addEventListener('click', () => zoomSectorMap(1.2));
+  document.getElementById('btn-sector-zoom-out')?.addEventListener('click', () => zoomSectorMap(0.8));
+  document.getElementById('btn-sector-zoom-reset')?.addEventListener('click', () => resetSectorZoom());
+  document.getElementById('btn-sector-map-close')?.addEventListener('click', () => hideSectorMap());
+
+  // System map controls
+  document.getElementById('btn-system-zoom-in')?.addEventListener('click', () => zoomSystemMap(1.3));
+  document.getElementById('btn-system-zoom-out')?.addEventListener('click', () => zoomSystemMap(0.7));
+  document.getElementById('btn-system-reset-view')?.addEventListener('click', () => resetSystemMapView());
+  document.getElementById('btn-system-toggle-labels')?.addEventListener('click', () => toggleSystemMapLabels());
+  document.getElementById('snap-to-now-btn')?.addEventListener('click', () => snapToNow());
+  document.getElementById('btn-system-map-close')?.addEventListener('click', () => hideSystemMap());
 
   // TIP-1: Contact tooltip close button and click-outside-to-close
   document.getElementById('btn-close-tooltip').addEventListener('click', hideContactTooltip);

@@ -974,6 +974,21 @@ input[type="checkbox"] {
   color: var(--text-secondary);
 }
 
+/* Ticking clock display */
+.bridge-time {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.date-separator {
+  color: var(--text-muted);
+  margin: 0 4px;
+}
+
+.bridge-day-year {
+  color: var(--text-secondary);
+}
+
 /* AR-103: Hex coordinate display */
 .hex-display {
   font-weight: 600;
@@ -8177,6 +8192,42 @@ body.role-engineer .role-panel .role-actions {
   display: block;
 }
 
+/* AR-87: System Map Zoom Controls */
+.system-map-zoom-controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 100;
+}
+
+.zoom-btn {
+  width: 32px;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.zoom-btn:hover {
+  background: rgba(40, 40, 50, 0.9);
+  border-color: var(--accent-blue);
+}
+
+.zoom-btn:active {
+  background: rgba(60, 60, 80, 0.9);
+}
+
 .system-map-instructions {
   position: absolute;
   bottom: 60px;
@@ -8369,6 +8420,14 @@ body.role-engineer .role-panel .role-actions {
   padding: var(--space-xs);
 }
 
+.system-map-places .places-footer {
+  padding: var(--space-xs) var(--space-sm);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  border-top: 1px solid var(--border-color);
+}
+
 .system-map-places .place-item {
   display: flex;
   align-items: center;
@@ -8486,6 +8545,64 @@ body.role-engineer .role-panel .role-actions {
 
 .place-details-panel .detail-actions li {
   text-transform: capitalize;
+}
+
+.place-details-panel .detail-physics {
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: rgba(0, 100, 200, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+}
+
+.place-details-panel .detail-physics strong {
+  color: var(--accent-blue);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.place-details-panel .physics-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.place-details-panel .physics-g-select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.place-details-panel .physics-g-select:hover {
+  border-color: var(--accent-blue);
+}
+
+.place-details-panel .physics-g-select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(var(--accent-blue-rgb), 0.2);
+}
+
+.place-details-panel .physics-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.place-details-panel .physics-label {
+  color: var(--text-muted);
+}
+
+.place-details-panel .physics-value {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
 }
 
 .place-details-panel .details-footer {

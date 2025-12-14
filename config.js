@@ -5,7 +5,12 @@ module.exports = {
   // Server Configuration
   server: {
     port: process.env.PORT || 3000,
-    host: process.env.HOST || 'localhost'
+    host: process.env.HOST || 'localhost',
+    // Disable browser caching for JS/CSS/HTML files
+    // Default: true in dev (cache off), false in prod (cache on)
+    disableCache: process.env.DISABLE_CACHE !== undefined
+      ? process.env.DISABLE_CACHE === 'true'
+      : process.env.NODE_ENV !== 'production'
   },
 
   // Logging Configuration

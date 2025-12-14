@@ -215,7 +215,11 @@
           <!-- AR-92: Location more prominent, before date -->
           <span id="bridge-location" class="location-display prominent">System</span>
           <span class="header-separator">·</span>
-          <span id="bridge-date" class="date-display" title="Imperial Calendar: Day-Year format. The Third Imperium uses a 365-day year starting from its founding in year 0.">1105-001 12:00</span>
+          <span id="bridge-date" class="date-display" title="Imperial Calendar: Day-Year format. The Third Imperium uses a 365-day year starting from its founding in year 0.">
+            <span id="bridge-time" class="bridge-time">00:00:00</span>
+            <span class="date-separator">·</span>
+            <span id="bridge-day-year" class="bridge-day-year">001-1115</span>
+          </span>
         </div>
         <div id="guest-indicator" class="guest-indicator hidden">
           <span class="guest-badge">GUEST</span>
@@ -409,7 +413,7 @@
           <div class="panel-header">
             <h2>Ship Log</h2>
             <button id="btn-add-log" class="btn btn-small" title="Add a personal note to the ship's log">+ Add Note</button>
-            <button id="btn-copy-log" class="btn btn-small btn-secondary" onclick="window.copyShipLog()" title="Copy ship log to clipboard">Copy</button>
+            <button id="btn-copy-log" class="btn btn-small btn-secondary" title="Copy ship log to clipboard">Copy</button>
             <button class="btn btn-icon btn-panel-expand" data-panel="log-panel" title="Expand panel [4]">⛶</button>
           </div>
           <div id="ship-log" class="ship-log">
@@ -542,7 +546,7 @@
           <div class="gm-control-group">
             <button id="btn-gm-add-contact" class="btn btn-small" title="Create new sensor contact - Ships, asteroids, stations">Add Contact</button>
             <button id="btn-gm-lookup-system" class="btn btn-small" title="Search TravellerMap for system data - Set current location">Lookup System</button>
-            <button id="btn-subsector-map" class="btn btn-small" onclick="toggleSubsectorMap()" title="View shared map of known space - Click system to navigate">Known Space</button>
+            <button id="btn-subsector-map" class="btn btn-small" title="View shared map of known space - Click system to navigate">Known Space</button>
           </div>
           <!-- Combat Group -->
           <div class="gm-control-group gm-control-group-combat">
@@ -632,14 +636,14 @@
             <span class="menu-icon">👥</span>
             <span class="menu-label">NPC Contacts</span>
           </button>
-          <button class="menu-item" onclick="showLibraryComputer()" data-feature="library">
+          <button class="menu-item" id="menu-library" data-feature="library">
             <span class="menu-icon">📚</span>
             <span class="menu-label">Library Computer</span>
           </button>
         </div>
         <div class="menu-section">
           <h4>Ship Management</h4>
-          <button class="menu-item" onclick="showShipConfiguration()" data-feature="ship-config">
+          <button class="menu-item" id="menu-ship-config" data-feature="ship-config">
             <span class="menu-icon">🔧</span>
             <span class="menu-label">Ship Configuration</span>
           </button>
@@ -656,11 +660,11 @@
         </div>
         <div class="menu-section">
           <h4>Crew</h4>
-          <button class="menu-item" onclick="showCrewRosterMenu()" data-feature="crew-roster">
+          <button class="menu-item" id="menu-crew-roster" data-feature="crew-roster">
             <span class="menu-icon">📋</span>
             <span class="menu-label">Crew Roster</span>
           </button>
-          <button class="menu-item" onclick="showMedicalRecords()" data-feature="medical">
+          <button class="menu-item" id="menu-medical" data-feature="medical">
             <span class="menu-icon">🏥</span>
             <span class="menu-label">Medical Records</span>
           </button>
@@ -684,7 +688,7 @@
             <span class="menu-icon">📜</span>
             <span class="menu-label">Ship Log</span>
           </button>
-          <button class="menu-item" onclick="showLibraryComputer()" data-feature="library">
+          <button class="menu-item" id="menu-library" data-feature="library">
             <span class="menu-icon">📚</span>
             <span class="menu-label">Ship's Library</span>
           </button>
@@ -1066,8 +1070,8 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
       <div class="form-group">
         <label for="refuel-amount">Amount (tons):</label>
         <div class="input-with-button">
-          <input type="number" id="refuel-amount" min="1" value="10" oninput="updateRefuelAmountPreview()">
-          <button class="btn btn-small" onclick="setRefuelMax()">Max</button>
+          <input type="number" id="refuel-amount" min="1" value="10">
+          <button class="btn btn-small" id="btn-refuel-max">Max</button>
         </div>
       </div>
       <div id="refuel-preview" class="refuel-preview">
@@ -1076,7 +1080,7 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Cancel</button>
-      <button class="btn btn-primary" onclick="executeRefuel()">Refuel</button>
+      <button class="btn btn-primary" id="btn-execute-refuel">Refuel</button>
     </div>
   </template>
 
@@ -1095,7 +1099,7 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
         <label for="process-amount">Amount to Process (tons):</label>
         <div class="input-with-button">
           <input type="number" id="process-amount" min="1" value="10">
-          <button class="btn btn-small" onclick="setProcessMax()">Max</button>
+          <button class="btn btn-small" id="btn-process-max">Max</button>
         </div>
       </div>
       <div class="process-info">
@@ -1105,7 +1109,7 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" data-close-modal>Cancel</button>
-      <button class="btn btn-primary" onclick="executeProcessFuel()">Start Processing</button>
+      <button class="btn btn-primary" id="btn-execute-process">Start Processing</button>
     </div>
   </template>
 
@@ -1664,11 +1668,11 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
         <option value="trins-veil">Trin's Veil</option>
       </select>
       <div class="sector-zoom-controls">
-        <button class="btn btn-icon btn-small" onclick="zoomSectorMap(1.2)" title="Zoom In">+</button>
-        <button class="btn btn-icon btn-small" onclick="zoomSectorMap(0.8)" title="Zoom Out">−</button>
-        <button class="btn btn-icon btn-small" onclick="resetSectorZoom()" title="Reset Zoom">⟲</button>
+        <button class="btn btn-icon btn-small" id="btn-sector-zoom-in" title="Zoom In">+</button>
+        <button class="btn btn-icon btn-small" id="btn-sector-zoom-out" title="Zoom Out">−</button>
+        <button class="btn btn-icon btn-small" id="btn-sector-zoom-reset" title="Reset Zoom">⟲</button>
       </div>
-      <button class="btn btn-icon" onclick="hideSectorMap()" title="Close">×</button>
+      <button class="btn btn-icon" id="btn-sector-map-close" title="Close">×</button>
     </div>
     <div id="sector-map-canvas-container" class="sector-map-content"></div>
   </div>
@@ -1679,13 +1683,13 @@ Skills: Pilot-2, Gunnery-1, Vacc Suit-1"></textarea>
     <div class="system-map-header">
       <h3 id="system-map-title">Shared System Map</h3>
       <div class="system-map-controls">
-        <button class="btn btn-icon btn-small" onclick="zoomSystemMap(1.3)" title="Zoom In">+</button>
-        <button class="btn btn-icon btn-small" onclick="zoomSystemMap(0.7)" title="Zoom Out">−</button>
-        <button class="btn btn-icon btn-small" onclick="resetSystemMapView()" title="Reset View">⟲</button>
-        <button class="btn btn-icon btn-small" onclick="toggleSystemMapLabels()" title="Toggle Labels">T</button>
-        <button class="btn btn-small" id="snap-to-now-btn" onclick="snapToNow()" title="Reset time to epoch">NOW</button>
+        <button class="btn btn-icon btn-small" id="btn-system-zoom-in" title="Zoom In">+</button>
+        <button class="btn btn-icon btn-small" id="btn-system-zoom-out" title="Zoom Out">−</button>
+        <button class="btn btn-icon btn-small" id="btn-system-reset-view" title="Reset View">⟲</button>
+        <button class="btn btn-icon btn-small" id="btn-system-toggle-labels" title="Toggle Labels">T</button>
+        <button class="btn btn-small" id="snap-to-now-btn" title="Reset time to epoch">NOW</button>
       </div>
-      <button class="btn btn-icon" onclick="hideSystemMap()" title="Close">×</button>
+      <button class="btn btn-icon" id="btn-system-map-close" title="Close">×</button>
     </div>
     <div id="system-map-canvas-container" class="system-map-content"></div>
     <div id="system-map-info-panel" class="system-map-info" style="display: none;"></div>

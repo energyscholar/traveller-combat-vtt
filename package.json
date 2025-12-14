@@ -18,6 +18,7 @@
     "test:smoke": "node tests/run-all-tests.js --smoke",
     "test:fast": "FAST_TEST=1 node tests/run-all-tests.js --smoke",
     "test:watch": "nodemon --watch lib --watch tests --ext js --exec 'npm run test:smoke'",
+    "test:e2e": "tests/e2e/run-with-cleanup.sh",
     "cleanup": "lsof -t -i:3000 | xargs kill -9 2>/dev/null || true && echo 'Port 3000 cleared'",
     "cleanup:all": "pkill -f 'node.*server.js' 2>/dev/null; pkill -f puppeteer 2>/dev/null; npm run cleanup",
     "cleanup:tests": "node tests/test-cleanup.js",

@@ -69,6 +69,38 @@ function initSystemMap(container) {
   systemMapState.canvas = canvas;
   systemMapState.ctx = canvas.getContext('2d');
 
+  // AR-87: Create zoom controls
+  const zoomControls = document.createElement('div');
+  zoomControls.className = 'system-map-zoom-controls';
+
+  const btnZoomIn = document.createElement('button');
+  btnZoomIn.id = 'btn-zoom-in';
+  btnZoomIn.className = 'zoom-btn';
+  btnZoomIn.textContent = '+';
+  btnZoomIn.title = 'Zoom In';
+  btnZoomIn.addEventListener('click', () => {
+    const newZoom = systemMapState.zoom * 1.5;
+    if (newZoom <= systemMapState.MAX_ZOOM) {
+      systemMapState.zoom = newZoom;
+    }
+  });
+
+  const btnZoomOut = document.createElement('button');
+  btnZoomOut.id = 'btn-zoom-out';
+  btnZoomOut.className = 'zoom-btn';
+  btnZoomOut.textContent = '-';
+  btnZoomOut.title = 'Zoom Out';
+  btnZoomOut.addEventListener('click', () => {
+    const newZoom = systemMapState.zoom / 1.5;
+    if (newZoom >= systemMapState.MIN_ZOOM) {
+      systemMapState.zoom = newZoom;
+    }
+  });
+
+  zoomControls.appendChild(btnZoomIn);
+  zoomControls.appendChild(btnZoomOut);
+  container.appendChild(zoomControls);
+
   // Size canvas to container
   resizeCanvas();
 
@@ -368,10 +400,10 @@ function showBodyInfoPanel(body) {
         <button class="info-panel-close" onclick="window.hideSystemMapInfoPanel()">×</button>
       </div>
       <div class="info-panel-content">
-        <div class="info-row"><span class="info-label">Type:</span> <span class="info-value">${body.type}</span></div>
-        <div class="info-row"><span class="info-label">Orbit:</span> <span class="info-value">${body.orbitAU.toFixed(2)} AU</span></div>
-        <div class="info-row"><span class="info-label">Size:</span> <span class="info-value">${Math.round(body.size).toLocaleString()} km</span></div>
-        <div class="info-row"><span class="info-label">Period:</span> <span class="info-value">${Math.round(body.orbitPeriod)} days</span></div>
+        <div class="info-row"><span class="info-label">Type:</span> <span class="info-value">${body.type || 'Unknown'}</span></div>
+        <div class="info-row"><span class="info-label">Orbit:</span> <span class="info-value">${(body.orbitAU ?? body.orbitRadius ?? 0).toFixed(2)} AU</span></div>
+        <div class="info-row"><span class="info-label">Size:</span> <span class="info-value">${Math.round(body.size || body.radiusKm || 0).toLocaleString()} km</span></div>
+        ${body.orbitPeriod ? `<div class="info-row"><span class="info-label">Period:</span> <span class="info-value">${Math.round(body.orbitPeriod)} days</span></div>` : ''}
         <div class="info-row"><span class="info-label">Travel:</span> <span class="info-value">${travelTime}</span></div>
         ${body.isMainworld ? `<div class="info-row"><span class="info-label">UWP:</span> <span class="info-value uwp">${systemMapState.system?.uwp || '?'}</span></div>` : ''}
         ${body.moons?.length ? `<div class="info-row"><span class="info-label">Moons:</span> <span class="info-value">${body.moons.length}</span></div>` : ''}
@@ -386,6 +418,69 @@ function showBodyInfoPanel(body) {
 }
 
 /**
+ * Generate brachistochrone trajectory tooltip for a destination
+ */
+function generateTrajectoryTooltip(placeId) {
+  const currentLocationId = window.state?.shipState?.locationId;
+  const thrust = window.state?.shipTemplate?.thrust || 1;
+
+  // Calculate distance
+  let distanceKm = 15000000; // 0.1 AU default
+  let distanceAU = 0.1;
+
+  if (currentLocationId && currentLocationId !== placeId) {
+    const calc = calculateLocationDistance(currentLocationId, placeId);
+    distanceKm = calc.distanceKm;
+    distanceAU = calc.distanceAU;
+  } else {
+    // Use destination's orbital distance
+    const place = systemMapState.system?.places?.find(p => p.id === placeId);
+    const linkedObject = place?.linkedTo
+      ? systemMapState.celestialObjects?.find(o => o.id === place.linkedTo)
+      : null;
+    if (linkedObject?.orbitAU) {
+      distanceAU = linkedObject.orbitAU;
+      distanceKm = distanceAU * AU_TO_KM;
+    }
+  }
+
+  // Brachistochrone calculations
+  const distanceM = distanceKm * 1000;
+  const accelM = thrust * 10;
+  const travelSeconds = 2 * Math.sqrt(distanceM / accelM);
+  const travelHours = Math.ceil(travelSeconds / 3600);
+  const halfDistanceKm = distanceKm / 2;
+  const halfDistanceM = distanceM / 2;
+  const maxVelocityMs = Math.sqrt(2 * accelM * halfDistanceM);
+  const maxVelocityKms = maxVelocityMs / 1000;
+
+  // Format helpers
+  const formatKm = (km) => {
+    if (km >= 1e9) return `${(km / 1e9).toFixed(1)}B km`;
+    if (km >= 1e6) return `${(km / 1e6).toFixed(1)}M km`;
+    if (km >= 1e3) return `${(km / 1e3).toFixed(0)}K km`;
+    return `${km.toFixed(0)} km`;
+  };
+
+  const formatVelocity = (kms) => {
+    if (kms >= 1000) return `${(kms / 1000).toFixed(0)}K km/s`;
+    if (kms >= 100) return `${kms.toFixed(0)} km/s`;
+    return `${kms.toFixed(1)} km/s`;
+  };
+
+  const travelText = travelHours >= 24
+    ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
+    : `${travelHours}h`;
+
+  return `BRACHISTOCHRONE TRAJECTORY
+Distance: ${distanceAU.toFixed(2)} AU (${formatKm(distanceKm)})
+Thrust: ${thrust}G constant
+Travel time: ${travelText}
+Turnaround: ${formatKm(halfDistanceKm)}
+Max velocity: ${formatVelocity(maxVelocityKms)}`;
+}
+
+/**
  * Show places overlay (destinations sidebar)
  */
 function showPlacesOverlay() {
@@ -397,8 +492,11 @@ function showPlacesOverlay() {
   overlay.id = 'system-map-places';
   overlay.className = 'system-map-places';
 
-  const placesHtml = systemMapState.system.places.map(place => `
+  const placesHtml = systemMapState.system.places.map(place => {
+    const tooltip = generateTrajectoryTooltip(place.id);
+    return `
     <div class="place-item" data-place-id="${place.id}"
+         title="${tooltip}"
          onclick="window.goToPlace('${place.id}')"
          oncontextmenu="event.preventDefault(); window.showPlaceDetails('${place.id}')">
       <span class="place-icon">${place.icon}</span>
@@ -407,7 +505,8 @@ function showPlacesOverlay() {
         <div class="place-desc">${place.description}</div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   overlay.innerHTML = `
     <div class="places-header">
@@ -417,6 +516,7 @@ function showPlacesOverlay() {
     <div class="places-list">
       ${placesHtml}
     </div>
+    <div class="places-footer">Right-click to travel</div>
   `;
 
   document.body.appendChild(overlay);
@@ -511,57 +611,94 @@ function showPlaceDetails(placeId) {
   // Calculate distance and travel time from current location
   const shipState = window.state?.shipState || {};
   const currentLocationId = shipState.locationId;
-  const thrust = getShipThrust();
+  const thrust = 1; // Default to 1G for initial display, user can change via selector
 
   let distanceInfo = '';
   let travelHours = 4; // Default
+
+  // Calculate distance - either from current location or use destination's orbit as fallback
+  let distanceAU = 0.1;
+  let distanceKm = distanceAU * AU_TO_KM;
+  let distanceLabel = 'from star';
+
   if (currentLocationId && currentLocationId !== placeId) {
-    const { distanceAU, distanceKm } = calculateLocationDistance(currentLocationId, placeId);
-    travelHours = calculateTravelTime(distanceKm, thrust);
-    const travelText = travelHours >= 24
-      ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
-      : `${travelHours}h`;
-
-    // Build detailed physics tooltip for teaching moment
-    const distanceM = distanceKm * 1000;
-    const accelM = thrust * 10; // m/s² (1G = ~10 m/s²)
-    const halfDistanceM = distanceM / 2;
-    const halfDistanceKm = distanceKm / 2;
-
-    // Max velocity at turnaround = sqrt(2 * accel * halfDistance)
-    const maxVelocityMs = Math.sqrt(2 * accelM * halfDistanceM);
-    const maxVelocityKmh = maxVelocityMs * 3.6;
-    const maxVelocityKms = maxVelocityMs / 1000;
-
-    // Format large numbers
-    const formatKm = (km) => {
-      if (km >= 1e9) return `${(km / 1e9).toFixed(1)}B km`;
-      if (km >= 1e6) return `${(km / 1e6).toFixed(1)}M km`;
-      if (km >= 1e3) return `${(km / 1e3).toFixed(0)}K km`;
-      return `${km.toFixed(0)} km`;
-    };
-
-    const formatVelocity = (kms) => {
-      if (kms >= 1000) return `${(kms / 1000).toFixed(0)}K km/s`;
-      if (kms >= 100) return `${kms.toFixed(0)} km/s`;
-      return `${kms.toFixed(1)} km/s`;
-    };
-
-    // Build multiline tooltip
-    distanceInfo = [
-      `BRACHISTOCHRONE TRAJECTORY`,
-      `━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `Distance: ${distanceAU.toFixed(2)} AU (${formatKm(distanceKm)})`,
-      `Thrust: ${thrust}G constant acceleration`,
-      `Travel time: ${travelText}`,
-      ``,
-      `FLIGHT PROFILE:`,
-      `• Accelerate ${thrust}G for ${Math.floor(travelHours/2)}h`,
-      `• Turnaround at ${formatKm(halfDistanceKm)}`,
-      `• Max velocity: ${formatVelocity(maxVelocityKms)}`,
-      `• Decelerate ${thrust}G for ${Math.ceil(travelHours/2)}h`,
-    ].join('&#10;');
+    // Have a different current location - calculate actual distance
+    const calc = calculateLocationDistance(currentLocationId, placeId);
+    distanceAU = calc.distanceAU;
+    distanceKm = calc.distanceKm;
+    distanceLabel = 'to destination';
+  } else if (linkedObject) {
+    // No current location or same location - use destination's orbital distance
+    distanceAU = linkedObject.orbitAU || 0.1;
+    distanceKm = distanceAU * AU_TO_KM;
   }
+
+  travelHours = calculateTravelTime(distanceKm, thrust);
+  const travelText = travelHours >= 24
+    ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
+    : `${travelHours}h`;
+
+  // Build detailed physics tooltip for teaching moment
+  const distanceM = distanceKm * 1000;
+  const accelM = thrust * 10; // m/s² (1G = ~10 m/s²)
+  const halfDistanceM = distanceM / 2;
+  const halfDistanceKm = distanceKm / 2;
+
+  // Max velocity at turnaround = sqrt(2 * accel * halfDistance)
+  const maxVelocityMs = Math.sqrt(2 * accelM * halfDistanceM);
+  const maxVelocityKms = maxVelocityMs / 1000;
+
+  // Format large numbers
+  const formatKm = (km) => {
+    if (km >= 1e9) return `${(km / 1e9).toFixed(1)}B km`;
+    if (km >= 1e6) return `${(km / 1e6).toFixed(1)}M km`;
+    if (km >= 1e3) return `${(km / 1e3).toFixed(0)}K km`;
+    return `${km.toFixed(0)} km`;
+  };
+
+  const formatVelocity = (kms) => {
+    if (kms >= 1000) return `${(kms / 1000).toFixed(0)}K km/s`;
+    if (kms >= 100) return `${kms.toFixed(0)} km/s`;
+    return `${kms.toFixed(1)} km/s`;
+  };
+
+  // Build G selector options (1G to 6G, default 1G)
+  // TODO: When pilot uses this functionally, limit to ship's max Gs
+  // e.g., Kimbly (2G ship) shows 1-2G only, with 3-6 inactive/absent
+  // Test: Kimbly max thrust = 2
+  let gOptions = '';
+  for (let g = 1; g <= 6; g++) {
+    const selected = g === 1 ? ' selected' : '';
+    gOptions += `<option value="${g}"${selected}>${g}G</option>`;
+  }
+
+  // Build physics info HTML for display in popup body - with tooltips for learning
+  const brachistochroneTooltip = `From Greek 'brachistos' (shortest) + 'chronos' (time). The brachistochrone trajectory is the fastest possible path between two points using constant thrust. The ship accelerates continuously toward the destination for the first half, then flips 180° and decelerates for the second half. Unlike Hohmann transfer orbits used by chemical rockets, brachistochrone requires continuous thrust - perfect for Traveller's reactionless drives. The math: time = 2 × √(distance / acceleration).`;
+
+  const physicsHtml = `
+    <div class="detail-physics">
+      <div class="physics-header">
+        <select id="physics-g-select" class="physics-g-select"
+                onchange="window.updatePhysicsDisplay(${distanceKm}, this.value)"
+                title="Select acceleration. Higher G = faster travel but more strain on crew.">
+          ${gOptions}
+        </select>
+        <strong title="${brachistochroneTooltip}">BRACHISTOCHRONE TRAJECTORY</strong>
+      </div>
+      <div class="physics-grid" id="physics-grid-values"
+           data-distance-km="${distanceKm}" data-distance-au="${distanceAU}" data-distance-label="${distanceLabel}">
+        <span class="physics-label" title="1 AU = Earth-Sun distance = 149.6 million km">Distance ${distanceLabel}:</span>
+        <span class="physics-value">${distanceAU.toFixed(2)} AU (${formatKm(distanceKm)})</span>
+        <span class="physics-label" title="1G = Earth gravity = 9.81 m/s². Constant acceleration provides artificial gravity.">Thrust:</span>
+        <span class="physics-value" id="physics-thrust">${thrust}G constant</span>
+        <span class="physics-label" title="Time = 2 × √(distance / acceleration). Brachistochrone is fastest possible constant-thrust path.">Travel time:</span>
+        <span class="physics-value" id="physics-time">${travelText}</span>
+        <span class="physics-label" title="Halfway point where ship flips 180° to begin deceleration. No coasting in brachistochrone.">Turnaround:</span>
+        <span class="physics-value" id="physics-turnaround">${formatKm(halfDistanceKm)}</span>
+        <span class="physics-label" title="V = √(2 × acceleration × half-distance). Maximum speed reached at turnaround point.">Max velocity:</span>
+        <span class="physics-value" id="physics-velocity">${formatVelocity(maxVelocityKms)}</span>
+      </div>
+    </div>`;
 
   // Build actions list
   const actionsHtml = place.actions?.length
@@ -595,12 +732,13 @@ function showPlaceDetails(placeId) {
       <p class="detail-desc">${place.description || 'No description available'}</p>
       ${linkedHtml}
       ${actionsHtml}
+      ${physicsHtml}
     </div>
     <div class="details-footer">
       <button onclick="window.goToPlace('${placeId}'); window.hidePlaceDetails();">Go To</button>
       <button id="btn-set-course"
               onclick="window.setCourseFromDetails('${placeId}', ${travelHours});"
-              title="${distanceInfo || 'Set navigation course'}"
+              title="Set navigation course to this destination. Pilot role only - the pilot then uses TRAVEL to execute."
               ${isSameLocation ? 'disabled' : ''}>
         Set Course
       </button>
@@ -717,32 +855,38 @@ function goToPlace(placeId) {
   // AR-38: Check if re-clicking same place - cycle camera angle
   if (placeId === lastSelectedPlaceId) {
     mainMapCameraAngle = (mainMapCameraAngle + 1) % CAMERA_PRESETS.length;
-    console.log(`[SystemMap] Cycling camera: ${CAMERA_PRESETS[mainMapCameraAngle].name}`);
   } else {
     mainMapCameraAngle = 0;
     lastSelectedPlaceId = placeId;
   }
 
-  const preset = CAMERA_PRESETS[mainMapCameraAngle];
-
-  // Find the associated planet if any
-  if (place.planetId) {
-    const planet = systemMapState.system.planets.find(p => p.id === place.planetId);
+  // Find the associated planet/celestial object if any
+  // AR-104: Support both planetId and linkedTo properties
+  const linkedId = place.planetId || place.linkedTo;
+  if (linkedId) {
+    // Search both planets array and celestialObjects array
+    let planet = systemMapState.system?.planets?.find(p => p.id === linkedId);
+    if (!planet && systemMapState.celestialObjects) {
+      planet = systemMapState.celestialObjects.find(c => c.id === linkedId);
+    }
     if (planet) {
       systemMapState.selectedBody = planet;
+      // AR-104: Use algorithmic camera preset - pass place.type for station detection
+      const preset = generateCameraPreset(planet, mainMapCameraAngle, place.type);
       centerOnBodyWithSizeZoom(planet, preset);
       showBodyInfoPanel(planet);
+      const zoomStr = preset.absoluteZoom ? `absoluteZoom=${preset.absoluteZoom}` : `zoom=${preset.zoomMultiplier.toFixed(2)}`;
+      console.log(`[SystemMap] Going to: ${place.name} (placeType=${place.type}, cycle=${mainMapCameraAngle}, ${zoomStr})`);
+    } else {
+      console.log(`[SystemMap] Could not find celestial object: ${linkedId}`);
     }
   } else {
-    // AR-85: Places without planetId (like Jump Point) - center on system origin
-    centerOnSystemOrigin(preset.zoomMultiplier * 2); // Use multiplier for origin view
+    // AR-85: Places without planetId/linkedTo (like Jump Point) - center on system origin
+    const defaultPreset = CAMERA_PRESETS[mainMapCameraAngle];
+    centerOnSystemOrigin(defaultPreset.zoomMultiplier * 2);
     systemMapState.selectedBody = null;
+    console.log(`[SystemMap] Going to: ${place.name} (origin view)`);
   }
-
-  // AR-102: Log the radius being used (from planet if associated, else place)
-  const planet = place.planetId ? systemMapState.system?.planets?.find(p => p.id === place.planetId) : null;
-  const radiusKm = getObjectRadiusKm(planet || place);
-  console.log(`[SystemMap] Going to: ${place.name} (${preset.name}, radius=${radiusKm}km)`);
 }
 
 /**
@@ -763,9 +907,11 @@ window.getPlacesOverlayState = getPlacesOverlayState;
 
 /**
  * Center view on a body
+ * AR-104: Now uses algorithmic camera preset based on object type
  */
 function centerOnBody(body) {
-  centerOnBodyWithSizeZoom(body, CAMERA_PRESETS[0]);
+  const preset = generateCameraPreset(body, 0);
+  centerOnBodyWithSizeZoom(body, preset);
 }
 
 /**
@@ -791,11 +937,40 @@ function centerOnBodyWithSizeZoom(body, preset) {
   systemMapState.offsetX += centerX - bodyX;
   systemMapState.offsetY += centerY - bodyY;
 
-  // AR-102: Calculate size-based zoom (unified with embedded map)
-  const radiusKm = getObjectRadiusKm(body);
+  // AR-104: For stations, use parent planet's size for zoom (cinematic framing)
+  // This shows the station against the planet backdrop instead of zooming into empty space
+  let radiusKm = getObjectRadiusKm(body);
+  const isStationType = body.type === 'Station' || body.type === 'Naval Base' || body.type === 'Scout Base';
+  console.log(`[SystemMap] AR-104 debug: type=${body.type}, isStation=${isStationType}, parent=${body.parent}`);
+  if (isStationType && body.parent) {
+    // Find parent celestial object and use its size
+    // AR-104: Check both embedded celestialObjects and system.planets arrays
+    const embeddedObjects = systemMapState.celestialObjects || [];
+    const planets = systemMapState.system?.planets || [];
+    const allObjects = [...embeddedObjects, ...planets];
+    const parentBody = allObjects.find(obj => obj.id === body.parent);
+    if (parentBody && parentBody.radiusKm) {
+      radiusKm = parentBody.radiusKm;
+      console.log(`[SystemMap] Station framing: using parent ${parentBody.name} radius ${radiusKm}km (station is ${getObjectRadiusKm(body)}km)`);
+    }
+  }
+
+  // AR-104: Calculate target zoom - use absoluteZoom if provided, else size-based
+  // CRITICAL LESSON FOR GLOBAL APPLICATION:
+  // - Size-based zoom: calculateZoomForSize(radiusKm, canvasSize, 0.5) works for large objects
+  // - But for small objects orbiting large ones (stations around planets), base zoom is astronomical
+  //   Example: 4800km planet → baseZoom ≈ 156,000x → clamped to MAX_ZOOM 100 for ALL views
+  // - Solution: Use absoluteZoom for these cases (5x, 20x, 60x produce visually distinct views)
   const canvasSize = Math.min(rect.width, rect.height);
-  const baseZoom = calculateZoomForSize(radiusKm, canvasSize, 0.5);
-  const targetZoom = baseZoom * preset.zoomMultiplier;
+  let targetZoom;
+  if (preset.absoluteZoom !== undefined) {
+    targetZoom = preset.absoluteZoom;
+    console.log(`[SystemMap] Using absolute zoom: ${targetZoom}x`);
+  } else {
+    const baseZoom = calculateZoomForSize(radiusKm, canvasSize, 0.5);
+    targetZoom = baseZoom * preset.zoomMultiplier;
+    console.log(`[SystemMap] Calculated zoom: base=${baseZoom.toFixed(0)}x * ${preset.zoomMultiplier} = ${targetZoom.toFixed(0)}x`);
+  }
 
   systemMapState.zoom = Math.min(Math.max(targetZoom, systemMapState.MIN_ZOOM), systemMapState.MAX_ZOOM);
 }
@@ -978,6 +1153,56 @@ window.snapToNow = snapToNow; // AR-88
 window.showPlaceDetails = showPlaceDetails;
 window.hidePlaceDetails = hidePlaceDetails;
 window.animateCameraToLocation = animateCameraToLocation; // Animated travel camera
+
+/**
+ * Update physics display when G selector changes
+ * @param {number} distanceKm - Distance in km
+ * @param {number|string} selectedG - Selected G acceleration
+ */
+function updatePhysicsDisplay(distanceKm, selectedG) {
+  const thrust = parseInt(selectedG);
+
+  // Brachistochrone: time = 2 * sqrt(distance / acceleration)
+  const distanceM = distanceKm * 1000;
+  const accelM = thrust * 10; // 1G ≈ 10 m/s²
+  const travelSeconds = 2 * Math.sqrt(distanceM / accelM);
+  const travelHours = Math.ceil(travelSeconds / 3600);
+
+  const halfDistanceKm = distanceKm / 2;
+  const halfDistanceM = distanceM / 2;
+  const maxVelocityMs = Math.sqrt(2 * accelM * halfDistanceM);
+  const maxVelocityKms = maxVelocityMs / 1000;
+
+  // Format helpers
+  const formatKm = (km) => {
+    if (km >= 1e9) return `${(km / 1e9).toFixed(1)}B km`;
+    if (km >= 1e6) return `${(km / 1e6).toFixed(1)}M km`;
+    if (km >= 1e3) return `${(km / 1e3).toFixed(0)}K km`;
+    return `${km.toFixed(0)} km`;
+  };
+
+  const formatVelocity = (kms) => {
+    if (kms >= 1000) return `${(kms / 1000).toFixed(0)}K km/s`;
+    if (kms >= 100) return `${kms.toFixed(0)} km/s`;
+    return `${kms.toFixed(1)} km/s`;
+  };
+
+  const travelText = travelHours >= 24
+    ? `${Math.floor(travelHours / 24)}d ${travelHours % 24}h`
+    : `${travelHours}h`;
+
+  // Update DOM elements
+  const thrustEl = document.getElementById('physics-thrust');
+  const timeEl = document.getElementById('physics-time');
+  const turnaroundEl = document.getElementById('physics-turnaround');
+  const velocityEl = document.getElementById('physics-velocity');
+
+  if (thrustEl) thrustEl.textContent = `${thrust}G constant`;
+  if (timeEl) timeEl.textContent = travelText;
+  if (turnaroundEl) turnaroundEl.textContent = formatKm(halfDistanceKm);
+  if (velocityEl) velocityEl.textContent = formatVelocity(maxVelocityKms);
+}
+window.updatePhysicsDisplay = updatePhysicsDisplay;
 
 /**
  * AR-71: Set contact as pilot destination (intercept course)
@@ -2229,6 +2454,7 @@ function loadSystemFromJSON(jsonData) {
       id: obj.id,
       name: obj.name,
       type: obj.type,
+      parent: obj.parent,  // AR-104: Preserve parent for station camera framing
       radiusKm: obj.radiusKm,  // Preserve for size-based zoom
       currentX,
       currentY,
@@ -2838,13 +3064,152 @@ const embeddedMapState = {
   lastClickedDestination: null
 };
 
-// AR-102: Camera presets for dramatic destination views
+// AR-102/104: Camera presets for dramatic destination views
 // zoomMultiplier adjusts size-based zoom: 1.0 = fill 50%, 0.5 = fill 25%, 2.0 = fill 100%
 const CAMERA_PRESETS = [
-  { name: 'close-up', zoomMultiplier: 1.0, offsetX: 0.15, offsetY: 0.1, description: 'Fills 50% of canvas' },
-  { name: 'wide-context', zoomMultiplier: 0.1, offsetX: -0.2, offsetY: -0.15, description: 'Wide system view' },
-  { name: 'orbital-view', zoomMultiplier: 0.5, offsetX: 0, offsetY: 0.25, description: 'Medium orbital view' }
+  // Iteration 1: More dramatic rule-of-thirds positioning
+  { name: 'close-up', zoomMultiplier: 1.2, offsetX: 0.25, offsetY: 0.15, description: 'Hero shot - object in lower-left third' },
+  { name: 'wide-context', zoomMultiplier: 0.25, offsetX: -0.3, offsetY: -0.2, description: 'Establishing shot - object in upper-right' },
+  { name: 'orbital-view', zoomMultiplier: 0.5, offsetX: -0.1, offsetY: 0.28, description: 'High orbital - object near bottom center' }
 ];
+
+// AR-104: Station camera presets use ABSOLUTE zoom values (not multipliers)
+// Size-based zoom calculation produces astronomically high values (155,000x for 4800km planet)
+// that all clamp to MAX_ZOOM 100, making views identical. Use absoluteZoom to bypass.
+const STATION_CAMERA_PRESETS = [
+  // Wide establishing: Star visible, planet small, station in orbital context
+  { name: 'establishing', absoluteZoom: 5, offsetX: -0.15, offsetY: 0.1, description: 'Wide establishing shot' },
+  // Medium orbital: Planet prominent, station clearly visible against it
+  { name: 'orbital', absoluteZoom: 20, offsetX: -0.25, offsetY: 0.12, description: 'Dramatic orbital view' },
+  // Detail close-up: Planet fills much of frame, station detail visible
+  { name: 'detail', absoluteZoom: 60, offsetX: -0.2, offsetY: 0.08, description: 'Station detail with planet curve' }
+];
+
+// AR-104: Type-based camera preset defaults (algorithmic - no per-object JSON needed)
+// These are base values that get modulated by object properties for artistic compositions
+// Iteration 1: More dramatic rule-of-thirds positioning by object type
+const TYPE_CAMERA_DEFAULTS = {
+  'Star': { zoomMultiplier: 0.15, offsetX: 0.28, offsetY: 0.12 },      // Wide corona, upper-left third
+  'Planet': { zoomMultiplier: 2.5, offsetX: 0.25, offsetY: 0.15 },     // Dramatic close-up, fills canvas
+  'Planetoid': { zoomMultiplier: 6.0, offsetX: -0.2, offsetY: 0.15 },  // Very tight on asteroid
+  'Moon': { zoomMultiplier: 4.0, offsetX: -0.15, offsetY: 0.18 },      // Close companion shot
+  'Gas Giant': { zoomMultiplier: 0.5, offsetX: 0.25, offsetY: 0.1 },   // Majestic scale, left third
+  'Ice Giant': { zoomMultiplier: 0.6, offsetX: 0.2, offsetY: 0.12 },   // Cold majesty, asymmetric
+  'Station': { zoomMultiplier: 8.0, offsetX: 0.25, offsetY: -0.1 },    // EXTREME close-up on facility
+  'Highport': { zoomMultiplier: 6.0, offsetX: 0.3, offsetY: -0.08 },   // Tight on orbital commerce hub
+  'Naval Base': { zoomMultiplier: 7.0, offsetX: 0.15, offsetY: -0.15 },// Military precision, dramatic
+  'Scout Base': { zoomMultiplier: 8.0, offsetX: -0.2, offsetY: 0.18 }, // Very tight on X-boat station
+  'Planetoid Belt': { zoomMultiplier: 0.3, offsetX: 0.08, offsetY: 0.2 } // Wide asteroid distribution
+};
+
+/**
+ * AR-104: Simple hash function for deterministic "artistic randomness"
+ * Uses object ID to generate consistent pseudo-random offsets
+ * @param {string} str - String to hash (object ID)
+ * @returns {number} Value between 0 and 1
+ */
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash % 1000) / 1000;
+}
+
+/**
+ * AR-104: Generate camera preset for object algorithmically
+ * Scales to thousands of objects without manual per-object settings
+ * @param {Object} obj - Celestial object
+ * @param {number} cycleIndex - Which preset in the cycle (0 = default)
+ * @param {string} placeType - Optional: type from place/location (e.g., 'Highport', 'Dock')
+ * @returns {Object} Camera preset { zoomMultiplier, offsetX, offsetY }
+ */
+function generateCameraPreset(obj, cycleIndex = 0, placeType = null) {
+  // AR-104: Detect station/dock places - check placeType first, then obj.type
+  // Station types: 'Highport', 'Dock', 'Station', 'Naval Base', 'Scout Base', 'dock'
+  // CRITICAL: Check station detection BEFORE cameraSettings early return
+  // Stations with cameraSettings still need absoluteZoom for proper 3-view cycling
+  const STATION_PLACE_TYPES = ['Highport', 'Dock', 'Station', 'Naval Base', 'Scout Base', 'dock'];
+  const isStationPlace = placeType && STATION_PLACE_TYPES.includes(placeType);
+
+  // AR-104: Resolve linked celestial object type for dock locations
+  // Locations have type='dock' but link to celestial objects with type='Highport', 'Station', etc.
+  let effectiveType = obj.type;
+  if (obj.type === 'dock' && obj.linkedTo && systemMapState.celestialObjects) {
+    const linkedObj = systemMapState.celestialObjects.find(c => c.id === obj.linkedTo);
+    if (linkedObj) {
+      effectiveType = linkedObj.type;
+      console.log(`[EmbeddedMap] Resolved dock "${obj.name}" → linked type: ${effectiveType}`);
+    }
+  }
+
+  // AR-104: All stations use cinematic orbital presets
+  // Check placeType first (passed from goToPlace), then fallback to effectiveType
+  // AR-105: Fix - check ALL station types, not just 'Station'
+  const isStation = isStationPlace || STATION_PLACE_TYPES.includes(effectiveType);
+  if (isStation) {
+    const preset = STATION_CAMERA_PRESETS[cycleIndex % STATION_CAMERA_PRESETS.length];
+    console.log(`[EmbeddedMap] Station camera ${cycleIndex}: ${preset.name} (absoluteZoom=${preset.absoluteZoom})`);
+    return {
+      absoluteZoom: preset.absoluteZoom,  // AR-104: Use absolute zoom for stations
+      zoomMultiplier: 1.0,  // Fallback if absoluteZoom not handled
+      offsetX: preset.offsetX,
+      offsetY: preset.offsetY
+    };
+  }
+
+  // If object has explicit cameraSettings, use as base (optional override)
+  // Note: Stations bypass this because they need absoluteZoom for proper zoom levels
+  if (obj.cameraSettings && cycleIndex === 0) {
+    return obj.cameraSettings;
+  }
+
+  // Get type-based defaults or fallback
+  const typeDefaults = TYPE_CAMERA_DEFAULTS[effectiveType] || { zoomMultiplier: 1.0, offsetX: 0.1, offsetY: 0.05 };
+
+  // For non-default cycle indices, blend with global presets
+  if (cycleIndex > 0) {
+    const globalPreset = CAMERA_PRESETS[cycleIndex % CAMERA_PRESETS.length];
+    return {
+      zoomMultiplier: globalPreset.zoomMultiplier,
+      offsetX: globalPreset.offsetX + typeDefaults.offsetX * 0.3,
+      offsetY: globalPreset.offsetY + typeDefaults.offsetY * 0.3
+    };
+  }
+
+  // Generate deterministic "artistic" variation from object ID
+  const hash1 = simpleHash(obj.id || obj.name || 'default');
+  const hash2 = simpleHash((obj.id || '') + '_y');
+
+  // Apply subtle variations for visual interest (-0.08 to +0.08 range)
+  const offsetVariationX = (hash1 - 0.5) * 0.16;
+  const offsetVariationY = (hash2 - 0.5) * 0.16;
+
+  // Adjust zoom based on object size relative to type average
+  let zoomAdjust = 1.0;
+  const radiusKm = obj.radiusKm || DEFAULT_RADIUS_KM[obj.type] || 5000;
+  const typeDefaultRadius = DEFAULT_RADIUS_KM[obj.type] || 5000;
+  if (radiusKm > typeDefaultRadius * 2) {
+    zoomAdjust = 0.7; // Larger than typical - zoom out
+  } else if (radiusKm < typeDefaultRadius * 0.5) {
+    zoomAdjust = 1.3; // Smaller than typical - zoom in
+  }
+
+  // Inner system objects get slightly different treatment
+  let orbitAdjust = 1.0;
+  if (obj.orbitAU && obj.orbitAU < 0.7) {
+    orbitAdjust = 1.1; // Inner system - tighter view
+  } else if (obj.orbitAU && obj.orbitAU > 3) {
+    orbitAdjust = 0.9; // Outer system - slightly wider
+  }
+
+  return {
+    zoomMultiplier: typeDefaults.zoomMultiplier * zoomAdjust * orbitAdjust,
+    offsetX: typeDefaults.offsetX + offsetVariationX,
+    offsetY: typeDefaults.offsetY + offsetVariationY
+  };
+}
 
 // Constants for zoom calculation
 const AU_TO_KM = 149597870.7;
@@ -3171,8 +3536,8 @@ function selectEmbeddedDestination(destination) {
 
   embeddedMapState.selectedDestination = destination;
 
-  // Get camera preset and object size
-  const preset = CAMERA_PRESETS[embeddedMapState.currentCameraAngle];
+  // AR-104: Get algorithmic camera preset based on object type
+  const preset = generateCameraPreset(destination, embeddedMapState.currentCameraAngle);
   const radiusKm = getObjectRadiusKm(destination);
 
   // Calculate target camera position

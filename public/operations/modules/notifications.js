@@ -48,10 +48,18 @@ function showNotification(message, type = 'info', duration = 4000) {
 
   const toast = document.createElement('div');
   toast.className = `notification-toast ${type}`;
-  toast.innerHTML = `
-    <span class="notification-icon">${icons[type] || icons.info}</span>
-    <span class="notification-message">${message}</span>
-  `;
+
+  // AR-108.7: Use DOM methods instead of innerHTML for XSS safety
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'notification-icon';
+  iconSpan.textContent = icons[type] || icons.info;
+
+  const msgSpan = document.createElement('span');
+  msgSpan.className = 'notification-message';
+  msgSpan.textContent = message;
+
+  toast.appendChild(iconSpan);
+  toast.appendChild(msgSpan);
 
   container.appendChild(toast);
 

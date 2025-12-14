@@ -174,19 +174,20 @@ export function decodeUWP(uwp) {
 export function formatUWPTooltip(decoded) {
   if (!decoded) return 'Invalid UWP';
 
+  // AR-108.8: Escape all values for XSS safety
   return `<div class="uwp-tooltip">
-    <div class="uwp-header">${decoded.raw}</div>
+    <div class="uwp-header">${escapeHtml(decoded.raw)}</div>
     <table class="uwp-table">
-      <tr><td class="uwp-label">Starport</td><td class="uwp-code">${decoded.starport.code}</td><td>${decoded.starport.name}</td></tr>
-      <tr><td class="uwp-label">Size</td><td class="uwp-code">${decoded.size.code}</td><td>${decoded.size.name}</td></tr>
-      <tr><td class="uwp-label">Atmosphere</td><td class="uwp-code">${decoded.atmosphere.code}</td><td>${decoded.atmosphere.name}</td></tr>
-      <tr><td class="uwp-label">Hydrographics</td><td class="uwp-code">${decoded.hydrographics.code}</td><td>${decoded.hydrographics.name}</td></tr>
-      <tr><td class="uwp-label">Population</td><td class="uwp-code">${decoded.population.code}</td><td>${decoded.population.name}</td></tr>
-      <tr><td class="uwp-label">Government</td><td class="uwp-code">${decoded.government.code}</td><td>${decoded.government.name}</td></tr>
-      <tr><td class="uwp-label">Law Level</td><td class="uwp-code">${decoded.law.code}</td><td>${decoded.law.name}</td></tr>
-      <tr><td class="uwp-label">Tech Level</td><td class="uwp-code">${decoded.tech.code}</td><td>${decoded.tech.name}</td></tr>
+      <tr><td class="uwp-label">Starport</td><td class="uwp-code">${escapeHtml(decoded.starport.code)}</td><td>${escapeHtml(decoded.starport.name)}</td></tr>
+      <tr><td class="uwp-label">Size</td><td class="uwp-code">${escapeHtml(decoded.size.code)}</td><td>${escapeHtml(decoded.size.name)}</td></tr>
+      <tr><td class="uwp-label">Atmosphere</td><td class="uwp-code">${escapeHtml(decoded.atmosphere.code)}</td><td>${escapeHtml(decoded.atmosphere.name)}</td></tr>
+      <tr><td class="uwp-label">Hydrographics</td><td class="uwp-code">${escapeHtml(decoded.hydrographics.code)}</td><td>${escapeHtml(decoded.hydrographics.name)}</td></tr>
+      <tr><td class="uwp-label">Population</td><td class="uwp-code">${escapeHtml(decoded.population.code)}</td><td>${escapeHtml(decoded.population.name)}</td></tr>
+      <tr><td class="uwp-label">Government</td><td class="uwp-code">${escapeHtml(decoded.government.code)}</td><td>${escapeHtml(decoded.government.name)}</td></tr>
+      <tr><td class="uwp-label">Law Level</td><td class="uwp-code">${escapeHtml(decoded.law.code)}</td><td>${escapeHtml(decoded.law.name)}</td></tr>
+      <tr><td class="uwp-label">Tech Level</td><td class="uwp-code">${escapeHtml(decoded.tech.code)}</td><td>${escapeHtml(decoded.tech.name)}</td></tr>
     </table>
-    <div class="uwp-detail">${decoded.starport.desc}</div>
+    <div class="uwp-detail">${escapeHtml(decoded.starport.desc)}</div>
   </div>`;
 }
 

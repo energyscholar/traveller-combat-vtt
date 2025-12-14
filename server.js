@@ -93,6 +93,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// Disable caching for JS/CSS/HTML files (controlled by config.server.disableCache)
+if (config.server.disableCache) {
+  app.use((req, res, next) => {
+    if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+    next();
+  });
+}
+
 // Serve Operations VTT from root
 app.use(express.static('public/operations'));
 // Also serve from /operations for backwards compatibility
