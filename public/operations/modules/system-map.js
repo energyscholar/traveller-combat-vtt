@@ -1383,6 +1383,7 @@ function render() {
   drawRangeBands(ctx, centerX, centerY, zoom);
   drawCourseLine(ctx, centerX, centerY, zoom);
   drawMapContacts(ctx, centerX, centerY, zoom);
+  drawLocationMarkers(ctx, centerX, centerY, zoom);
   drawPartyShip(ctx, centerX, centerY, zoom);
 
   // Draw zoom indicator
@@ -2783,6 +2784,56 @@ function setMapDestination(bodyId) {
 }
 
 /**
+ * Draw location markers (green dots for jump points, etc.)
+ */
+function drawLocationMarkers(ctx, centerX, centerY, zoom) {
+  const system = systemMapState.system;
+  if (!system?.locations) return;
+
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  for (const loc of system.locations) {
+    if (!loc.linkedTo) continue;
+
+    // Find the linked celestial body
+    const body = system.celestialObjects?.find(o => o.id === loc.linkedTo);
+    if (!body) continue;
+
+    const bodyOrbitAU = body.orbitAU || 0;
+    const bodyBearing = (body.bearing || 0) * Math.PI / 180;
+
+    // Location offset from body (in km -> AU)
+    const locationOrbitKm = loc.orbitKm || 0;
+    const locationBearing = (loc.bearing || 0) * Math.PI / 180;
+    const locationOrbitAU = locationOrbitKm / 149597870.7;
+
+    // Calculate position
+    const bodyX = bodyOrbitAU * Math.cos(bodyBearing);
+    const bodyY = bodyOrbitAU * Math.sin(bodyBearing);
+    const offsetX = locationOrbitAU * Math.cos(locationBearing);
+    const offsetY = locationOrbitAU * Math.sin(locationBearing);
+
+    const posX = bodyX + offsetX;
+    const posY = bodyY + offsetY;
+
+    const screenX = centerX + posX * auToPixels + systemMapState.offsetX;
+    const screenY = centerY + posY * auToPixels + systemMapState.offsetY;
+
+    // Draw green dot for jump points
+    if (loc.type === 'jump_point') {
+      ctx.save();
+      ctx.fillStyle = '#00ff00';
+      ctx.shadowColor = '#00ff00';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(screenX, screenY, Math.max(3, 4 * Math.sqrt(zoom)), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+/**
  * Draw party ship on system map
  */
 function drawPartyShip(ctx, centerX, centerY, zoom) {
@@ -2796,7 +2847,7 @@ function drawPartyShip(ctx, centerX, centerY, zoom) {
 
   // Ship triangle (pointing in heading direction)
   const heading = shipMapState.partyShip.heading || 0;
-  const size = Math.max(10, 15 * Math.sqrt(zoom));
+  const size = Math.max(4, 5 * Math.sqrt(zoom)); // Smaller ship icon (1/3 original)
 
   ctx.save();
   ctx.translate(screenX, screenY);

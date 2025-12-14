@@ -177,8 +177,9 @@
       "id": "loc-exit-jump",
       "name": "Exit Jump Space",
       "type": "jump_point",
-      "x": 100,
-      "y": 300,
+      "linkedTo": "flammarion-mainworld",
+      "orbitKm": 1000000,
+      "bearing": 90,
       "actions": ["scan", "plot_course"]
     },
     {
