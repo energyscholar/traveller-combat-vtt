@@ -1066,6 +1066,10 @@ function initSocket() {
         state.shipState.systemHex = data.hex;
       }
     }
+    // Update sector if provided
+    if (data.sector) {
+      state.campaign.current_sector = data.sector;
+    }
     // Autorun 5: Update contacts if provided
     if (data.contacts) {
       state.contacts = data.contacts;
@@ -1073,6 +1077,10 @@ function initSocket() {
     renderBridge();
     // AR-110: Refresh role panel (especially Astrogator which shows current system)
     renderRoleDetailPanel(state.selectedRole);
+    // Refresh jump map for astrogator after location change
+    if (state.selectedRole === 'astrogator') {
+      initJumpMapIfNeeded();
+    }
   });
 
   // Autorun 5: Handle contacts replaced on jump arrival
