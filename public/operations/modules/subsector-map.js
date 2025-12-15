@@ -917,6 +917,30 @@ function resetSectorZoom() {
 /**
  * Show/hide subsector map
  */
+// AR-119: Available subsector files (until AR-120 adds dynamic TravellerMap fetching)
+const AVAILABLE_SUBSECTORS = ['district268', 'five-sisters', 'glisten', 'trins-veil'];
+const DEFAULT_SUBSECTOR_FILE = 'district268';
+
+/**
+ * AR-119: Get subsector file name from campaign state or system data
+ * @returns {string} Subsector file name (e.g., 'district268', 'mora')
+ */
+function getSubsectorForCurrentSystem() {
+  // 1. Check if campaign has explicit subsector set
+  const campaignSubsector = window.state?.campaign?.current_subsector;
+  if (campaignSubsector) {
+    const normalized = campaignSubsector.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (AVAILABLE_SUBSECTORS.includes(normalized)) {
+      return normalized;
+    }
+    console.log(`[SectorMap] Subsector "${campaignSubsector}" not available locally, using default`);
+  }
+
+  // 2. TODO AR-120: Fetch subsector dynamically from TravellerMap API
+  // For now, fall back to default
+  return DEFAULT_SUBSECTOR_FILE;
+}
+
 function showSectorMap() {
   const overlay = document.getElementById('sector-map-container');
   const canvasContainer = document.getElementById('sector-map-canvas-container');
@@ -937,7 +961,10 @@ function showSectorMap() {
       console.log(`[SectorMap] No hex in state, will lookup from system name`);
     }
 
-    loadSectorData('district268');
+    // AR-119: Dynamic subsector loading (will use TravellerMap API in AR-120)
+    const subsectorFile = getSubsectorForCurrentSystem();
+    console.log(`[SectorMap] Loading subsector: ${subsectorFile}`);
+    loadSectorData(subsectorFile);
 
     // AR-36: Center on ship's current location after a brief delay for rendering
     setTimeout(() => {

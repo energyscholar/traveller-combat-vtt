@@ -38,6 +38,14 @@ import {
 // SECURITY: Debug logging only enabled on localhost
 const DEBUG = ['localhost', '127.0.0.1'].includes(location.hostname);
 const debugLog = (...args) => DEBUG && console.log(...args);
+
+// ==================== Default Location Constants ====================
+// AR-119: Centralized defaults instead of hardcoded Flammarion values
+// Mora - Imperial capital, Spinward Marches sector
+const DEFAULT_SECTOR = 'Spinward Marches';
+const DEFAULT_SUBSECTOR = 'Mora';
+const DEFAULT_SYSTEM = 'Mora';
+const DEFAULT_HEX = '3124';
 const debugWarn = (...args) => DEBUG && console.warn(...args);
 const debugError = (...args) => DEBUG && console.error(...args);
 
@@ -7525,13 +7533,13 @@ function showSharedMap() {
   // AR-50.2: Use shared view data if available (for players), else use campaign data
   let sector, hex, systemName;
   if (!state.isGM && state.sharedMapView) {
-    sector = state.sharedMapView.sector || 'Spinward Marches';
-    hex = state.sharedMapView.hex || '0930';
+    sector = state.sharedMapView.sector || DEFAULT_SECTOR;
+    hex = state.sharedMapView.hex || DEFAULT_HEX;
     systemName = state.sharedMapView.center || 'Unknown';
   } else {
-    sector = state.campaign?.current_sector || 'Spinward Marches';
-    hex = state.campaign?.current_hex || '0930';
-    systemName = state.campaign?.current_system || 'Unknown';
+    sector = state.campaign?.current_sector || DEFAULT_SECTOR;
+    hex = state.campaign?.current_hex || DEFAULT_HEX;
+    systemName = state.campaign?.current_system || DEFAULT_SYSTEM;
   }
 
   overlay.innerHTML = `
@@ -7647,8 +7655,8 @@ function updateSharedMapIframe() {
   const iframe = document.getElementById('shared-map-iframe');
   if (!iframe) return;
 
-  const sector = state.campaign?.current_sector || 'Spinward Marches';
-  const hex = state.campaign?.current_hex || '0930';
+  const sector = state.campaign?.current_sector || DEFAULT_SECTOR;
+  const hex = state.campaign?.current_hex || DEFAULT_HEX;
   iframe.src = buildTravellerMapUrl(sector, hex);
 
   // Update header text
@@ -7668,9 +7676,9 @@ function closeSharedMap() {
 
 // AR-50.2: Track GM's current view for re-center functionality
 function trackGMMapView() {
-  const sector = state.campaign?.current_sector || 'Spinward Marches';
-  const hex = state.campaign?.current_hex || '0930';
-  const systemName = state.campaign?.current_system || 'Unknown';
+  const sector = state.campaign?.current_sector || DEFAULT_SECTOR;
+  const hex = state.campaign?.current_hex || DEFAULT_HEX;
+  const systemName = state.campaign?.current_system || DEFAULT_SYSTEM;
 
   state.gmCurrentMapView = {
     center: systemName,
@@ -7865,7 +7873,7 @@ function showSystemMap() {
 
           // Select current system (must match by name, case-insensitive)
           // Strip parenthetical sector info like "(Spinward Marches 0931)"
-          const rawSystemName = state.campaign?.current_system || 'Flammarion';
+          const rawSystemName = state.campaign?.current_system || DEFAULT_SYSTEM;
           const currentSystemName = rawSystemName.replace(/\s*\([^)]*\)\s*/g, '').trim();
           const matchingSystem = systems.find(s =>
             s.name.toLowerCase() === currentSystemName.toLowerCase() ||
@@ -7878,12 +7886,12 @@ function showSystemMap() {
             await loadSelectedSystemFromJSON(select.value);
           } else {
             // AR-110: Don't auto-load random system when current isn't found
-            // Default to Flammarion as a known good fallback, but notify user
-            const fallbackSystem = systems.find(s => s.id === 'flammarion') || systems[0];
-            select.value = fallbackSystem?.id || 'flammarion';
-            console.log(`[SystemMap] No map data for "${currentSystemName}", showing ${fallbackSystem?.name || 'Flammarion'}`);
+            // AR-119: Default to Mora (Imperial capital) as fallback
+            const fallbackSystem = systems.find(s => s.id === 'mora') || systems[0];
+            select.value = fallbackSystem?.id || systems[0]?.id;
+            console.log(`[SystemMap] No map data for "${currentSystemName}", showing ${fallbackSystem?.name || DEFAULT_SYSTEM}`);
             if (typeof window.showNotification === 'function') {
-              window.showNotification(`No system map data for ${currentSystemName}. Showing ${fallbackSystem?.name || 'Flammarion'}.`, 'warning');
+              window.showNotification(`No system map data for ${currentSystemName}. Showing ${fallbackSystem?.name || DEFAULT_SYSTEM}.`, 'warning');
             }
             await loadSelectedSystemFromJSON(select.value);
           }
@@ -8380,8 +8388,8 @@ function updateSharedMapFrame(data) {
   const iframe = document.getElementById('shared-map-iframe');
   if (!iframe || !data) return;
 
-  const sector = data.sector || 'Spinward Marches';
-  const hex = data.hex || '0930';
+  const sector = data.sector || DEFAULT_SECTOR;
+  const hex = data.hex || DEFAULT_HEX;
   const scale = data.scale || state.sharedMapSettings.scale;
   const style = data.style || state.sharedMapSettings.style;
 
