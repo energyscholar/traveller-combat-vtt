@@ -2900,17 +2900,35 @@ function drawLocationMarkers(ctx, centerX, centerY, zoom) {
     // AR-113: Use helper for world-to-screen conversion
     const screen = worldToScreen(posX, posY, centerX, centerY, auToPixels);
 
-    // Draw green dot for jump points
-    if (loc.type === 'jump_point') {
-      ctx.save();
-      ctx.fillStyle = '#00ff00';
-      ctx.shadowColor = '#00ff00';
-      ctx.shadowBlur = 6;
-      ctx.beginPath();
-      ctx.arc(screen.x, screen.y, Math.max(3, 4 * Math.sqrt(zoom)), 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+    // AR-113 Phase 4: Draw markers for all location types (not just jump_point)
+    // Color by type: green for jump, cyan for orbit/dock, gray for other
+    const colors = {
+      jump_point: '#00ff00',
+      orbit: '#00cccc',
+      dock: '#00aaff',
+      hide: '#888888',
+      space: '#666666'
+    };
+    const color = colors[loc.type] || '#888888';
+    const dotSize = Math.max(3, 4 * Math.sqrt(zoom));
+
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(screen.x, screen.y, dotSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // AR-113 Phase 4: Add label below marker (at higher zoom levels)
+    if (zoom > 0.3) {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = `${Math.max(8, 9 * Math.sqrt(zoom))}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillText(loc.name, screen.x, screen.y + dotSize + 10);
     }
+    ctx.restore();
   }
 }
 
