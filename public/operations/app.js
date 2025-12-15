@@ -1013,14 +1013,38 @@ function initSocket() {
   state.socket.on('ops:jumpCompleted', (data) => {
     state.jumpStatus = { inJump: false };
     state.campaign.current_system = data.arrivedAt;
+    // AR-124: Sync position verification state to BOTH state objects
+    // Critical: role-panels reads from state.ship.current_state, not state.shipState
+    const positionVerified = data.positionVerified ?? false;
+    if (state.ship?.current_state) {
+      state.ship.current_state.positionVerified = positionVerified;
+      state.ship.current_state.locationId = 'loc-exit-jump';
+      state.ship.current_state.locationName = 'Exit Jump Space';
+    }
+    if (state.shipState) {
+      state.shipState.positionVerified = positionVerified;
+      state.shipState.locationId = 'loc-exit-jump';
+      state.shipState.locationName = 'Exit Jump Space';
+    }
     // AR-103: Update hex after jump (parsec location changed) with system tooltip
+    // AR-126: Also update sector for jump map recentering
     if (data.hex) {
       state.campaign.current_hex = data.hex;
+      if (state.ship?.current_state) {
+        state.ship.current_state.systemHex = data.hex;
+      }
+      if (state.shipState) {
+        state.shipState.systemHex = data.hex;
+      }
       const hexEl = document.getElementById('bridge-hex');
       if (hexEl) {
         hexEl.textContent = data.hex;
         hexEl.title = data.arrivedAt || 'Current parsec';
       }
+    }
+    // AR-126: Update sector for jump map
+    if (data.sector) {
+      state.campaign.current_sector = data.sector;
     }
     // Stage 7: Update date after jump
     if (data.newDate) {
@@ -1033,6 +1057,8 @@ function initSocket() {
     showNotification(`Arrived at ${data.arrivedAt}`, 'success');
     renderRoleDetailPanel(state.selectedRole);
     renderBridge();
+    // AR-126: Refresh jump map with new location
+    initJumpMapIfNeeded();
     // Show news/mail modal if there's content
     if (state.systemNews.length > 0 || Object.keys(state.systemMail).length > 0) {
       showNewsMailModal(data.arrivedAt);
@@ -1040,7 +1066,12 @@ function initSocket() {
   });
 
   // AR-68: Position verification result
+  // AR-124: Sync to both state objects
   state.socket.on('ops:positionVerified', (data) => {
+    // Update BOTH state objects for consistency
+    if (state.ship?.current_state) {
+      state.ship.current_state.positionVerified = true;
+    }
     if (state.shipState) {
       state.shipState.positionVerified = true;
     }
@@ -1050,6 +1081,9 @@ function initSocket() {
     }
     if (data.currentHex) {
       state.campaign.current_hex = data.currentHex;
+      if (state.ship?.current_state) {
+        state.ship.current_state.systemHex = data.currentHex;
+      }
       if (state.shipState) {
         state.shipState.systemHex = data.currentHex;
       }
@@ -2102,6 +2136,11 @@ function initGMSetupScreen() {
     });
   });
 
+  // AR-124: Position verification toggle
+  document.getElementById('position-verify-toggle').addEventListener('change', (e) => {
+    state.socket.emit('ops:setRequirePositionVerification', { enabled: e.target.checked });
+  });
+
   // Start session
   document.getElementById('btn-start-session').addEventListener('click', () => {
     state.socket.emit('ops:startSession', { campaignId: state.campaign.id });
@@ -2193,6 +2232,8 @@ function renderGMSetup() {
   document.getElementById('campaign-date').value = state.campaign?.current_date || '1105-001';
   document.getElementById('campaign-system').value = state.campaign?.current_system || 'Regina';
   document.getElementById('god-mode-toggle').checked = state.campaign?.god_mode;
+  // AR-124: Position verification toggle (default true if not set)
+  document.getElementById('position-verify-toggle').checked = state.campaign?.require_position_verification !== 0;
 
   // Player slots
   const slotsContainer = document.getElementById('gm-player-slots');
@@ -2280,6 +2321,8 @@ function initPlayerSetupScreen() {
 
   // Logout
   document.getElementById('btn-player-logout').addEventListener('click', () => {
+    // AR-132: Release slot reservation on server before clearing local state
+    state.socket.emit('ops:releaseSlot');
     state.player = null;
     clearStoredSession();
     showScreen('login');
@@ -2611,6 +2654,8 @@ function initBridgeScreen() {
 
   // Bridge logout
   document.getElementById('btn-bridge-logout').addEventListener('click', () => {
+    // AR-132: Release slot reservation on server before clearing local state
+    state.socket.emit('ops:releaseSlot');
     // Reset all state
     state.ship = null;
     state.selectedShipId = null;
@@ -3798,11 +3843,27 @@ function setupPilotListeners() {
     if (state.shipState) {
       state.shipState.locationId = data.locationId;
       state.shipState.locationName = data.toLocation;
+      state.shipState.systemHex = data.systemHex;  // AR-124: Include system hex
+    }
+    // AR-124: Also sync to ship.current_state for consistency
+    if (state.ship?.current_state) {
+      state.ship.current_state.locationId = data.locationId;
+      state.ship.current_state.locationName = data.toLocation;
+      state.ship.current_state.systemHex = data.systemHex;
     }
 
     // Update bridge header location display
     const bridgeLocationEl = document.getElementById('bridge-location');
     if (bridgeLocationEl) bridgeLocationEl.textContent = data.toLocation;
+
+    // AR-124: Update system-map-location display
+    const mapLocationEl = document.getElementById('system-map-location');
+    if (mapLocationEl) mapLocationEl.textContent = data.toLocation;
+
+    // AR-124: Animate camera to new location
+    if (typeof animateCameraToLocation === 'function') {
+      animateCameraToLocation(data.locationId);
+    }
 
     // Show notification
     showNotification(`Undocked from ${data.fromLocation}`, 'success');
@@ -4129,21 +4190,21 @@ function performScan(scanType = 'passive') {
   showNotification(`Initiating ${scanType} sensor scan...`, 'info');
 }
 
-// AR-36: ECM/ECCM Functions (Mongoose 2e rules)
+// AR-36/AR-127: ECM/ECCM Functions (Mongoose 2e rules) - Fixed socket events
 function toggleECM() {
-  const newState = !state.shipState?.ecmActive;
-  state.socket.emit('ops:setECM', { active: newState });
+  const newState = !state.shipState?.ecm;
+  state.socket.emit('ops:setEW', { type: 'ecm', active: newState });
   if (!state.shipState) state.shipState = {};
-  state.shipState.ecmActive = newState;
+  state.shipState.ecm = newState;
   showNotification(`ECM ${newState ? 'ACTIVATED' : 'DEACTIVATED'} - Enemies get ${newState ? '-2 DM' : 'no penalty'} to sensors`, newState ? 'warning' : 'info');
   renderRoleDetailPanel('sensor_operator');
 }
 
 function toggleECCM() {
-  const newState = !state.shipState?.eccmActive;
-  state.socket.emit('ops:setECCM', { active: newState });
+  const newState = !state.shipState?.eccm;
+  state.socket.emit('ops:setEW', { type: 'eccm', active: newState });
   if (!state.shipState) state.shipState = {};
-  state.shipState.eccmActive = newState;
+  state.shipState.eccm = newState;
   showNotification(`ECCM ${newState ? 'ACTIVATED' : 'DEACTIVATED'} - ${newState ? 'Countering enemy ECM' : 'Vulnerable to jamming'}`, newState ? 'success' : 'info');
   renderRoleDetailPanel('sensor_operator');
 }
@@ -4158,7 +4219,8 @@ function acquireSensorLock(contactId) {
     return;
   }
 
-  state.socket.emit('ops:sensorLock', { targetId: contactId });
+  // AR-127: Fixed socket event name
+  state.socket.emit('ops:setSensorLock', { contactId, locked: true });
   if (!state.shipState) state.shipState = {};
   state.shipState.sensorLock = {
     targetId: contactId,
@@ -4170,7 +4232,8 @@ function acquireSensorLock(contactId) {
 }
 
 function breakSensorLock() {
-  state.socket.emit('ops:breakSensorLock', {});
+  // AR-127: Use setSensorLock with locked: false instead of separate event
+  state.socket.emit('ops:setSensorLock', { contactId: null, locked: false });
   if (state.shipState) {
     state.shipState.sensorLock = null;
   }
@@ -8352,19 +8415,12 @@ function expandEmbeddedMap() {
 }
 
 /**
- * AR-94: Show pilot destinations picker
+ * AR-94/AR-129: Show pilot destinations picker
+ * Fixed: Call showPlacesOverlay directly instead of undefined toggleDestinationsPanel
  */
 function showPilotDestinations() {
-  if (typeof toggleDestinationsPanel === 'function') {
-    toggleDestinationsPanel();
-  } else {
-    showSystemMap();
-    // Click the places button after map opens
-    setTimeout(() => {
-      const placesBtn = document.getElementById('btn-places');
-      if (placesBtn) placesBtn.click();
-    }, 300);
-  }
+  // AR-129: Use showPlacesOverlay directly - it shows destinations in sidebar
+  showPlacesOverlay();
 }
 
 // Expose AR-94 functions globally

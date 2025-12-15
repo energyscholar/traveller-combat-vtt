@@ -180,6 +180,22 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
   const contacts = campaign?.sensorContacts || [];
   const inJump = jumpStatus?.inJump || false;
 
+  // AR-124: Block navigation until position verified after jump
+  if (shipState.positionVerified === false) {
+    return `
+      <div class="detail-section position-blocked">
+        <h4>⏳ Navigation Blocked</h4>
+        <div class="blocked-notice" style="padding: 16px; background: rgba(255,193,7,0.15); border-radius: 8px; margin-bottom: 16px;">
+          <p style="margin: 0 0 8px 0; font-weight: bold;">Ship has exited jump space</p>
+          <p style="margin: 0; color: #aaa;">Astrogator must verify position before navigation systems can be used.</p>
+        </div>
+        <div class="waiting-indicator" style="text-align: center; padding: 20px; font-size: 1.2em; color: #ffc107;">
+          Waiting for Astrogator...
+        </div>
+      </div>
+    `;
+  }
+
   // Flight conditions section HTML
   const flightConditionsHtml = flightConditions ? `
     <div class="detail-section flight-conditions">
@@ -1228,8 +1244,10 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
   };
 
   // AR-36: ECM/ECCM state
-  const ecmActive = shipState?.ecmActive || false;
-  const eccmActive = shipState?.eccmActive || false;
+  // AR-127: Normalized property names to match server (ecm/eccm/stealth)
+  const ecmActive = shipState?.ecm || shipState?.ecmActive || false;
+  const eccmActive = shipState?.eccm || shipState?.eccmActive || false;
+  const stealthActive = shipState?.stealth || false;
   const sensorGrade = shipState?.sensorGrade || 'civilian';
   const sensorLock = shipState?.sensorLock || null;
 
@@ -1260,12 +1278,15 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
           <span class="stat-value ${sensorGrade === 'military' ? 'text-success' : ''}">${sensorGrade === 'military' ? 'Military (+2 DM)' : 'Civilian (+0 DM)'}</span>
         </div>
       </div>
-      <div class="ecm-controls" style="display: flex; gap: 8px; margin-top: 8px;">
+      <div class="ecm-controls" style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
         <button onclick="window.toggleECM()" class="btn btn-small ${ecmActive ? 'btn-danger' : 'btn-secondary'}" title="ECM: Jamming gives enemies -2 DM to sensor checks against us">
           ECM ${ecmActive ? 'ON' : 'OFF'}
         </button>
         <button onclick="window.toggleECCM()" class="btn btn-small ${eccmActive ? 'btn-success' : 'btn-secondary'}" title="ECCM: Counter-jamming negates enemy ECM (-2 penalty)">
           ECCM ${eccmActive ? 'ON' : 'OFF'}
+        </button>
+        <button onclick="window.toggleStealth()" class="btn btn-small ${stealthActive ? 'btn-warning' : 'btn-secondary'}" title="Stealth: Reduce emissions to avoid detection">
+          Stealth ${stealthActive ? 'ON' : 'OFF'}
         </button>
       </div>
       ${sensorLock ? `
@@ -1298,30 +1319,6 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
     </div>
     <div id="scan-result-display" class="scan-result-display" style="display: none;">
       <!-- Populated by scan results -->
-    </div>
-    <div class="detail-section">
-      <h4>Electronic Warfare</h4>
-      <div class="ew-controls" style="display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px;">
-        <button onclick="window.toggleECM()" class="btn btn-small ${shipState.ecm ? 'btn-active btn-warning' : ''}" title="Electronic Counter-Measures: -DM to enemy sensors">
-          ECM ${shipState.ecm ? 'ON' : 'OFF'}
-        </button>
-        <button onclick="window.toggleECCM()" class="btn btn-small ${shipState.eccm ? 'btn-active btn-success' : ''}" title="Electronic Counter-Counter-Measures: +DM to our sensors">
-          ECCM ${shipState.eccm ? 'ON' : 'OFF'}
-        </button>
-        <button onclick="window.toggleStealth()" class="btn btn-small ${shipState.stealth ? 'btn-active btn-secondary' : ''}" title="Reduce emissions to avoid detection">
-          Stealth ${shipState.stealth ? 'ON' : 'OFF'}
-        </button>
-      </div>
-      <div class="detail-stats">
-        <div class="stat-row">
-          <span>Sensor Lock:</span>
-          <span class="stat-value ${shipState.sensorLock ? 'text-warning' : ''}">${shipState.sensorLock ? escapeHtml(shipState.sensorLockTarget || 'Active') : 'None'}</span>
-        </div>
-        <div class="stat-row">
-          <span>Jamming DM:</span>
-          <span class="stat-value">${shipState.ecm ? '-2' : '0'}</span>
-        </div>
-      </div>
     </div>
     ${ships.length > 0 ? `
     <div class="detail-section">
