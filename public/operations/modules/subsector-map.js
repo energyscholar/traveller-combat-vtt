@@ -946,31 +946,130 @@ function resetSectorZoom() {
 /**
  * Show/hide subsector map
  */
-// AR-119: Available subsector files (until AR-120 adds dynamic TravellerMap fetching)
-const AVAILABLE_SUBSECTORS = ['district268', 'five-sisters', 'glisten', 'trins-veil'];
-const DEFAULT_SUBSECTOR_FILE = 'district268';
+// AR-144: Dynamic subsector loading
+const DEFAULT_SUBSECTOR_FILE = 'five-sisters'; // Changed from district268
+
+// Cache for hex-to-subsector lookups
+const hexToSubsectorCache = new Map();
+let availableSubsectors = null;
+let subsectorDataCache = new Map();
 
 /**
- * AR-119: Get subsector file name from campaign state or system data
- * @returns {string} Subsector file name (e.g., 'district268', 'mora')
+ * AR-144: Find which subsector file contains a given hex
+ * @param {string} targetHex - Hex to find (e.g., '1031')
+ * @returns {Promise<string|null>} Subsector filename or null
  */
-function getSubsectorForCurrentSystem() {
-  // 1. Check if campaign has explicit subsector set
+async function findSubsectorForHex(targetHex) {
+  if (!targetHex) return null;
+
+  // Check cache first
+  if (hexToSubsectorCache.has(targetHex)) {
+    const cached = hexToSubsectorCache.get(targetHex);
+    console.log(`[SectorMap] Cache hit: hex ${targetHex} -> ${cached}`);
+    return cached;
+  }
+
+  // Get list of available subsectors
+  if (!availableSubsectors) {
+    availableSubsectors = await fetchSubsectorList();
+  }
+
+  // Search each subsector file for the hex
+  for (const subsectorFile of availableSubsectors) {
+    const data = await fetchSubsectorData(subsectorFile);
+    if (data?.systems?.some(s => s.hex === targetHex)) {
+      console.log(`[SectorMap] Found hex ${targetHex} in ${subsectorFile}`);
+      hexToSubsectorCache.set(targetHex, subsectorFile);
+      return subsectorFile;
+    }
+  }
+
+  console.log(`[SectorMap] Hex ${targetHex} not found in any subsector`);
+  return null;
+}
+
+/**
+ * AR-144: Fetch list of available subsector files from server
+ */
+async function fetchSubsectorList() {
+  return new Promise((resolve) => {
+    if (!window.state?.socket) {
+      console.warn('[SectorMap] No socket, using hardcoded subsector list');
+      resolve(['five-sisters', 'glisten', 'trins-veil', 'spinward-marches-n']);
+      return;
+    }
+
+    window.state.socket.emit('ops:listSubsectors');
+
+    const handler = (data) => {
+      window.state.socket.off('ops:subsectorList', handler);
+      resolve(data.subsectors || []);
+    };
+
+    window.state.socket.on('ops:subsectorList', handler);
+
+    // Timeout fallback
+    setTimeout(() => {
+      window.state.socket.off('ops:subsectorList', handler);
+      console.warn('[SectorMap] Timeout fetching subsector list');
+      resolve(['five-sisters', 'glisten', 'trins-veil', 'spinward-marches-n']);
+    }, 3000);
+  });
+}
+
+/**
+ * AR-144: Fetch subsector data (with caching)
+ */
+async function fetchSubsectorData(subsectorFile) {
+  if (subsectorDataCache.has(subsectorFile)) {
+    return subsectorDataCache.get(subsectorFile);
+  }
+
+  try {
+    const response = await fetch(`/data/subsectors/${subsectorFile}.json`);
+    if (response.ok) {
+      const data = await response.json();
+      subsectorDataCache.set(subsectorFile, data);
+      return data;
+    }
+  } catch (err) {
+    console.warn(`[SectorMap] Failed to fetch ${subsectorFile}:`, err);
+  }
+  return null;
+}
+
+/**
+ * AR-144: Get subsector file name from current ship hex
+ * @returns {Promise<string>} Subsector file name
+ */
+async function getSubsectorForCurrentSystem() {
+  // 1. Get current hex from state
+  const currentHex = window.state?.campaign?.current_hex ||
+                     window.state?.shipState?.systemHex ||
+                     window.state?.ship?.current_state?.systemHex;
+
+  if (currentHex) {
+    const subsector = await findSubsectorForHex(currentHex);
+    if (subsector) {
+      console.log(`[SectorMap] Using subsector ${subsector} for hex ${currentHex}`);
+      return subsector;
+    }
+  }
+
+  // 2. Check explicit campaign subsector
   const campaignSubsector = window.state?.campaign?.current_subsector;
   if (campaignSubsector) {
     const normalized = campaignSubsector.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    if (AVAILABLE_SUBSECTORS.includes(normalized)) {
-      return normalized;
-    }
-    console.log(`[SectorMap] Subsector "${campaignSubsector}" not available locally, using default`);
+    console.log(`[SectorMap] Using campaign subsector: ${normalized}`);
+    return normalized;
   }
 
-  // 2. TODO AR-120: Fetch subsector dynamically from TravellerMap API
-  // For now, fall back to default
+  // 3. Fallback
+  console.log(`[SectorMap] Using default subsector: ${DEFAULT_SUBSECTOR_FILE}`);
   return DEFAULT_SUBSECTOR_FILE;
 }
 
-function showSectorMap() {
+async function showSectorMap() {
   const overlay = document.getElementById('sector-map-container');
   const canvasContainer = document.getElementById('sector-map-canvas-container');
   if (overlay && canvasContainer) {
@@ -990,8 +1089,8 @@ function showSectorMap() {
       console.log(`[SectorMap] No hex in state, will lookup from system name`);
     }
 
-    // AR-119: Dynamic subsector loading (will use TravellerMap API in AR-120)
-    const subsectorFile = getSubsectorForCurrentSystem();
+    // AR-144: Dynamic subsector loading based on ship hex
+    const subsectorFile = await getSubsectorForCurrentSystem();
     console.log(`[SectorMap] Loading subsector: ${subsectorFile}`);
     loadSectorData(subsectorFile);
 
@@ -1011,12 +1110,12 @@ function hideSectorMap() {
   }
 }
 
-function toggleSectorMap() {
+async function toggleSectorMap() {
   const container = document.getElementById('sector-map-container');
   if (container && container.style.display !== 'none') {
     hideSectorMap();
   } else {
-    showSectorMap();
+    await showSectorMap();
   }
 }
 

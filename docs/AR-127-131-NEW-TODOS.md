@@ -343,3 +343,43 @@ function getEffectiveSkill(role, action) {
 1. Condensed role panels or just command buttons?
 2. Confirmation dialogs for commands?
 3. Recommended action hints?
+
+---
+
+## AR-146: Remove Archaic district268.json (LOW)
+
+**Source:** User TODO - "district268.json is an archaic relic, should not exist"
+
+**Description:** Move functionality from district268.json to proper places and delete the file. It's a legacy file from when the app started.
+
+**Steps:**
+1. Identify what uses district268.json directly
+2. Move data to proper subsector files (spinward-marches-o.json is District 268 proper)
+3. Update any hardcoded references
+4. Delete district268.json
+5. Update DEFAULT_SUBSECTOR_FILE to a valid subsector
+
+**Scope:** 1hr, LOW risk
+
+---
+
+## AR-142: Server Startup - Multistage Test Commands (LOW)
+
+**Source:** User TODO - "modify the Server Startup text to add npm commands to run multistage use case tests"
+
+**Description:** Add npm commands for running multistage use case tests to the server startup message, displayed after the Features section.
+
+**Location:** `server.js:434` (after Features list, before Instructions)
+
+**Implementation:**
+```javascript
+log.info('');
+log.info('Test Commands:');
+log.info('- npm run test:fast       # Smoke tests (~0.6s)');
+log.info('- npm run test            # Full suite (~3s)');
+log.info('- npm run test:e2e <file> # E2E with cleanup');
+log.info('- node tests/ar-137-captain-journey.test.js  # Journey test');
+log.info('- node tests/ar-140-modules.test.js          # Module test');
+```
+
+**Scope:** 15min, LOW risk
