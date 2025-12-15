@@ -1218,6 +1218,51 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
   const ships = contacts?.filter(c => !c.celestial && c.type && ['Ship', 'Patrol'].includes(c.type)) || [];
   const unknowns = contacts?.filter(c => !c.celestial && (!c.type || c.type === 'unknown')) || [];
 
+  // AR-138: Count threats for status display
+  const threats = contacts?.filter(c =>
+    !c.celestial && (c.marking === 'hostile' || (c.type === 'Ship' && c.marking === 'unknown'))
+  ) || [];
+  const totalContacts = (contacts?.length || 0) - celestials.length;
+
+  // AR-138: Get panel mode from global state
+  const panelMode = window.state?.sensorPanelMode || 'collapsed';
+
+  // AR-138: EW status for collapsed display
+  const ecmActive = shipState?.ecm || shipState?.ecmActive || false;
+  const eccmActive = shipState?.eccm || shipState?.eccmActive || false;
+  const stealthActive = shipState?.stealth || false;
+  const sensorLock = shipState?.sensorLock || null;
+
+  // AR-138: Collapsed mode - single line status
+  if (panelMode === 'collapsed') {
+    const statusIcon = threats.length > 0 ? '🔴' : (unknowns.length > 0 ? '🟡' : '🟢');
+    const statusText = threats.length > 0 ? 'THREATS' : (totalContacts > 0 ? 'Clear' : 'Clear');
+    const ewStatus = [];
+    if (stealthActive) ewStatus.push('Stealth');
+    if (ecmActive) ewStatus.push('ECM');
+    if (eccmActive) ewStatus.push('ECCM');
+    if (sensorLock) ewStatus.push('🎯Lock');
+
+    return `
+      <div class="sensor-panel-collapsed" onclick="toggleSensorPanelMode('expanded')" style="cursor: pointer;">
+        <div class="sensor-status-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-secondary); border-radius: 6px;">
+          <div class="sensor-status-left" style="display: flex; align-items: center; gap: 12px;">
+            <span class="status-icon" style="font-size: 1.2em;">${statusIcon}</span>
+            <span class="status-text" style="font-weight: 600;">${statusText}</span>
+            <span class="contact-count" style="color: var(--text-muted);">
+              ${totalContacts > 0 ? `👁 ${totalContacts} contact${totalContacts !== 1 ? 's' : ''}` : 'No contacts'}
+            </span>
+            ${threats.length > 0 ? `<span class="threat-count" style="color: var(--danger);">⚔ ${threats.length} threat${threats.length !== 1 ? 's' : ''}</span>` : ''}
+          </div>
+          <div class="sensor-status-right" style="display: flex; align-items: center; gap: 8px;">
+            ${ewStatus.length > 0 ? `<span class="ew-status" style="font-size: 0.85em; color: var(--warning);">${ewStatus.join(' | ')}</span>` : ''}
+            <span class="expand-hint" style="color: var(--text-muted); font-size: 0.85em;">▼ Expand</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   // Scan level labels
   const scanLevelLabels = ['Unknown', 'Passive', 'Active', 'Deep'];
 
@@ -1283,15 +1328,62 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
     `;
   };
 
-  // AR-36: ECM/ECCM state
-  // AR-127: Normalized property names to match server (ecm/eccm/stealth)
-  const ecmActive = shipState?.ecm || shipState?.ecmActive || false;
-  const eccmActive = shipState?.eccm || shipState?.eccmActive || false;
-  const stealthActive = shipState?.stealth || false;
+  // AR-36: ECM/ECCM state - variables already declared above for collapsed mode
   const sensorGrade = shipState?.sensorGrade || 'civilian';
-  const sensorLock = shipState?.sensorLock || null;
+
+  // AR-138: Mode indicator for expanded/combat
+  const modeLabel = panelMode === 'combat' ? 'COMBAT' : 'EXPANDED';
+
+  // AR-138: Build contact data for mini radar
+  const radarContacts = contacts?.filter(c => !c.celestial).map(c => ({
+    id: c.id,
+    bearing: c.bearing || 0,
+    range_km: c.range_km || 50000,
+    marking: c.marking || 'unknown',
+    type: c.type || 'unknown',
+    name: c.name || c.transponder || `C-${(c.id || '').slice(0,4)}`
+  })) || [];
 
   return `
+    <div class="sensor-panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 4px 8px; background: var(--bg-tertiary); border-radius: 4px;">
+      <span style="font-weight: 600; font-size: 0.9em;">📡 SENSORS ${panelMode === 'combat' ? '<span style="color: var(--danger);">[COMBAT]</span>' : ''}</span>
+      <button onclick="toggleSensorPanelMode('collapsed')" class="btn btn-tiny btn-secondary" title="Collapse panel">▲ Collapse</button>
+    </div>
+
+    <!-- AR-138: Mini Radar Display -->
+    <div class="detail-section mini-radar-section" style="margin-bottom: 12px;">
+      <div class="mini-radar-container" style="display: flex; justify-content: center; align-items: center;">
+        <canvas id="sensor-mini-radar" width="200" height="200" style="background: #0a0a12; border-radius: 50%; border: 2px solid var(--border-color);"></canvas>
+      </div>
+      <div class="radar-legend" style="display: flex; justify-content: center; gap: 12px; margin-top: 6px; font-size: 0.75em; color: var(--text-muted);">
+        <span><span style="color: #4f4;">●</span> Friendly</span>
+        <span><span style="color: #f44;">●</span> Hostile</span>
+        <span><span style="color: #ff4;">●</span> Unknown</span>
+        <span><span style="color: #48f;">●</span> Neutral</span>
+      </div>
+      <script>
+        if (typeof renderMiniRadar === 'function') {
+          setTimeout(() => renderMiniRadar(${JSON.stringify(radarContacts)}, 50000), 0);
+        }
+      </script>
+    </div>
+
+    <!-- AR-138.4: Emissions Meter -->
+    <div class="detail-section emissions-section" style="margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+        <span style="font-size: 0.85em; font-weight: 500;">EMISSIONS</span>
+        <span style="font-size: 0.75em; color: var(--text-muted);">
+          ${stealthActive ? 'Low Profile (-4 DM)' : ecmActive ? 'Active Jamming' : 'Normal'}
+        </span>
+      </div>
+      <div class="emissions-bar" style="background: var(--bg-tertiary); border-radius: 4px; height: 8px; overflow: hidden;">
+        <div style="height: 100%; width: ${stealthActive ? '20' : ecmActive ? '60' : '100'}%; background: ${stealthActive ? 'var(--success)' : ecmActive ? 'var(--warning)' : 'var(--info)'}; transition: width 0.3s, background 0.3s;"></div>
+      </div>
+      <div style="font-size: 0.7em; color: var(--text-muted); margin-top: 2px;">
+        ${stealthActive ? '⚠ Active scan would reveal position' : ecmActive ? 'Jamming active - easier to detect but harder to target' : 'Full emissions - visible on passive scans'}
+      </div>
+    </div>
+
     <div class="detail-section">
       <h4>Sensor Controls</h4>
       <div class="sensor-scan-buttons">
@@ -1310,6 +1402,7 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
       </div>
     </div>
 
+    <!-- AR-138.5: Context-sensitive EW controls - show ECM/ECCM only when ships present -->
     <div class="detail-section ecm-section">
       <h4>Electronic Warfare</h4>
       <div class="ecm-status">
@@ -1319,12 +1412,14 @@ function getSensorOperatorPanel(shipState, contacts, environmentalData = null) {
         </div>
       </div>
       <div class="ecm-controls" style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
-        <button onclick="window.toggleECM()" class="btn btn-small ${ecmActive ? 'btn-danger' : 'btn-secondary'}" title="ECM: Jamming gives enemies -2 DM to sensor checks against us">
-          ECM ${ecmActive ? 'ON' : 'OFF'}
-        </button>
-        <button onclick="window.toggleECCM()" class="btn btn-small ${eccmActive ? 'btn-success' : 'btn-secondary'}" title="ECCM: Counter-jamming negates enemy ECM (-2 penalty)">
-          ECCM ${eccmActive ? 'ON' : 'OFF'}
-        </button>
+        ${ships.length > 0 || threats.length > 0 ? `
+          <button onclick="window.toggleECM()" class="btn btn-small ${ecmActive ? 'btn-danger' : 'btn-secondary'}" title="ECM: Jamming gives enemies -2 DM to sensor checks against us">
+            ECM ${ecmActive ? 'ON' : 'OFF'}
+          </button>
+          <button onclick="window.toggleECCM()" class="btn btn-small ${eccmActive ? 'btn-success' : 'btn-secondary'}" title="ECCM: Counter-jamming negates enemy ECM (-2 penalty)">
+            ECCM ${eccmActive ? 'ON' : 'OFF'}
+          </button>
+        ` : ''}
         <button onclick="window.toggleStealth()" class="btn btn-small ${stealthActive ? 'btn-warning' : 'btn-secondary'}" title="Stealth: Reduce emissions to avoid detection">
           Stealth ${stealthActive ? 'ON' : 'OFF'}
         </button>

@@ -186,6 +186,7 @@ const state = {
   pinnedContactId: null,  // TIP-1: Currently pinned contact for tooltip
   contactSort: 'range',   // AR-25: Contact sort preference
   contactFilter: 'all',   // AR-25: Contact filter preference
+  sensorPanelMode: 'collapsed',  // AR-138: 'collapsed', 'expanded', 'combat'
 
   // AUTORUN-8: Prep data
   prepReveals: [],
@@ -927,6 +928,7 @@ function initSocket() {
     state.contacts = data.contacts;
     renderContacts();
     renderCombatContactsList(); // Autorun 14
+    checkSensorThreats(); // AR-138.3: Auto-expand on threat
   });
 
   state.socket.on('ops:contactAdded', (data) => {
@@ -934,6 +936,7 @@ function initSocket() {
     renderContacts();
     renderCombatContactsList(); // Autorun 14
     showNotification(`Contact added: ${data.contact.name || data.contact.type}`, 'info');
+    checkSensorThreats(); // AR-138.3: Auto-expand on threat
   });
 
   state.socket.on('ops:contactUpdated', (data) => {
@@ -954,6 +957,7 @@ function initSocket() {
     renderContacts();
     renderCombatContactsList(); // Autorun 14
     showNotification(`Sensor scan complete: ${data.contacts.length} contacts`, 'info');
+    checkSensorThreats(); // AR-138.3: Auto-expand on threat
   });
 
   // Ship Systems events
@@ -4388,6 +4392,111 @@ function setSensorLock(contactId) {
   } else {
     breakSensorLock();
   }
+}
+
+// AR-138: Sensor panel mode toggle
+function toggleSensorPanelMode(mode) {
+  if (mode) {
+    state.sensorPanelMode = mode;
+  } else {
+    // Cycle: collapsed → expanded → collapsed
+    state.sensorPanelMode = state.sensorPanelMode === 'collapsed' ? 'expanded' : 'collapsed';
+  }
+  renderRoleDetailPanel('sensor_operator');
+}
+
+// AR-138: Check for threats and auto-expand sensor panel
+function checkSensorThreats() {
+  const threats = state.contacts?.filter(c =>
+    !c.celestial && (c.marking === 'hostile' || (c.type === 'Ship' && c.marking === 'unknown'))
+  ) || [];
+
+  if (threats.length > 0 && state.sensorPanelMode === 'collapsed') {
+    state.sensorPanelMode = 'combat';
+    renderRoleDetailPanel('sensor_operator');
+    showNotification(`⚠ ${threats.length} potential threat(s) detected!`, 'danger');
+  }
+}
+
+// AR-138.2: Mini radar canvas renderer
+function renderMiniRadar(contacts, range = 50000) {
+  const canvas = document.getElementById('sensor-mini-radar');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const scale = (w / 2 - 10) / range;
+
+  // Clear and fill background
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw range rings
+  ctx.strokeStyle = 'rgba(100, 150, 100, 0.3)';
+  ctx.lineWidth = 1;
+  [0.25, 0.5, 0.75, 1].forEach(r => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * (w / 2 - 10), 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Draw crosshairs
+  ctx.strokeStyle = 'rgba(100, 150, 100, 0.2)';
+  ctx.beginPath();
+  ctx.moveTo(cx, 5);
+  ctx.lineTo(cx, h - 5);
+  ctx.moveTo(5, cy);
+  ctx.lineTo(w - 5, cy);
+  ctx.stroke();
+
+  // Draw ship at center (triangle pointing up)
+  ctx.fillStyle = '#4a9';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 6);
+  ctx.lineTo(cx - 4, cy + 4);
+  ctx.lineTo(cx + 4, cy + 4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Draw contacts
+  contacts.forEach(c => {
+    const angle = ((c.bearing || 0) - 90) * Math.PI / 180;  // -90 to put 0° at top
+    const dist = Math.min(c.range_km || range, range);
+    const x = cx + Math.cos(angle) * dist * scale;
+    const y = cy + Math.sin(angle) * dist * scale;
+
+    // Color by marking
+    const colors = {
+      friendly: '#4f4',
+      hostile: '#f44',
+      neutral: '#48f',
+      unknown: '#ff4'
+    };
+    ctx.fillStyle = colors[c.marking] || '#ff4';
+
+    // Draw contact dot
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw bearing line for hostile
+    if (c.marking === 'hostile') {
+      ctx.strokeStyle = 'rgba(255, 68, 68, 0.3)';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  });
+
+  // Draw range label
+  ctx.fillStyle = 'rgba(150, 170, 150, 0.6)';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${(range / 1000).toFixed(0)}k km`, cx, h - 4);
 }
 
 // AR-103: calculateSensorDM moved to modules/helpers.js
@@ -11020,6 +11129,10 @@ window.setSensorLock = setSensorLock;
 window.acquireSensorLock = acquireSensorLock;
 window.breakSensorLock = breakSensorLock;
 window.calculateSensorDM = calculateSensorDM;
+// AR-138: Sensor panel mode
+window.toggleSensorPanelMode = toggleSensorPanelMode;
+window.checkSensorThreats = checkSensorThreats;
+window.renderMiniRadar = renderMiniRadar;
 // AR-128: Observer role-watching
 window.observerWatchRole = 'pilot';  // Default to watching pilot
 window.setObserverWatchRole = function(role) {
