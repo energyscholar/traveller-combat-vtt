@@ -3004,9 +3004,10 @@ function drawMapContacts(ctx, centerX, centerY, zoom) {
     let screenX, screenY;
 
     // AR-71 Phase 3: If contact has absolute position, use it directly
+    // Note: centerX/centerY already include pan offset from render()
     if (contact.position) {
-      screenX = centerX + contact.position.x * auToPixels + systemMapState.offsetX;
-      screenY = centerY + contact.position.y * auToPixels * 0.6 + systemMapState.offsetY;
+      screenX = centerX + contact.position.x * auToPixels;
+      screenY = centerY + contact.position.y * auToPixels * 0.6;
     } else {
       // Convert bearing/range to position relative to ship
       // range_km is the actual property from database (snake_case)
@@ -3066,8 +3067,9 @@ function drawRangeBands(ctx, centerX, centerY, zoom) {
 
   const pos = shipMapState.partyShip.position || { x: 5, y: 0, z: 0 };
   const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
-  const shipX = centerX + pos.x * auToPixels + systemMapState.offsetX;
-  const shipY = centerY + pos.y * auToPixels + systemMapState.offsetY;
+  // Note: centerX/centerY already include pan offset from render()
+  const shipX = centerX + pos.x * auToPixels;
+  const shipY = centerY + pos.y * auToPixels;
 
   // Range bands in km → AU (1 AU ≈ 150,000,000 km)
   const bands = [
@@ -3100,14 +3102,15 @@ function drawCourseLine(ctx, centerX, centerY, zoom) {
   const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
   const shipPos = shipMapState.partyShip.position || { x: 5, y: 0, z: 0 };
 
-  const shipX = centerX + shipPos.x * auToPixels + systemMapState.offsetX;
-  const shipY = centerY + shipPos.y * auToPixels + systemMapState.offsetY;
+  // Note: centerX/centerY already include pan offset from render()
+  const shipX = centerX + shipPos.x * auToPixels;
+  const shipY = centerY + shipPos.y * auToPixels;
 
   // Get destination position (from body orbit)
   const dest = shipMapState.destination;
   const orbitRadius = dest.orbitRadius || 1;
-  const destX = centerX + orbitRadius * auToPixels + systemMapState.offsetX;
-  const destY = centerY + systemMapState.offsetY;
+  const destX = centerX + orbitRadius * auToPixels;
+  const destY = centerY;
 
   // Draw dashed line
   ctx.strokeStyle = '#4488ff';
