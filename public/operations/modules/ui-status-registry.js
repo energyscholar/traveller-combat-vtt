@@ -34,20 +34,20 @@ export const UI_STATUS = {
     note: 'AR-127: Sort dropdown functional'
   },
   'btn-ecm': {
-    status: 'yellow',
-    note: 'AR-127: Socket mismatch - client sends wrong event'
+    status: 'green',
+    note: 'AR-127: ECM toggle via ops:setEW - functional'
   },
   'btn-eccm': {
-    status: 'yellow',
-    note: 'AR-127: Socket mismatch - client sends wrong event'
+    status: 'green',
+    note: 'AR-127: ECCM toggle via ops:setEW - functional'
   },
   'btn-stealth': {
-    status: 'yellow',
-    note: 'AR-127: Socket mismatch - client sends wrong event'
+    status: 'green',
+    note: 'AR-127: Stealth toggle via ops:setEW - functional'
   },
   'btn-break-lock': {
-    status: 'yellow',
-    note: 'AR-127: No server handler for ops:breakSensorLock'
+    status: 'green',
+    note: 'AR-127: Break lock via ops:setSensorLock - functional'
   },
 
   // --- Astrogator Panel ---
