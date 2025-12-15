@@ -4507,6 +4507,60 @@ function switchCaptainPanel(panel) {
   console.log(`[Captain] Switched to ${panel} panel`);
 }
 
+// AR-139: GM damage control functions
+function gmApplyDamage(severity) {
+  if (!state.isGM) {
+    showNotification('Only GM can apply damage', 'danger');
+    return;
+  }
+  const systemSelect = document.getElementById('gm-damage-system-select');
+  const location = systemSelect?.value || 'hull';
+  state.socket.emit('ops:applySystemDamage', {
+    shipId: state.shipId,
+    location,
+    severity
+  });
+  console.log(`[GM] Applied damage: ${location} severity ${severity}`);
+}
+
+function gmClearDamage() {
+  if (!state.isGM) {
+    showNotification('Only GM can clear damage', 'danger');
+    return;
+  }
+  const systemSelect = document.getElementById('gm-damage-system-select');
+  const location = systemSelect?.value || 'hull';
+  state.socket.emit('ops:clearSystemDamage', {
+    shipId: state.shipId,
+    location
+  });
+  console.log(`[GM] Cleared damage: ${location}`);
+}
+
+function gmRestoreAllSystems() {
+  if (!state.isGM) {
+    showNotification('Only GM can restore systems', 'danger');
+    return;
+  }
+  const systems = ['mDrive', 'jDrive', 'powerPlant', 'sensors', 'computer', 'weapon', 'hull', 'crew'];
+  systems.forEach(location => {
+    state.socket.emit('ops:clearSystemDamage', {
+      shipId: state.shipId,
+      location
+    });
+  });
+  showNotification('All systems restored', 'success');
+  console.log('[GM] Restored all systems');
+}
+
+// AR-139: Show GM damage controls when GM opens ship systems panel
+function showGMDamageControls() {
+  const controls = document.getElementById('gm-damage-controls');
+  if (controls && state.isGM) {
+    controls.classList.remove('hidden');
+  }
+}
+
 // AR-103: calculateSensorDM moved to modules/helpers.js
 
 function handleScanResult(data) {
@@ -10987,6 +11041,9 @@ function showShipSystemsPanel() {
   const panel = document.getElementById('ship-systems-panel');
   panel.classList.remove('hidden');
 
+  // AR-139: Show GM damage controls if GM
+  showGMDamageControls();
+
   // Request ship systems data from server
   if (state.socket && state.selectedShipId) {
     state.socket.emit('ops:getShipSystems', { shipId: state.selectedShipId });
@@ -11143,6 +11200,10 @@ window.checkSensorThreats = checkSensorThreats;
 window.renderMiniRadar = renderMiniRadar;
 // AR-131+: Captain panel switching
 window.switchCaptainPanel = switchCaptainPanel;
+// AR-139: GM damage controls
+window.gmApplyDamage = gmApplyDamage;
+window.gmClearDamage = gmClearDamage;
+window.gmRestoreAllSystems = gmRestoreAllSystems;
 // AR-128: Observer role-watching
 window.observerWatchRole = 'pilot';  // Default to watching pilot
 window.setObserverWatchRole = function(role) {

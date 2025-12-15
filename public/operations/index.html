@@ -320,6 +320,30 @@
             <span class="system-status-text">Operational</span>
           </div>
         </div>
+
+        <!-- AR-139: GM Damage Controls (hidden for non-GM) -->
+        <div id="gm-damage-controls" class="gm-damage-controls hidden">
+          <h4>GM Damage Controls</h4>
+          <div class="damage-controls-grid">
+            <select id="gm-damage-system-select" class="damage-select">
+              <option value="mDrive">M-Drive</option>
+              <option value="jDrive">J-Drive</option>
+              <option value="powerPlant">Power Plant</option>
+              <option value="sensors">Sensors</option>
+              <option value="computer">Computer</option>
+              <option value="weapon">Weapons</option>
+              <option value="hull">Hull</option>
+              <option value="crew">Life Support</option>
+            </select>
+            <div class="damage-buttons">
+              <button onclick="window.gmApplyDamage(1)" class="btn btn-tiny btn-warning" title="Apply minor damage">+1</button>
+              <button onclick="window.gmApplyDamage(2)" class="btn btn-tiny btn-warning" title="Apply moderate damage">+2</button>
+              <button onclick="window.gmApplyDamage(3)" class="btn btn-tiny btn-danger" title="Apply severe damage">+3</button>
+              <button onclick="window.gmClearDamage()" class="btn btn-tiny btn-success" title="Repair system">Repair</button>
+            </div>
+          </div>
+          <button onclick="window.gmRestoreAllSystems()" class="btn btn-small btn-success" style="margin-top: 8px; width: 100%;">Restore All Systems</button>
+        </div>
       </div>
 
       <!-- Ship Status Bar -->
