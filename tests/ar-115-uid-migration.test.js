@@ -194,6 +194,51 @@ function runTests() {
   // Teardown
   teardown();
 
+  // Integration tests with accounts.js
+  console.log('\n--- Integration: accounts.js ---');
+
+  const { updateCampaign, getCampaignSystem, setCampaignSystem } = require('../lib/operations/accounts');
+  const { db } = require('../lib/operations/database');
+
+  test('updateCampaign auto-resolves system_uid', () => {
+    // Get a real campaign from the test database
+    const campaigns = db.prepare('SELECT id FROM campaigns LIMIT 1').all();
+    if (campaigns.length === 0) {
+      console.log('  (skipped - no campaigns in test db)');
+      return;
+    }
+
+    const campaignId = campaigns[0].id;
+    const updated = updateCampaign(campaignId, { current_system: 'Flammarion' });
+
+    assert(updated.system_uid === 'flammarion', `Expected flammarion, got ${updated.system_uid}`);
+  });
+
+  test('getCampaignSystem returns full system data', () => {
+    const campaigns = db.prepare('SELECT id FROM campaigns WHERE system_uid IS NOT NULL LIMIT 1').all();
+    if (campaigns.length === 0) {
+      console.log('  (skipped - no campaigns with system_uid)');
+      return;
+    }
+
+    const system = getCampaignSystem(campaigns[0].id);
+    assert(system !== null, 'Should return system data');
+    assert(system.name, 'System should have name');
+    assert(system.celestialObjects || system.hex, 'System should have data');
+  });
+
+  test('setCampaignSystem works with system ID', () => {
+    const campaigns = db.prepare('SELECT id FROM campaigns LIMIT 1').all();
+    if (campaigns.length === 0) {
+      console.log('  (skipped - no campaigns in test db)');
+      return;
+    }
+
+    const updated = setCampaignSystem(campaigns[0].id, 'dorannia');
+    assert(updated.system_uid === 'dorannia', 'Should set by ID');
+    assert(updated.current_system === 'Dorannia', 'Should also set name');
+  });
+
   console.log(`\n${'='.repeat(50)}`);
   console.log(`Total: ${passed + failed} | Passed: ${passed} | Failed: ${failed}`);
   console.log('='.repeat(50));
