@@ -1141,6 +1141,45 @@ function getCaptainPanel(shipState, template, ship, crewOnline, contacts, rescue
     </div>
     ` : ''}
 
+    <div class="detail-section captain-solo-section">
+      <h4>Ship Operations (Solo Mode)</h4>
+      <p style="color: var(--text-muted); font-size: 0.8em; margin-bottom: 8px;">
+        Command all ship functions directly. Skill: Captain=0, Filled Role=1, Skilled Crew=their skill.
+      </p>
+      <div class="solo-controls" style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="solo-group">
+          <label style="font-size: 0.85em; color: var(--text-secondary);">Navigation</label>
+          <div style="display: flex; gap: 5px; margin-top: 4px;">
+            <button onclick="window.captainSoloCommand('plotJump')" class="btn btn-small btn-secondary" title="Plot jump course to destination">
+              Plot Jump
+            </button>
+            <button onclick="window.captainSoloCommand('verifyPosition')" class="btn btn-small btn-secondary" title="Verify position after jump exit">
+              Verify Position
+            </button>
+          </div>
+        </div>
+        <div class="solo-group">
+          <label style="font-size: 0.85em; color: var(--text-secondary);">Helm</label>
+          <div style="display: flex; gap: 5px; margin-top: 4px;">
+            <button onclick="window.captainSoloCommand('setCourse')" class="btn btn-small btn-secondary" title="Set course to destination">
+              Set Course
+            </button>
+          </div>
+        </div>
+        <div class="solo-group">
+          <label style="font-size: 0.85em; color: var(--text-secondary);">Engineering</label>
+          <div style="display: flex; gap: 5px; margin-top: 4px;">
+            <button onclick="window.captainSoloCommand('refuel')" class="btn btn-small btn-secondary" title="Begin refueling">
+              Refuel
+            </button>
+            <button onclick="window.captainSoloCommand('refineFuel')" class="btn btn-small btn-secondary" title="Process unrefined fuel">
+              Refine Fuel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="detail-section captain-comms-section">
       <h4>Communications</h4>
       ${hailableContacts.length === 0 ? `

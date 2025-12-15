@@ -4783,6 +4783,52 @@ function acknowledgeOrder(orderId) {
   showNotification('Order acknowledged', 'success');
 }
 
+/**
+ * AR-131: Captain Solo Mode - execute commands directly
+ * Routes to existing role handlers with captain override
+ */
+function captainSoloCommand(command) {
+  switch (command) {
+    case 'plotJump':
+      // Open jump plot modal or show destinations
+      showNotification('Select a jump destination from the Astrogator panel', 'info');
+      // Could open a modal here - for MVP, direct to astrogator panel
+      break;
+
+    case 'verifyPosition':
+      state.socket.emit('ops:verifyPosition');
+      showNotification('Verifying position...', 'info');
+      break;
+
+    case 'setCourse':
+      // Show destinations panel
+      showPlacesOverlay();
+      showNotification('Select destination from Places panel', 'info');
+      break;
+
+    case 'refuel':
+      // Trigger refuel dialog
+      state.socket.emit('ops:getAvailableFuelSources');
+      showNotification('Checking available fuel sources...', 'info');
+      break;
+
+    case 'refineFuel':
+      state.socket.emit('ops:startFuelProcessing', { tons: 'all' });
+      showNotification('Starting fuel processing...', 'info');
+      break;
+
+    default:
+      showNotification(`Unknown command: ${command}`, 'warning');
+  }
+
+  // Log the captain's action
+  state.socket.emit('ops:addLogEntry', {
+    entryType: 'command',
+    message: `Captain orders: ${command}`,
+    actor: 'Captain'
+  });
+}
+
 // Expose captain functions to window
 window.captainSetAlert = captainSetAlert;
 window.captainQuickOrder = captainQuickOrder;
@@ -4795,6 +4841,7 @@ window.captainRequestStatus = captainRequestStatus;
 window.captainLeadershipCheck = captainLeadershipCheck;
 window.captainTacticsCheck = captainTacticsCheck;
 window.acknowledgeOrder = acknowledgeOrder;
+window.captainSoloCommand = captainSoloCommand;  // AR-131
 
 /**
  * Update fire button text when weapon selection changes
