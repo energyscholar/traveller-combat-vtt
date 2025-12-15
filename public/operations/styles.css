@@ -921,9 +921,17 @@ input[type="checkbox"] {
   background: rgba(58, 138, 255, 0.1);
 }
 
+/* AR-143: Taken roles are clickable for takeover with confirmation */
 .role-option.taken {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 0.7;
+  cursor: pointer;
+  border-color: var(--warning);
+}
+
+.role-option.taken:hover {
+  opacity: 0.9;
+  border-color: #e6a700;
+  background: rgba(255, 193, 7, 0.1);
 }
 
 .role-option .role-name {

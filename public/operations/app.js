@@ -2600,7 +2600,8 @@ function renderRoleSelection() {
     const tooltip = `${r.name}: ${r.desc}`;
     return `
       <div class="role-option ${isSelected ? 'selected' : ''} ${isTaken ? 'taken' : ''} ${r.unlimited ? 'unlimited' : ''}"
-           data-role-id="${r.id}" data-role-instance="${r.instance}" ${isTaken ? 'disabled' : ''}
+           data-role-id="${r.id}" data-role-instance="${r.instance}"
+           data-taken-by="${isTaken ? escapeHtml(takenBy.name) : ''}"
            title="${tooltip}">
         <div class="role-name">${r.name}</div>
         <div class="role-desc">${r.desc}</div>
@@ -2609,7 +2610,7 @@ function renderRoleSelection() {
     `;
   }).join('');
 
-  // Add role selection handlers
+  // Add role selection handlers for available roles
   container.querySelectorAll('.role-option:not(.taken)').forEach(opt => {
     opt.addEventListener('click', () => {
       state.selectedRole = opt.dataset.roleId;
@@ -2619,6 +2620,29 @@ function renderRoleSelection() {
         role: state.selectedRole,
         roleInstance: state.selectedRoleInstance
       });
+    });
+  });
+
+  // AR-143: Add click handlers for taken roles (with confirmation)
+  container.querySelectorAll('.role-option.taken').forEach(opt => {
+    opt.style.cursor = 'pointer'; // Make it clear it's clickable
+    opt.addEventListener('click', () => {
+      const roleName = opt.querySelector('.role-name')?.textContent || 'this role';
+      const takenByName = opt.dataset.takenBy || 'another player';
+
+      // Show confirmation dialog
+      const confirmed = confirm(`Replace ${takenByName} as ${roleName}?\n\nThis will remove them from this station.`);
+
+      if (confirmed) {
+        state.selectedRole = opt.dataset.roleId;
+        state.selectedRoleInstance = parseInt(opt.dataset.roleInstance) || 1;
+        state.socket.emit('ops:assignRole', {
+          playerId: state.player.id,
+          role: state.selectedRole,
+          roleInstance: state.selectedRoleInstance
+        });
+        showNotification(`Taking over ${roleName} from ${takenByName}`, 'info');
+      }
     });
   });
 }
