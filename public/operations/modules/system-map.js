@@ -2920,8 +2920,9 @@ function drawLocationMarkers(ctx, centerX, centerY, zoom) {
     ctx.arc(screen.x, screen.y, dotSize, 0, Math.PI * 2);
     ctx.fill();
 
-    // AR-113 Phase 4: Add label below marker (at higher zoom levels)
-    if (zoom > 0.3) {
+    // AR-113 Phase 4: Add label below marker (only at high zoom to avoid overlap)
+    // Labels only visible when zoomed in enough to distinguish locations
+    if (zoom > 5) {
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.font = `${Math.max(8, 9 * Math.sqrt(zoom))}px monospace`;
