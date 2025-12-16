@@ -86,6 +86,11 @@ import {
   navigateToHex as _navigateToHex,
   buildTravellerMapUrl as _buildTravellerMapUrl
 } from './modules/shared-map.js';
+// AR-153: Phase 1 modules
+import { setPowerPreset as _setPowerPreset, updatePower as _updatePower, requestPowerStatus as _requestPowerStatus } from './modules/power-management.js';
+import { updateTransitCalculator, showPhysicsExplanation as _showPhysicsExplanation, setupTransitCalculator } from './modules/transit-calculator.js';
+import { copyShipLog, copySensorPanel as _copySensorPanel, copyRolePanel as _copyRolePanel } from './modules/copy-export.js';
+import { requestJumpStatus as _requestJumpStatus, updateFuelEstimate as _updateFuelEstimate, plotJumpCourse as _plotJumpCourse, verifyPosition as _verifyPosition, handleJumpPlotted, initiateJumpFromPlot as _initiateJumpFromPlot, initiateJump as _initiateJump, completeJump as _completeJump, skipToJumpExit as _skipToJumpExit } from './modules/jump-travel.js';
 
 // AR-152: Helper wrappers for notification variants
 const showError = (msg) => showNotification(msg, 'error');
@@ -169,6 +174,21 @@ const trackGMMapView = () => _trackGMMapView(state);
 const updateSharedMapFrame = (data) => _updateSharedMapFrame(state, data);
 const navigateToHex = (sector, hex) => _navigateToHex(state, sector, hex);
 const buildTravellerMapUrl = (sector, hex) => _buildTravellerMapUrl(state, sector, hex);
+// AR-153: Phase 1 wrappers
+const setPowerPreset = (preset) => _setPowerPreset(state, preset);
+const updatePower = () => _updatePower(state);
+const requestPowerStatus = () => _requestPowerStatus(state);
+const showPhysicsExplanation = () => _showPhysicsExplanation(showModalContent);
+const copySensorPanel = () => _copySensorPanel(state);
+const copyRolePanel = () => _copyRolePanel(state);
+const requestJumpStatus = () => _requestJumpStatus(state);
+const updateFuelEstimate = () => _updateFuelEstimate(state);
+const plotJumpCourse = () => _plotJumpCourse(state);
+const verifyPosition = () => _verifyPosition(state);
+const initiateJumpFromPlot = (dest, dist) => _initiateJumpFromPlot(state, dest, dist);
+const initiateJump = () => _initiateJump(state);
+const completeJump = () => _completeJump(state);
+const skipToJumpExit = () => _skipToJumpExit(state);
 
 // ==================== State ====================
 const state = {
@@ -3490,43 +3510,7 @@ function requestSystemStatus() {
   }
 }
 
-// ==================== Power Management (AR-31) ====================
-
-/**
- * Set power allocation to a preset
- * @param {string} preset - combat, silent, jump, or standard
- */
-function setPowerPreset(preset) {
-  if (!state.socket || !state.shipId) {
-    showNotification('Not connected to ship', 'error');
-    return;
-  }
-  state.socket.emit('ops:setPowerPreset', { preset });
-}
-
-/**
- * Update power levels from sliders
- */
-function updatePower() {
-  if (!state.socket || !state.shipId) return;
-
-  const sliders = document.querySelectorAll('.power-slider');
-  const power = {};
-  sliders.forEach(slider => {
-    power[slider.dataset.system] = parseInt(slider.value, 10);
-  });
-
-  state.socket.emit('ops:setPower', power);
-}
-
-/**
- * Request current power status
- */
-function requestPowerStatus() {
-  if (state.socket && state.shipId) {
-    state.socket.emit('ops:getPowerStatus');
-  }
-}
+// AR-153: Power Management moved to modules/power-management.js
 
 // ==================== Pilot Controls (AR-30) ====================
 
@@ -3642,110 +3626,7 @@ function getPendingTravel() {
 // Educational physics: t = 2 * sqrt(d / a)
 // User learned Newtonian physics from Traveller at age ~12
 
-// AR-103 Phase 6: calculateBrachistochrone, formatTransitTime, formatDistance moved to modules/helpers.js
-
-/**
- * Update transit calculator display
- */
-function updateTransitCalculator() {
-  const distanceInput = document.getElementById('transit-distance');
-  const accelSelect = document.getElementById('transit-accel');
-  const timeDisplay = document.getElementById('transit-time');
-  const turnoverDisplay = document.getElementById('transit-turnover');
-  const velocityDisplay = document.getElementById('transit-velocity');
-
-  if (!distanceInput || !accelSelect) return;
-
-  const distance = parseFloat(distanceInput.value) || 100000;
-  const accel = parseFloat(accelSelect.value) || 2;
-
-  const result = calculateBrachistochrone(distance, accel);
-
-  if (timeDisplay) timeDisplay.textContent = result.timeFormatted;
-  if (turnoverDisplay) turnoverDisplay.textContent = formatDistance(result.turnoverKm);
-  if (velocityDisplay) {
-    const velocity = result.maxVelocityKmh;
-    if (velocity > 1000000) {
-      velocityDisplay.textContent = `${(velocity / 1000000).toFixed(1)} Mkm/h`;
-    } else if (velocity > 1000) {
-      velocityDisplay.textContent = `${(velocity / 1000).toFixed(1)}k km/h`;
-    } else {
-      velocityDisplay.textContent = `${velocity.toFixed(0)} km/h`;
-    }
-  }
-}
-
-/**
- * Show physics explanation modal
- */
-function showPhysicsExplanation() {
-  const html = `
-    <div class="modal-header">
-      <h2>Physics: Brachistochrone</h2>
-      <button class="btn-close" data-close-modal>×</button>
-    </div>
-    <div class="modal-body">
-      <div class="physics-explanation">
-        <h3>Brachistochrone Transit</h3>
-        <p><strong>"Brachistochrone"</strong> = Greek for "shortest time"</p>
-
-        <h4>How it works:</h4>
-        <ol>
-          <li>Accelerate at constant thrust toward destination</li>
-          <li>At midpoint (<strong>turnover</strong>), flip ship 180°</li>
-          <li>Decelerate at same thrust to arrive stopped</li>
-        </ol>
-
-        <h4>The Formula:</h4>
-        <div class="formula-box">
-          <code>t = 2 × √(d ÷ a)</code>
-        </div>
-        <p>Where: <em>t</em> = time, <em>d</em> = distance, <em>a</em> = acceleration</p>
-
-        <h4>Key Insights:</h4>
-        <ul>
-          <li>Double the distance → only 1.41× longer (√2)</li>
-          <li>Double the thrust → only 0.71× time (1/√2)</li>
-          <li>Max velocity at turnover: <code>v = √(a × d)</code></li>
-        </ul>
-
-        <h4>Example:</h4>
-        <p>100,000 km at 2G = ~1h 46m transit</p>
-        <p>At turnover: 50,000 km out, velocity ~1,400 km/s</p>
-      </div>
-    </div>
-  `;
-
-  showModalContent(html);
-}
-
-/**
- * Initialize transit calculator event listeners
- */
-function setupTransitCalculator() {
-  // Update on input change
-  document.addEventListener('input', (e) => {
-    if (e.target.id === 'transit-distance' || e.target.id === 'transit-accel') {
-      updateTransitCalculator();
-    }
-  });
-
-  document.addEventListener('change', (e) => {
-    if (e.target.id === 'transit-accel') {
-      updateTransitCalculator();
-    }
-  });
-
-  // Physics explanation click
-  document.addEventListener('click', (e) => {
-    if (e.target.closest('.formula-help') || e.target.closest('.physics-badge')) {
-      showPhysicsExplanation();
-    }
-  });
-
-  // Initial calculation
-  setTimeout(updateTransitCalculator, 100);
-}
+// AR-153: Transit Calculator moved to modules/transit-calculator.js
 
 // ==================== AR-51: Gunner Weapons Reference ====================
 
@@ -4108,164 +3989,7 @@ function showTravelModal(destination) {
   });
 }
 
-// ==================== Jump Travel ====================
-
-function requestJumpStatus() {
-  if (state.socket && state.shipId) {
-    state.socket.emit('ops:getJumpStatus');
-  }
-}
-
-function updateFuelEstimate() {
-  const distance = parseInt(document.getElementById('jump-distance')?.value) || 1;
-  const hullTonnage = state.ship?.template_data?.tonnage || 100;
-  const fuelNeeded = Math.round(hullTonnage * distance * 0.1);
-  const estimateEl = document.getElementById('fuel-estimate');
-  if (estimateEl) {
-    estimateEl.textContent = fuelNeeded;
-  }
-}
-
-// Autorun 5: Plot jump course (shows info before committing)
-function plotJumpCourse() {
-  const destination = document.getElementById('jump-destination')?.value?.trim();
-  const distance = parseInt(document.getElementById('jump-distance')?.value) || 1;
-
-  if (!destination) {
-    showNotification('Please enter a destination system', 'error');
-    return;
-  }
-
-  state.socket.emit('ops:plotJump', {
-    destination,
-    distance
-  });
-}
-
-// AR-68: Verify position after jump exit
-function verifyPosition() {
-  state.socket.emit('ops:verifyPosition');
-}
-
-// Handle plotJump result
-function handleJumpPlotted(data) {
-  const resultDiv = document.getElementById('jump-plot-result');
-  if (!resultDiv) return;
-
-  const {
-    destination, distance, canJump, error, fuelNeeded, fuelAvailable,
-    fuelAfterJump, travelTime, currentDate, arrivalDate, warnings = [],
-    destinationInfo, astrogatorSkill
-  } = data;
-
-  let html = `<div class="jump-plot-summary ${canJump ? 'can-jump' : 'cannot-jump'}">`;
-
-  if (!canJump) {
-    html += `
-      <div class="plot-error">
-        <span class="error-icon">!</span>
-        ${error || 'Cannot initiate jump'}
-      </div>
-    `;
-  } else {
-    html += `
-      <div class="plot-header">Course to ${destination} (J-${distance})</div>
-      <div class="plot-stats">
-        <div class="plot-row">
-          <span>Fuel Required:</span>
-          <span class="plot-value">${fuelNeeded} tons</span>
-        </div>
-        <div class="plot-row">
-          <span>Fuel After Jump:</span>
-          <span class="plot-value ${fuelAfterJump < fuelNeeded ? 'text-warning' : ''}">${fuelAfterJump} tons</span>
-        </div>
-        <div class="plot-row">
-          <span>Travel Time:</span>
-          <span class="plot-value">${travelTime}</span>
-        </div>
-        <div class="plot-row">
-          <span>Current Date:</span>
-          <span class="plot-value">${currentDate}</span>
-        </div>
-        <div class="plot-row">
-          <span>ETA:</span>
-          <span class="plot-value">${arrivalDate}</span>
-        </div>
-      </div>
-    `;
-
-    if (destinationInfo) {
-      html += `
-        <div class="plot-destination-info">
-          <div class="plot-row">
-            <span>Starport:</span>
-            <span class="plot-value">${destinationInfo.starport || '?'}</span>
-          </div>
-          ${destinationInfo.gasGiants > 0 ? `
-          <div class="plot-row">
-            <span>Gas Giants:</span>
-            <span class="plot-value">${destinationInfo.gasGiants} (wilderness refuel possible)</span>
-          </div>
-          ` : ''}
-        </div>
-      `;
-    }
-
-    if (warnings.length > 0) {
-      html += `<div class="plot-warnings">`;
-      warnings.forEach(w => {
-        html += `<div class="plot-warning"><span class="warning-icon">!</span> ${w}</div>`;
-      });
-      html += `</div>`;
-    }
-
-    if (astrogatorSkill) {
-      html += `<div class="plot-skill-note"><em>${astrogatorSkill}</em></div>`;
-    }
-
-    html += `
-      <div class="plot-actions">
-        <button onclick="initiateJumpFromPlot('${destination}', ${distance})" class="btn btn-primary">
-          Initiate Jump
-        </button>
-      </div>
-    `;
-  }
-
-  html += `</div>`;
-  resultDiv.innerHTML = html;
-  resultDiv.style.display = 'block';
-}
-
-// Initiate jump from plotted course
-function initiateJumpFromPlot(destination, distance) {
-  state.socket.emit('ops:initiateJump', { destination, distance });
-}
-
-function initiateJump() {
-  const destination = document.getElementById('jump-destination')?.value?.trim();
-  const distance = parseInt(document.getElementById('jump-distance')?.value) || 1;
-
-  if (!destination) {
-    showNotification('Please enter a destination', 'error');
-    return;
-  }
-
-  state.socket.emit('ops:initiateJump', {
-    destination,
-    distance
-  });
-}
-
-function completeJump() {
-  state.socket.emit('ops:completeJump');
-}
-
-function skipToJumpExit() {
-  // Testing feature: Advance time to allow jump exit
-  state.socket.emit('ops:skipToJumpExit');
-  showNotification('Advancing time to jump exit...', 'info');
-}
+// AR-153: Jump Travel moved to modules/jump-travel.js
 
 // ==================== Sensor Operations (Autorun 5) ====================
 
@@ -7203,80 +6927,7 @@ function sendCommsMessage() {
 // Panel Copy Functions (for debugging)
 // ============================================
 
-/**
- * Copy ship log to clipboard as formatted text
- */
-function copyShipLog() {
-  const logEl = document.getElementById('ship-log');
-  if (!logEl) {
-    showNotification('Ship log not found', 'error');
-    return;
-  }
-
-  const entries = logEl.querySelectorAll('.log-entry');
-  const lines = [];
-
-  lines.push('=== SHIP LOG ===');
-  lines.push(`Copied: ${new Date().toISOString()}`);
-  lines.push('');
-
-  entries.forEach(entry => {
-    const time = entry.querySelector('.log-time')?.textContent || '';
-    const type = entry.querySelector('.log-type')?.textContent || '';
-    const msg = entry.querySelector('.log-message')?.textContent || '';
-    lines.push(`[${time}] [${type}] ${msg}`);
-  });
-
-  navigator.clipboard.writeText(lines.join('\n'))
-    .then(() => showNotification('Ship log copied', 'success'))
-    .catch(() => showNotification('Copy failed', 'error'));
-}
-
-/**
- * Copy sensor panel contacts to clipboard
- */
-function copySensorPanel() {
-  const contacts = state.contacts || [];
-  const lines = [];
-
-  lines.push('=== SENSOR CONTACTS ===');
-  lines.push(`Copied: ${new Date().toISOString()}`);
-  lines.push(`Total: ${contacts.length}`);
-  lines.push('');
-
-  contacts.forEach(c => {
-    lines.push(`[${c.id?.slice(0,8)}] ${c.transponder || c.name || 'Unknown'}`);
-    lines.push(`  Type: ${c.type || '?'} | Range: ${c.range_band || '?'} | Bearing: ${c.bearing || 0}°`);
-    lines.push(`  Marking: ${c.marking || 'unknown'} | Scan: ${c.scan_level || 0}`);
-    lines.push('');
-  });
-
-  navigator.clipboard.writeText(lines.join('\n'))
-    .then(() => showNotification('Sensor data copied', 'success'))
-    .catch(() => showNotification('Copy failed', 'error'));
-}
-
-/**
- * Copy current role panel state to clipboard
- */
-function copyRolePanel() {
-  const rolePanel = document.getElementById('role-panel-content');
-  if (!rolePanel) {
-    showNotification('Role panel not found', 'error');
-    return;
-  }
-
-  const lines = [];
-  lines.push('=== ROLE PANEL ===');
-  lines.push(`Role: ${state.selectedRole || 'none'}`);
-  lines.push(`Copied: ${new Date().toISOString()}`);
-  lines.push('');
-  lines.push(rolePanel.innerText);
-
-  navigator.clipboard.writeText(lines.join('\n'))
-    .then(() => showNotification('Role panel copied', 'success'))
-    .catch(() => showNotification('Copy failed', 'error'));
-}
+// AR-153: Copy/Export utilities moved to modules/copy-export.js
 
 // AR-103: showNotification, getNotificationContainer moved to modules/notifications.js
 
@@ -8806,6 +8457,14 @@ window.undock = undock;
 // AR-31: Engineer Power Management
 window.setPowerPreset = setPowerPreset;
 window.updatePower = updatePower;
+window.requestPowerStatus = requestPowerStatus;
+// AR-153: Transit Calculator exports
+window.updateTransitCalculator = updateTransitCalculator;
+window.showPhysicsExplanation = showPhysicsExplanation;
+window.setupTransitCalculator = setupTransitCalculator;
+// AR-153: Jump Travel exports
+window.requestJumpStatus = requestJumpStatus;
+window.handleJumpPlotted = handleJumpPlotted;
 // AR-151: Core utilities and maps for onclick handlers
 window.showModalContent = showModalContent;
 window.showNotification = showNotification;
