@@ -35,6 +35,37 @@ const PHASE1_EXPORTS = [
   'skipToJumpExit'
 ];
 
+const PHASE2_EXPORTS = [
+  // Phase 2A: Jump Map
+  'updateJumpMap',
+  'fetchJumpDestinations',
+  'selectJumpDestination',
+  'initJumpMapIfNeeded',
+  'setMapSize',
+  'restoreMapSize',
+  'initMapInteractions',
+
+  // Phase 2B: Sensor Operations
+  'performScan',
+  'toggleECM',
+  'toggleECCM',
+  'acquireSensorLock',
+  'breakSensorLock',
+  'toggleStealth',
+  'setSensorLock',
+  'toggleSensorPanelMode',
+  'checkSensorThreats',
+  'renderMiniRadar',
+
+  // Phase 2C: Panel Management
+  'expandRolePanel',
+  'collapseRolePanel',
+  'togglePanelExpand',
+  'expandPanel',
+  'collapseExpandedPanel',
+  'updateRoleClass'
+];
+
 async function runTest() {
   let browser;
   try {
@@ -49,6 +80,7 @@ async function runTest() {
       timeout: 10000
     });
 
+    const ALL_EXPORTS = [...PHASE1_EXPORTS, ...PHASE2_EXPORTS];
     const results = await page.evaluate((exports) => {
       const missing = [];
       const present = [];
@@ -60,7 +92,7 @@ async function runTest() {
         }
       }
       return { missing, present, total: exports.length };
-    }, PHASE1_EXPORTS);
+    }, ALL_EXPORTS);
 
     console.log(`\n=== AR-153 Extraction Smoke Test ===\n`);
     console.log(`Total exports checked: ${results.total}`);

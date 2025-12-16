@@ -91,6 +91,10 @@ import { setPowerPreset as _setPowerPreset, updatePower as _updatePower, request
 import { updateTransitCalculator, showPhysicsExplanation as _showPhysicsExplanation, setupTransitCalculator } from './modules/transit-calculator.js';
 import { copyShipLog, copySensorPanel as _copySensorPanel, copyRolePanel as _copyRolePanel } from './modules/copy-export.js';
 import { requestJumpStatus as _requestJumpStatus, updateFuelEstimate as _updateFuelEstimate, plotJumpCourse as _plotJumpCourse, verifyPosition as _verifyPosition, handleJumpPlotted, initiateJumpFromPlot as _initiateJumpFromPlot, initiateJump as _initiateJump, completeJump as _completeJump, skipToJumpExit as _skipToJumpExit } from './modules/jump-travel.js';
+// AR-153: Phase 2 modules
+import { updateJumpMap as _updateJumpMap, fetchJumpDestinations, selectJumpDestination, initJumpMapIfNeeded as _initJumpMapIfNeeded, setMapSize, restoreMapSize, initMapInteractions } from './modules/jump-map.js';
+import { performScan as _performScan, toggleECM as _toggleECM, toggleECCM as _toggleECCM, acquireSensorLock as _acquireSensorLock, breakSensorLock as _breakSensorLock, toggleStealth as _toggleStealth, setSensorLock as _setSensorLock, toggleSensorPanelMode as _toggleSensorPanelMode, checkSensorThreats as _checkSensorThreats, renderMiniRadar } from './modules/sensor-operations.js';
+import { expandRolePanel as _expandRolePanel, collapseRolePanel as _collapseRolePanel, togglePanelExpand as _togglePanelExpand, expandPanel as _expandPanel, collapseExpandedPanel as _collapseExpandedPanel, updateRoleClass as _updateRoleClass } from './modules/panel-management.js';
 
 // AR-152: Helper wrappers for notification variants
 const showError = (msg) => showNotification(msg, 'error');
@@ -189,6 +193,26 @@ const initiateJumpFromPlot = (dest, dist) => _initiateJumpFromPlot(state, dest, 
 const initiateJump = () => _initiateJump(state);
 const completeJump = () => _completeJump(state);
 const skipToJumpExit = () => _skipToJumpExit(state);
+// AR-153: Phase 2A wrappers
+const updateJumpMap = () => _updateJumpMap(state);
+const initJumpMapIfNeeded = () => _initJumpMapIfNeeded(state, updateJumpMap);
+// AR-153: Phase 2B wrappers
+const performScan = (scanType) => _performScan(state, renderRoleDetailPanel, scanType);
+const toggleECM = () => _toggleECM(state, renderRoleDetailPanel);
+const toggleECCM = () => _toggleECCM(state, renderRoleDetailPanel);
+const acquireSensorLock = (contactId) => _acquireSensorLock(state, renderRoleDetailPanel, contactId);
+const breakSensorLock = () => _breakSensorLock(state, renderRoleDetailPanel);
+const toggleStealth = () => _toggleStealth(state, renderRoleDetailPanel);
+const setSensorLock = (contactId) => _setSensorLock(state, renderRoleDetailPanel, contactId);
+const toggleSensorPanelMode = (mode) => _toggleSensorPanelMode(state, renderRoleDetailPanel, mode);
+const checkSensorThreats = () => _checkSensorThreats(state, renderRoleDetailPanel);
+// AR-153: Phase 2C wrappers
+const expandRolePanel = (mode) => _expandRolePanel(state, showEmbeddedSystemMap, mode);
+const collapseRolePanel = () => _collapseRolePanel(state, hideEmbeddedSystemMap);
+const togglePanelExpand = (panelId) => _togglePanelExpand(state, expandRolePanel, collapseRolePanel, panelId);
+const expandPanel = (panelId) => _expandPanel(state, panelId);
+const collapseExpandedPanel = () => _collapseExpandedPanel(state);
+const updateRoleClass = () => _updateRoleClass(state);
 
 // ==================== State ====================
 const state = {
@@ -3991,187 +4015,7 @@ function showTravelModal(destination) {
 
 // AR-153: Jump Travel moved to modules/jump-travel.js
 
-// ==================== Sensor Operations (Autorun 5) ====================
-
-function performScan(scanType = 'passive') {
-  state.socket.emit('ops:sensorScan', { scanType });
-  showNotification(`Initiating ${scanType} sensor scan...`, 'info');
-}
-
-// AR-36/AR-127: ECM/ECCM Functions (Mongoose 2e rules) - Fixed socket events
-function toggleECM() {
-  const newState = !state.shipState?.ecm;
-  state.socket.emit('ops:setEW', { type: 'ecm', active: newState });
-  if (!state.shipState) state.shipState = {};
-  state.shipState.ecm = newState;
-  showNotification(`ECM ${newState ? 'ACTIVATED' : 'DEACTIVATED'} - Enemies get ${newState ? '-2 DM' : 'no penalty'} to sensors`, newState ? 'warning' : 'info');
-  renderRoleDetailPanel('sensor_operator');
-}
-
-function toggleECCM() {
-  const newState = !state.shipState?.eccm;
-  state.socket.emit('ops:setEW', { type: 'eccm', active: newState });
-  if (!state.shipState) state.shipState = {};
-  state.shipState.eccm = newState;
-  showNotification(`ECCM ${newState ? 'ACTIVATED' : 'DEACTIVATED'} - ${newState ? 'Countering enemy ECM' : 'Vulnerable to jamming'}`, newState ? 'success' : 'info');
-  renderRoleDetailPanel('sensor_operator');
-}
-
-function acquireSensorLock(contactId) {
-  const contact = state.contacts?.find(c => c.id === contactId);
-  if (!contact) return;
-
-  // Check if target has ECM active (breaks lock attempt)
-  if (contact.ecmActive) {
-    showNotification('Lock failed - target ECM active', 'danger');
-    return;
-  }
-
-  // AR-127: Fixed socket event name
-  state.socket.emit('ops:setSensorLock', { contactId, locked: true });
-  if (!state.shipState) state.shipState = {};
-  state.shipState.sensorLock = {
-    targetId: contactId,
-    targetName: contact.name || contact.transponder || `Contact ${contactId.slice(0,4)}`,
-    lockedAt: Date.now()
-  };
-  showNotification(`SENSOR LOCK acquired on ${state.shipState.sensorLock.targetName} (+2 Attack DM)`, 'success');
-  renderRoleDetailPanel('sensor_operator');
-}
-
-function breakSensorLock() {
-  // AR-127: Use setSensorLock with locked: false instead of separate event
-  state.socket.emit('ops:setSensorLock', { contactId: null, locked: false });
-  if (state.shipState) {
-    state.shipState.sensorLock = null;
-  }
-  showNotification('Sensor lock released', 'info');
-  renderRoleDetailPanel('sensor_operator');
-}
-
-// AR-36: Stealth mode toggle
-function toggleStealth() {
-  const newState = !state.shipState?.stealth;
-  state.socket.emit('ops:setEW', { type: 'stealth', active: newState });
-  if (!state.shipState) state.shipState = {};
-  state.shipState.stealth = newState;
-  showNotification(`Stealth mode ${newState ? 'ENGAGED' : 'disengaged'} - ${newState ? 'Reduced sensor signature' : 'Normal signature'}`, newState ? 'warning' : 'info');
-  renderRoleDetailPanel('sensor_operator');
-}
-
-// AR-36: Set sensor lock on specific contact (alternative to acquireSensorLock)
-function setSensorLock(contactId) {
-  if (contactId) {
-    acquireSensorLock(contactId);
-  } else {
-    breakSensorLock();
-  }
-}
-
-// AR-138: Sensor panel mode toggle
-function toggleSensorPanelMode(mode) {
-  if (mode) {
-    state.sensorPanelMode = mode;
-  } else {
-    // Cycle: collapsed → expanded → collapsed
-    state.sensorPanelMode = state.sensorPanelMode === 'collapsed' ? 'expanded' : 'collapsed';
-  }
-  renderRoleDetailPanel('sensor_operator');
-}
-
-// AR-138: Check for threats and auto-expand sensor panel
-function checkSensorThreats() {
-  const threats = state.contacts?.filter(c =>
-    !c.celestial && (c.marking === 'hostile' || (c.type === 'Ship' && c.marking === 'unknown'))
-  ) || [];
-
-  if (threats.length > 0 && state.sensorPanelMode === 'collapsed') {
-    state.sensorPanelMode = 'combat';
-    renderRoleDetailPanel('sensor_operator');
-    showNotification(`⚠ ${threats.length} potential threat(s) detected!`, 'danger');
-  }
-}
-
-// AR-138.2: Mini radar canvas renderer
-function renderMiniRadar(contacts, range = 50000) {
-  const canvas = document.getElementById('sensor-mini-radar');
-  if (!canvas) return;
-
-  const ctx = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const scale = (w / 2 - 10) / range;
-
-  // Clear and fill background
-  ctx.fillStyle = '#0a0a12';
-  ctx.fillRect(0, 0, w, h);
-
-  // Draw range rings
-  ctx.strokeStyle = 'rgba(100, 150, 100, 0.3)';
-  ctx.lineWidth = 1;
-  [0.25, 0.5, 0.75, 1].forEach(r => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, r * (w / 2 - 10), 0, Math.PI * 2);
-    ctx.stroke();
-  });
-
-  // Draw crosshairs
-  ctx.strokeStyle = 'rgba(100, 150, 100, 0.2)';
-  ctx.beginPath();
-  ctx.moveTo(cx, 5);
-  ctx.lineTo(cx, h - 5);
-  ctx.moveTo(5, cy);
-  ctx.lineTo(w - 5, cy);
-  ctx.stroke();
-
-  // Draw ship at center (triangle pointing up)
-  ctx.fillStyle = '#4a9';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - 6);
-  ctx.lineTo(cx - 4, cy + 4);
-  ctx.lineTo(cx + 4, cy + 4);
-  ctx.closePath();
-  ctx.fill();
-
-  // Draw contacts
-  contacts.forEach(c => {
-    const angle = ((c.bearing || 0) - 90) * Math.PI / 180;  // -90 to put 0° at top
-    const dist = Math.min(c.range_km || range, range);
-    const x = cx + Math.cos(angle) * dist * scale;
-    const y = cy + Math.sin(angle) * dist * scale;
-
-    // Color by marking
-    const colors = {
-      friendly: '#4f4',
-      hostile: '#f44',
-      neutral: '#48f',
-      unknown: '#ff4'
-    };
-    ctx.fillStyle = colors[c.marking] || '#ff4';
-
-    // Draw contact dot
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Draw bearing line for hostile
-    if (c.marking === 'hostile') {
-      ctx.strokeStyle = 'rgba(255, 68, 68, 0.3)';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    }
-  });
-
-  // Draw range label
-  ctx.fillStyle = 'rgba(150, 170, 150, 0.6)';
-  ctx.font = '9px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${(range / 1000).toFixed(0)}k km`, cx, h - 4);
-}
+// AR-153: Sensor Operations moved to modules/sensor-operations.js
 
 // AR-131+: Captain panel switching - allows captain to access other role panels
 function switchCaptainPanel(panel) {
@@ -4825,195 +4669,7 @@ function handleFireResult(data) {
   renderRoleDetailPanel(state.selectedRole);
 }
 
-// ==================== Jump Map (Stage 6) ====================
-
-async function updateJumpMap() {
-  const sector = state.campaign?.current_sector;
-  const hex = state.campaign?.current_hex;
-
-  if (!sector || !hex) return;
-
-  const range = parseInt(document.getElementById('jump-map-range')?.value) || 2;
-  const style = document.getElementById('jump-map-style')?.value || 'poster';
-
-  const mapImg = document.getElementById('jump-map-image');
-  const loadingEl = document.querySelector('.jump-map-loading');
-
-  if (mapImg) {
-    mapImg.style.display = 'none';
-    if (loadingEl) loadingEl.style.display = 'block';
-
-    // Use the proxy API
-    const mapUrl = `/api/travellermap/jumpmap?sector=${encodeURIComponent(sector)}&hex=${hex}&jump=${range}&style=${style}`;
-    mapImg.onload = () => {
-      mapImg.style.display = 'block';
-      if (loadingEl) loadingEl.style.display = 'none';
-    };
-    mapImg.onerror = () => {
-      if (loadingEl) loadingEl.textContent = 'Failed to load map';
-    };
-    mapImg.src = mapUrl;
-  }
-
-  // Also fetch destinations
-  fetchJumpDestinations(sector, hex, range);
-}
-
-async function fetchJumpDestinations(sector, hex, range) {
-  const container = document.getElementById('jump-destinations');
-  if (!container) return;
-
-  try {
-    const response = await fetch(`/api/travellermap/jumpworlds?sector=${encodeURIComponent(sector)}&hex=${hex}&jump=${range}`);
-    const data = await response.json();
-
-    if (data.Worlds && data.Worlds.length > 0) {
-      container.innerHTML = `
-        <div class="destinations-header">
-          <span>System</span>
-          <span>UWP</span>
-          <span>Distance</span>
-        </div>
-        ${data.Worlds.map(world => {
-          // AR-66: Fix undefined hex coordinates
-          const hexX = world.HexX || world.Hex?.substring(0, 2) || '??';
-          const hexY = world.HexY || world.Hex?.substring(2, 4) || '??';
-          const hex = `${hexX}${String(hexY).padStart(2, '0')}`;
-          return `
-          <div class="destination-item" data-name="${escapeHtml(world.Name)}" data-sector="${escapeHtml(world.Sector || sector)}" data-hex="${hex}" onclick="selectJumpDestination(this)">
-            <span class="dest-name">${escapeHtml(world.Name)}</span>
-            <span class="dest-uwp">${world.Uwp || '???????-?'}</span>
-            <span class="dest-distance">J-${world.Distance || '?'}</span>
-          </div>
-        `;
-        }).join('')}
-      `;
-    } else {
-      container.innerHTML = '<p class="placeholder">No nearby systems found</p>';
-    }
-  } catch (error) {
-    container.innerHTML = `<p class="placeholder">Failed to fetch destinations</p>`;
-  }
-}
-
-function selectJumpDestination(element) {
-  const name = element.dataset.name;
-  const sector = element.dataset.sector;
-  const hex = element.dataset.hex;
-
-  // Fill in the destination input
-  const destInput = document.getElementById('jump-destination');
-  if (destInput) {
-    destInput.value = `${name} (${sector} ${hex})`;
-  }
-
-  // Highlight selected
-  document.querySelectorAll('.destination-item').forEach(el => el.classList.remove('selected'));
-  element.classList.add('selected');
-
-  showNotification(`Selected ${name} as destination`, 'info');
-}
-
-// Initialize jump map when astrogator panel is rendered
-function initJumpMapIfNeeded() {
-  if (state.selectedRole === 'astrogator' && state.campaign?.current_sector) {
-    setTimeout(() => {
-      updateJumpMap();
-      initMapInteractions();
-      restoreMapSize();
-    }, 100);
-  }
-}
-
-// AR-15.7: Map size control with localStorage persistence
-function setMapSize(size) {
-  const container = document.getElementById('jump-map-container');
-  if (!container) return;
-
-  container.dataset.size = size;
-  localStorage.setItem('ops-map-size', size);
-
-  // Update select to match
-  const select = document.getElementById('jump-map-size');
-  if (select) select.value = size;
-}
-
-function restoreMapSize() {
-  const saved = localStorage.getItem('ops-map-size');
-  if (saved) {
-    setMapSize(saved);
-  }
-}
-
-// AR-15.7: Map drag-to-pan and keyboard navigation
-function initMapInteractions() {
-  const container = document.getElementById('jump-map-container');
-  const img = document.getElementById('jump-map-image');
-  if (!container || !img) return;
-
-  let isDragging = false;
-  let startX, startY, scrollLeft, scrollTop;
-
-  // Mouse drag to pan
-  container.addEventListener('mousedown', (e) => {
-    if (e.target !== img && e.target !== container) return;
-    isDragging = true;
-    container.style.cursor = 'grabbing';
-    startX = e.pageX - container.offsetLeft;
-    startY = e.pageY - container.offsetTop;
-    scrollLeft = container.scrollLeft;
-    scrollTop = container.scrollTop;
-    e.preventDefault();
-  });
-
-  container.addEventListener('mouseleave', () => {
-    isDragging = false;
-    container.style.cursor = 'grab';
-  });
-
-  container.addEventListener('mouseup', () => {
-    isDragging = false;
-    container.style.cursor = 'grab';
-  });
-
-  container.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    const x = e.pageX - container.offsetLeft;
-    const y = e.pageY - container.offsetTop;
-    const walkX = (x - startX) * 1.5;
-    const walkY = (y - startY) * 1.5;
-    container.scrollLeft = scrollLeft - walkX;
-    container.scrollTop = scrollTop - walkY;
-  });
-
-  // Set initial cursor
-  container.style.cursor = 'grab';
-
-  // Keyboard navigation when container is focused
-  container.tabIndex = 0; // Make focusable
-  container.addEventListener('keydown', (e) => {
-    const step = 50;
-    switch (e.key) {
-      case 'ArrowLeft':
-        container.scrollLeft -= step;
-        e.preventDefault();
-        break;
-      case 'ArrowRight':
-        container.scrollLeft += step;
-        e.preventDefault();
-        break;
-      case 'ArrowUp':
-        container.scrollTop -= step;
-        e.preventDefault();
-        break;
-      case 'ArrowDown':
-        container.scrollTop += step;
-        e.preventDefault();
-        break;
-    }
-  });
-}
+// AR-153: Jump Map moved to modules/jump-map.js
 
 // ==================== Refueling ====================
 
@@ -8011,138 +7667,7 @@ if (state.socket) {
   });
 }
 
-// ==================== Expandable Role Panel (Stage 13.3) ====================
-
-/**
- * Expand role panel to half-screen, full-screen, or pilot-map mode
- * @param {string} mode - 'half', 'full', or 'pilot-map'
- */
-function expandRolePanel(mode) {
-  const rolePanel = document.getElementById('role-panel');
-  const bridgeMain = document.querySelector('.bridge-main');
-
-  // Collapse any existing expansion first
-  collapseRolePanel();
-
-  if (mode === 'half') {
-    bridgeMain.classList.add('role-expanded-half');
-    // Also show detail view in half-screen mode
-    const detail = document.getElementById('role-detail-view');
-    detail?.classList.remove('hidden');
-  } else if (mode === 'full') {
-    rolePanel.classList.add('expanded-full');
-    // Also show detail view in full-screen mode
-    const detail = document.getElementById('role-detail-view');
-    detail?.classList.remove('hidden');
-  } else if (mode === 'pilot-map') {
-    // AR-94: Pilot default view - panel 1/3, system map 2/3
-    bridgeMain.classList.add('pilot-map-layout');
-    const detail = document.getElementById('role-detail-view');
-    detail?.classList.remove('hidden');
-    // Show embedded system map
-    showEmbeddedSystemMap();
-  }
-
-  // Remember expansion state for this role
-  if (state.selectedRole) {
-    state.selectedRolePanelExpanded = state.selectedRolePanelExpanded || {};
-    state.selectedRolePanelExpanded[state.selectedRole] = mode;
-  }
-}
-
-/**
- * Collapse role panel back to normal size
- */
-function collapseRolePanel() {
-  const rolePanel = document.getElementById('role-panel');
-  const bridgeMain = document.querySelector('.bridge-main');
-
-  rolePanel.classList.remove('expanded-full');
-  bridgeMain.classList.remove('role-expanded-half');
-  bridgeMain.classList.remove('pilot-map-layout');  // AR-94
-  hideEmbeddedSystemMap();  // AR-94
-
-  // Clear remembered expansion state
-  if (state.selectedRole && state.selectedRolePanelExpanded) {
-    state.selectedRolePanelExpanded[state.selectedRole] = null;
-  }
-}
-
-/**
- * AR-29.7: Toggle generic panel expansion
- * @param {string} panelId - Panel element ID
- */
-function togglePanelExpand(panelId) {
-  const panel = document.getElementById(panelId);
-  if (!panel) return;
-
-  // Role panel uses its own expand system
-  if (panelId === 'role-panel') {
-    if (panel.classList.contains('expanded-full')) {
-      collapseRolePanel();
-    } else {
-      expandRolePanel('full');
-    }
-    return;
-  }
-
-  // Generic panel expansion
-  if (panel.classList.contains('panel-expanded')) {
-    collapseExpandedPanel();
-  } else {
-    expandPanel(panelId);
-  }
-}
-
-/**
- * AR-29.7: Expand a panel to overlay the main content
- * @param {string} panelId - Panel element ID
- */
-function expandPanel(panelId) {
-  // First collapse any existing expanded panel
-  collapseExpandedPanel();
-
-  const panel = document.getElementById(panelId);
-  if (!panel) return;
-
-  // Create overlay
-  const overlay = document.createElement('div');
-  overlay.className = 'panel-expand-overlay';
-  overlay.id = 'panel-expand-overlay';
-  overlay.onclick = collapseExpandedPanel;
-  document.body.appendChild(overlay);
-
-  // Expand panel
-  panel.classList.add('panel-expanded');
-  state.expandedPanelId = panelId;
-}
-
-/**
- * AR-29.7: Collapse any expanded panel
- */
-function collapseExpandedPanel() {
-  const overlay = document.getElementById('panel-expand-overlay');
-  if (overlay) overlay.remove();
-
-  if (state.expandedPanelId) {
-    const panel = document.getElementById(state.expandedPanelId);
-    if (panel) panel.classList.remove('panel-expanded');
-    state.expandedPanelId = null;
-  }
-}
-
-/**
- * AR-29.7 Phase 2: Update body class for role-specific styling
- */
-function updateRoleClass() {
-  const body = document.body;
-  // Remove any existing role classes
-  body.className = body.className.replace(/\brole-\w+\b/g, '').trim();
-  // Add current role class
-  if (state.selectedRole) {
-    body.classList.add(`role-${state.selectedRole.replace('_', '-')}`);
-  }
-}
+// AR-153: Panel Management moved to modules/panel-management.js
 
 /**
  * Toggle Ship Systems panel visibility
@@ -8465,6 +7990,32 @@ window.setupTransitCalculator = setupTransitCalculator;
 // AR-153: Jump Travel exports
 window.requestJumpStatus = requestJumpStatus;
 window.handleJumpPlotted = handleJumpPlotted;
+// AR-153: Jump Map exports
+window.updateJumpMap = updateJumpMap;
+window.fetchJumpDestinations = fetchJumpDestinations;
+window.selectJumpDestination = selectJumpDestination;
+window.initJumpMapIfNeeded = initJumpMapIfNeeded;
+window.setMapSize = setMapSize;
+window.restoreMapSize = restoreMapSize;
+window.initMapInteractions = initMapInteractions;
+// AR-153: Sensor Operations exports
+window.performScan = performScan;
+window.toggleECM = toggleECM;
+window.toggleECCM = toggleECCM;
+window.acquireSensorLock = acquireSensorLock;
+window.breakSensorLock = breakSensorLock;
+window.toggleStealth = toggleStealth;
+window.setSensorLock = setSensorLock;
+window.toggleSensorPanelMode = toggleSensorPanelMode;
+window.checkSensorThreats = checkSensorThreats;
+window.renderMiniRadar = renderMiniRadar;
+// AR-153: Panel Management exports
+window.expandRolePanel = expandRolePanel;
+window.collapseRolePanel = collapseRolePanel;
+window.togglePanelExpand = togglePanelExpand;
+window.expandPanel = expandPanel;
+window.collapseExpandedPanel = collapseExpandedPanel;
+window.updateRoleClass = updateRoleClass;
 // AR-151: Core utilities and maps for onclick handlers
 window.showModalContent = showModalContent;
 window.showNotification = showNotification;
