@@ -644,8 +644,12 @@ function initSocket() {
   });
 
   state.socket.on('ops:timeAdvanced', (data) => {
+    // CLEAN-2: Consolidated handler (removed duplicate in setupPilotListeners)
+    if (state.campaign) {
+      state.campaign.current_date = data.newDate;
+    }
     setBridgeClockDate(data.newDate);
-    showNotification(`Time advanced to ${data.newDate}`, 'info');
+    showNotification(`Time: ${data.newDate}${data.advancedBy ? ` (${data.advancedBy})` : ''}`, 'info');
   });
 
   state.socket.on('ops:alertStatusChanged', (data) => {
@@ -954,13 +958,8 @@ function initSocket() {
     renderCombatContactsList(); // Autorun 14
   });
 
-  state.socket.on('ops:scanResult', (data) => {
-    state.contacts = data.contacts;
-    renderContacts();
-    renderCombatContactsList(); // Autorun 14
-    showNotification(`Sensor scan complete: ${data.contacts.length} contacts`, 'info');
-    checkSensorThreats(); // AR-138.3: Auto-expand on threat
-  });
+  // CLEAN-1: ops:scanResult handler moved to Autorun 5 section (line ~1167)
+  // Removed duplicate handler that was causing double updates
 
   // Ship Systems events
   state.socket.on('ops:systemStatus', (data) => {
@@ -4044,13 +4043,8 @@ function setupPilotListeners() {
     }
   });
 
-  state.socket.on('ops:timeAdvanced', (data) => {
-    if (state.campaign) {
-      state.campaign.current_date = data.newDate;
-    }
-    setBridgeClockDate(data.newDate);
-    showNotification(`Time: ${data.newDate}${data.advancedBy ? ` (${data.advancedBy})` : ''}`, 'info');
-  });
+  // CLEAN-2: ops:timeAdvanced handler moved to main socket setup (line ~646)
+  // Removed duplicate that would add extra listener each time pilot role selected
 }
 
 // AR-31: Listen for engineer power events
@@ -4688,6 +4682,11 @@ function handleScanResult(data) {
     scanResultDiv.innerHTML = html;
     scanResultDiv.style.display = 'block';
   }
+
+  // CLEAN-1: Ensure complete update after scan
+  renderContacts();
+  renderCombatContactsList();
+  checkSensorThreats(); // AR-138.3: Auto-expand on threat
 
   // Re-render panel to update contact counts
   renderRoleDetailPanel(state.selectedRole);
