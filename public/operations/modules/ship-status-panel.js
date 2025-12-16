@@ -80,6 +80,12 @@ async function loadShipSVG() {
       shipStatusState.svgDoc.style.height = '100%';
       shipStatusState.svgDoc.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
+      // AR-167: Add panel label
+      const label = document.createElement('div');
+      label.className = 'ship-panel-label';
+      label.innerHTML = '<span class="panel-label-text">SHIP PANEL</span>';
+      container.appendChild(label);
+
       console.log('[ShipStatusPanel] SVG loaded successfully');
     }
   } catch (err) {

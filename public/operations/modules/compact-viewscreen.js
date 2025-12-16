@@ -59,11 +59,29 @@ const viewscreenState = {
 // Storage key for persistence
 const STORAGE_KEY = 'ops_right_panel_selection';
 
+// AR-167: Role-based default panel mapping
+const ROLE_DEFAULT_PANELS = {
+  sensor_operator: PANEL_TYPES.SENSORS,
+  medic: PANEL_TYPES.CREW,
+  damage_control: PANEL_TYPES.SYSTEM_MAP,  // Would be Ship Diagram if available
+  // All other roles default to System Map
+};
+
+/**
+ * Get default panel for a role
+ * @param {string} role - Role name
+ * @returns {string} Panel type
+ */
+function getRoleDefaultPanel(role) {
+  return ROLE_DEFAULT_PANELS[role] || PANEL_TYPES.SYSTEM_MAP;
+}
+
 /**
  * Initialize the compact viewscreen
  * @param {HTMLElement} container - Container element
+ * @param {string} role - Current role (optional)
  */
-function initCompactViewscreen(container) {
+function initCompactViewscreen(container, role) {
   if (!container) {
     console.warn('[CompactViewscreen] No container provided');
     return;
@@ -71,10 +89,13 @@ function initCompactViewscreen(container) {
 
   viewscreenState.container = container;
 
-  // Load saved preference
+  // Load saved preference or use role default
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved && Object.values(PANEL_TYPES).includes(saved)) {
     viewscreenState.currentPanel = saved;
+  } else if (role) {
+    viewscreenState.currentPanel = getRoleDefaultPanel(role);
+    console.log('[CompactViewscreen] Using role default panel for', role, ':', viewscreenState.currentPanel);
   }
 
   // Create DOM and render current panel

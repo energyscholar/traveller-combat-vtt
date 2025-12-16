@@ -2694,7 +2694,8 @@ function initBridgeScreen() {
     initShipStatusPanel(shipStatusContainer);
   }
   if (viewscreenContainer) {
-    initCompactViewscreen(viewscreenContainer);
+    // AR-167: Pass role for default panel selection
+    initCompactViewscreen(viewscreenContainer, state.selectedRole);
   }
 
   // AR-164: Sensor panel toggle handlers
