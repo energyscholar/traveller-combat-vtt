@@ -67,9 +67,66 @@
       }
     }
   ],
-  "locations": {
-    "default": "huderu-mainworld",
-    "starport": "huderu-mainworld",
-    "orbit": "huderu-mainworld"
-  }
+  "locations": [
+    {
+      "id": "loc-exit-jump",
+      "name": "Exit Jump Space",
+      "type": "jump_point",
+      "x": 100,
+      "y": 300,
+      "actions": [
+        "scan",
+        "plot_course"
+      ]
+    },
+    {
+      "id": "loc-system-jump",
+      "name": "System Departure Jump Point",
+      "type": "jump_point",
+      "linkedTo": "huderu-star",
+      "x": 50,
+      "y": 150,
+      "actions": [
+        "jump",
+        "scan"
+      ],
+      "travelTimeHours": {
+        "loc-exit-jump": 6,
+        "loc-mainworld-jump": 8
+      }
+    },
+    {
+      "id": "loc-mainworld-jump",
+      "name": "Mainworld Departure Jump Point",
+      "type": "jump_point",
+      "linkedTo": "huderu-mainworld",
+      "x": 500,
+      "y": 280,
+      "actions": [
+        "jump",
+        "scan"
+      ],
+      "travelTimeHours": {
+        "loc-orbit-mainworld": 4
+      }
+    },
+    {
+      "id": "loc-orbit-mainworld",
+      "name": "Orbit - Huderu",
+      "type": "orbit",
+      "linkedTo": "huderu-mainworld",
+      "x": 450,
+      "y": 300,
+      "actions": [
+        "scan",
+        "dock",
+        "land"
+      ],
+      "travelTimeHours": {
+        "loc-mainworld-jump": 4,
+        "loc-dock-highport": 1,
+        "loc-surface-starport": 2
+      }
+    }
+  ]
 }

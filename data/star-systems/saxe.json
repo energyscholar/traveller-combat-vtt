@@ -82,9 +82,81 @@
       }
     }
   ],
-  "locations": {
-    "default": "saxe-mainworld",
-    "starport": "saxe-mainworld",
-    "orbit": "saxe-mainworld"
-  }
+  "locations": [
+    {
+      "id": "loc-exit-jump",
+      "name": "Exit Jump Space",
+      "type": "jump_point",
+      "x": 100,
+      "y": 300,
+      "actions": [
+        "scan",
+        "plot_course"
+      ]
+    },
+    {
+      "id": "loc-system-jump",
+      "name": "System Departure Jump Point",
+      "type": "jump_point",
+      "linkedTo": "saxe-star",
+      "x": 50,
+      "y": 150,
+      "actions": [
+        "jump",
+        "scan"
+      ],
+      "travelTimeHours": {
+        "loc-exit-jump": 6,
+        "loc-mainworld-jump": 8
+      }
+    },
+    {
+      "id": "loc-mainworld-jump",
+      "name": "Mainworld Departure Jump Point",
+      "type": "jump_point",
+      "linkedTo": "saxe-mainworld",
+      "x": 500,
+      "y": 280,
+      "actions": [
+        "jump",
+        "scan"
+      ],
+      "travelTimeHours": {
+        "loc-orbit-mainworld": 4
+      }
+    },
+    {
+      "id": "loc-orbit-mainworld",
+      "name": "Orbit - Saxe",
+      "type": "orbit",
+      "linkedTo": "saxe-mainworld",
+      "x": 450,
+      "y": 300,
+      "actions": [
+        "scan",
+        "dock",
+        "land"
+      ],
+      "travelTimeHours": {
+        "loc-mainworld-jump": 4,
+        "loc-dock-highport": 1,
+        "loc-surface-starport": 2
+      }
+    },
+    {
+      "id": "loc-surface-starport",
+      "name": "Saxe Frontier Landing",
+      "type": "surface",
+      "linkedTo": "saxe-mainworld",
+      "x": 420,
+      "y": 350,
+      "actions": [
+        "refuel_wilderness"
+      ],
+      "travelTimeHours": {
+        "loc-orbit-mainworld": 2,
+        "loc-dock-highport": 3
+      }
+    }
+  ]
 }
