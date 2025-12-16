@@ -37,6 +37,26 @@ import { applyStatusIndicators, toggleStatusIndicators } from './modules/ui-stat
 import { DEBUG, debugLog, debugWarn, debugError } from './modules/debug-config.js';
 import { DEFAULT_SECTOR, DEFAULT_SUBSECTOR, DEFAULT_SYSTEM, DEFAULT_HEX } from './modules/constants.js';
 import { startBridgeClock, stopBridgeClock, setBridgeClockDate, parseCampaignDate, formatClockTime, formatDayYear } from './modules/bridge-clock.js';
+import { showNewsMailModal as _showNewsMailModal, closeNewsMailModal } from './modules/news-mail.js';
+import { sendBridgeChatMessage as _sendBridgeChatMessage, addBridgeChatMessage } from './modules/bridge-chat.js';
+import {
+  showLibraryComputer as _showLibraryComputer,
+  searchLibrary as _searchLibrary,
+  showLibraryTab as _showLibraryTab,
+  decodeUWPLibrary as _decodeUWPLibrary,
+  handleLibraryResults,
+  handleUWPDecoded,
+  handleTradeCodes,
+  handleStarports
+} from './modules/library-computer.js';
+
+// Wrappers to inject state into module functions
+const showNewsMailModal = (systemName) => _showNewsMailModal(state, systemName);
+const sendBridgeChatMessage = () => _sendBridgeChatMessage(state);
+const showLibraryComputer = () => _showLibraryComputer(showModalContent);
+const searchLibrary = (query) => _searchLibrary(state, query);
+const showLibraryTab = (tab) => _showLibraryTab(state, tab);
+const decodeUWPLibrary = (uwp) => _decodeUWPLibrary(state, uwp);
 
 // ==================== State ====================
 const state = {
@@ -4693,95 +4713,7 @@ function showScanResultOverlay(contact, discoveries, oldLevel, newLevel) {
   document.body.appendChild(overlay);
 }
 
-// ==================== News & Mail Display (Autorun 5) ====================
-
-function showNewsMailModal(systemName) {
-  const news = state.systemNews || [];
-  const mail = state.systemMail || {};
-  const roleContent = state.selectedRoleContent || {};
-
-  // Get role-specific mail if available
-  const myMail = mail[state.selectedRole] || null;
-  const myRoleAdvice = roleContent[state.selectedRole] || null;
-
-  // Create modal content
-  let html = `
-    <div class="news-mail-modal">
-      <div class="news-mail-header">
-        <h3>DATA LINK ESTABLISHED: ${systemName.toUpperCase()}</h3>
-        <button onclick="closeNewsMailModal()" class="close-btn">&times;</button>
-      </div>
-      <div class="news-mail-content">
-  `;
-
-  // Role-specific advice section
-  if (myRoleAdvice) {
-    html += `
-      <div class="role-advice-section">
-        <h4>STATION BRIEF: ${state.selectedRole.replace('_', ' ').toUpperCase()}</h4>
-        <div class="role-advice-content">${myRoleAdvice}</div>
-      </div>
-    `;
-  }
-
-  // Personal mail section
-  if (myMail) {
-    html += `
-      <div class="mail-section">
-        <h4>PERSONAL MESSAGE</h4>
-        <div class="mail-item">
-          <div class="mail-header">
-            <span class="mail-from">From: ${myMail.from}</span>
-            <span class="mail-subject">Re: ${myMail.subject}</span>
-          </div>
-          <div class="mail-body">${myMail.content}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  // News section
-  if (news.length > 0) {
-    html += `
-      <div class="news-section">
-        <h4>SYSTEM NEWS</h4>
-        ${news.map(item => `
-          <div class="news-item">
-            <div class="news-headline">${item.headline}</div>
-            <div class="news-source">— ${item.source}</div>
-            <div class="news-content">${item.content}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
-
-  html += `
-      </div>
-      <div class="news-mail-footer">
-        <button onclick="closeNewsMailModal()" class="btn btn-primary">Acknowledge</button>
-      </div>
-    </div>
-  `;
-
-  // Create and show modal
-  let modal = document.getElementById('news-mail-overlay');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'news-mail-overlay';
-    modal.className = 'news-mail-overlay';
-    document.body.appendChild(modal);
-  }
-  modal.innerHTML = html;
-  modal.style.display = 'flex';
-}
-
-function closeNewsMailModal() {
-  const modal = document.getElementById('news-mail-overlay');
-  if (modal) {
-    modal.style.display = 'none';
-  }
-}
+// AR-151d: News & Mail Display moved to modules/news-mail.js
 
 // ==================== Weapons Operations (Autorun 5) ====================
 
@@ -7316,57 +7248,7 @@ function sendCommsMessage() {
   showNotification(`Message sent to ${contactName}`, 'info');
 }
 
-// ==================== AR-97: Bridge Chat System ====================
-
-/**
- * Send bridge chat message to all crew
- */
-function sendBridgeChatMessage() {
-  const input = document.getElementById('bridge-chat-input');
-  const message = input?.value?.trim();
-
-  if (!message) return;
-
-  state.socket.emit('comms:sendTransmission', {
-    message,
-    channel: 'bridge'
-  });
-
-  input.value = '';
-}
-
-/**
- * Add message to bridge chat log
- */
-function addBridgeChatMessage(transmission) {
-  const log = document.getElementById('bridge-chat-log');
-  if (!log) return;
-
-  // Remove placeholder if present
-  const placeholder = log.querySelector('.chat-placeholder');
-  if (placeholder) placeholder.remove();
-
-  const time = new Date(transmission.timestamp || Date.now()).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-  const sender = escapeHtml(transmission.fromName || 'Unknown');
-  const msg = escapeHtml(transmission.message || '');
-
-  const msgEl = document.createElement('div');
-  msgEl.className = 'chat-message';
-  msgEl.style.cssText = 'margin-bottom: 4px; line-height: 1.3;';
-  msgEl.innerHTML = `<span style="color: #888;">[${time}]</span> <strong style="color: #4da6ff;">${sender}:</strong> ${msg}`;
-
-  log.appendChild(msgEl);
-  log.scrollTop = log.scrollHeight;
-
-  // Keep only last 50 messages
-  while (log.children.length > 50) {
-    log.removeChild(log.firstChild);
-  }
-}
+// AR-151e: Bridge Chat System moved to modules/bridge-chat.js
 
 // ============================================
 // Panel Copy Functions (for debugging)
@@ -9693,178 +9575,7 @@ function copyLogAsTodo(message) {
   });
 }
 
-// ==================== AR-40: Library Computer ====================
-
-function showLibraryComputer() {
-  const html = `
-    <div class="modal-header">
-      <h2>📚 Ship's Library Computer</h2>
-      <button class="btn-close" data-close-modal>×</button>
-    </div>
-    <div class="modal-body library-computer">
-      <div class="library-search-box" style="margin-bottom: 15px;">
-        <input type="text" id="library-search" class="form-input" placeholder="Search library... (e.g. 'Ag', 'starport', 'jump')"
-               oninput="searchLibrary(this.value)" style="width: 100%;">
-      </div>
-      <div class="library-tabs" style="display: flex; gap: 5px; margin-bottom: 10px;">
-        <button class="btn btn-small btn-active" onclick="showLibraryTab('search')">Search</button>
-        <button class="btn btn-small" onclick="showLibraryTab('uwp')">UWP Decoder</button>
-        <button class="btn btn-small" onclick="showLibraryTab('trade')">Trade Codes</button>
-        <button class="btn btn-small" onclick="showLibraryTab('starports')">Starports</button>
-      </div>
-      <div id="library-content" class="library-content" style="max-height: 400px; overflow-y: auto;">
-        <div class="library-help">
-          <p>Type to search the library database for:</p>
-          <ul>
-            <li><strong>Trade Codes</strong> - Ag, In, Hi, Ri, etc.</li>
-            <li><strong>Starport Classes</strong> - A through X</li>
-            <li><strong>Terms</strong> - Jump, Parsec, Navy, etc.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  `;
-  showModalContent(html);
-}
-
-function searchLibrary(query) {
-  if (!query || query.length < 2) {
-    document.getElementById('library-content').innerHTML = `
-      <div class="library-help">
-        <p>Type at least 2 characters to search.</p>
-      </div>
-    `;
-    return;
-  }
-  state.socket.emit('ops:librarySearch', { query });
-}
-
-function handleLibraryResults(data) {
-  const { results, query } = data;
-  const content = document.getElementById('library-content');
-  if (!content) return;
-
-  if (results.length === 0) {
-    content.innerHTML = `<div class="library-no-results">No results for "${query}"</div>`;
-    return;
-  }
-
-  let html = '<div class="library-results">';
-  for (const r of results) {
-    if (r.type === 'trade_code') {
-      html += `<div class="library-item trade-code">
-        <span class="code-badge">${r.code}</span>
-        <strong>${r.name}</strong>: ${r.desc}
-      </div>`;
-    } else if (r.type === 'starport') {
-      html += `<div class="library-item starport">
-        <span class="code-badge">Class ${r.code}</span>
-        <strong>${r.name}</strong>: ${r.desc}
-        <div class="starport-details">Fuel: ${r.fuel} | Repair: ${r.repair} | Yard: ${r.shipyard}</div>
-      </div>`;
-    } else if (r.type === 'glossary') {
-      html += `<div class="library-item glossary">
-        <strong>${r.term}</strong>: ${r.desc}
-      </div>`;
-    }
-  }
-  html += '</div>';
-  content.innerHTML = html;
-}
-
-function showLibraryTab(tab) {
-  // Update tab buttons
-  document.querySelectorAll('.library-tabs .btn').forEach(btn => btn.classList.remove('btn-active'));
-  event.target.classList.add('btn-active');
-
-  const content = document.getElementById('library-content');
-  if (tab === 'uwp') {
-    content.innerHTML = `
-      <div class="uwp-decoder">
-        <label>Enter UWP Code:</label>
-        <input type="text" id="uwp-input" class="form-input" placeholder="e.g. A788899-C"
-               oninput="decodeUWPLibrary(this.value)" maxlength="10" style="width: 150px; font-family: monospace;">
-        <div id="uwp-result" style="margin-top: 10px;"></div>
-      </div>
-    `;
-  } else if (tab === 'trade') {
-    state.socket.emit('ops:getTradeCodes');
-  } else if (tab === 'starports') {
-    state.socket.emit('ops:getStarports');
-  } else {
-    content.innerHTML = `
-      <div class="library-help">
-        <p>Type to search the library database.</p>
-      </div>
-    `;
-    document.getElementById('library-search').value = '';
-  }
-}
-
-function decodeUWPLibrary(uwp) {
-  if (!uwp || uwp.length < 7) {
-    document.getElementById('uwp-result').innerHTML = '<div class="text-muted">Enter at least 7 characters</div>';
-    return;
-  }
-  state.socket.emit('ops:decodeUWP', { uwp });
-}
-
-function handleUWPDecoded(data) {
-  const { decoded, uwp } = data;
-  const result = document.getElementById('uwp-result');
-  if (!result) return;
-
-  if (!decoded) {
-    result.innerHTML = '<div class="text-danger">Invalid UWP format</div>';
-    return;
-  }
-
-  result.innerHTML = `
-    <table class="uwp-table" style="width: 100%; font-size: 12px;">
-      <tr><td><strong>Starport</strong></td><td>${decoded.starport.code} - ${decoded.starport.name || 'Unknown'}</td></tr>
-      <tr><td><strong>Size</strong></td><td>${decoded.size.code} - ${decoded.size.desc}</td></tr>
-      <tr><td><strong>Atmosphere</strong></td><td>${decoded.atmosphere.code} - ${decoded.atmosphere.desc}</td></tr>
-      <tr><td><strong>Hydrographics</strong></td><td>${decoded.hydrographics.code} - ${decoded.hydrographics.desc}</td></tr>
-      <tr><td><strong>Population</strong></td><td>${decoded.population.code} - ${decoded.population.desc}</td></tr>
-      <tr><td><strong>Government</strong></td><td>${decoded.government.code} - ${decoded.government.desc}</td></tr>
-      <tr><td><strong>Law Level</strong></td><td>${decoded.lawLevel.code} - ${decoded.lawLevel.desc}</td></tr>
-      <tr><td><strong>Tech Level</strong></td><td>${decoded.techLevel.code} - ${decoded.techLevel.desc}</td></tr>
-    </table>
-  `;
-}
-
-function handleTradeCodes(data) {
-  const { codes } = data;
-  const content = document.getElementById('library-content');
-  if (!content) return;
-
-  let html = '<div class="library-results"><h4>Trade Codes Reference</h4>';
-  for (const c of codes) {
-    html += `<div class="library-item trade-code">
-      <span class="code-badge">${c.code}</span>
-      <strong>${c.name}</strong>: ${c.desc}
-    </div>`;
-  }
-  html += '</div>';
-  content.innerHTML = html;
-}
-
-function handleStarports(data) {
-  const { starports } = data;
-  const content = document.getElementById('library-content');
-  if (!content) return;
-
-  let html = '<div class="library-results"><h4>Starport Classifications</h4>';
-  for (const s of starports) {
-    html += `<div class="library-item starport">
-      <span class="code-badge">Class ${s.code}</span>
-      <strong>${s.name}</strong>: ${s.desc}
-      <div class="starport-details">Fuel: ${s.fuel} | Repair: ${s.repair} | Yard: ${s.shipyard}</div>
-    </div>`;
-  }
-  html += '</div>';
-  content.innerHTML = html;
-}
+// AR-151f: Library Computer moved to modules/library-computer.js
 
 // ==================== AR-48: Crew Roster (Menu) ====================
 
