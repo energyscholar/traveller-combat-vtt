@@ -99,6 +99,8 @@ import { expandRolePanel as _expandRolePanel, collapseRolePanel as _collapseRole
 import { openRefuelModal as _openRefuelModal, processFuel as _processFuel, populateRefuelModal as _populateRefuelModal, updateRefuelAmountPreview as _updateRefuelAmountPreview, updateRefuelPreview, executeRefuel as _executeRefuel, setRefuelMax as _setRefuelMax, executeProcessFuel as _executeProcessFuel, setProcessMax as _setProcessMax, requestFuelStatus as _requestFuelStatus } from './modules/refueling-operations.js';
 // AR-153: Phase 4 modules
 import { captainSetAlert as _captainSetAlert, captainQuickOrder as _captainQuickOrder, captainNavOrder as _captainNavOrder, captainContactOrder as _captainContactOrder, captainIssueOrder as _captainIssueOrder, captainMarkContact as _captainMarkContact, captainWeaponsAuth as _captainWeaponsAuth, captainRequestStatus as _captainRequestStatus, captainLeadershipCheck as _captainLeadershipCheck, captainTacticsCheck as _captainTacticsCheck, acknowledgeOrder as _acknowledgeOrder, captainSoloCommand as _captainSoloCommand } from './modules/captain-operations.js';
+// AR-153: Phase 5 modules
+import { getStarPopupContent, getShipPopupContent, getStationPopupContent, showContactTooltip as _showContactTooltip, hideContactTooltip as _hideContactTooltip, scanContact as _scanContact, hailContact as _hailContact, hailSelectedContact as _hailSelectedContact, broadcastMessage as _broadcastMessage } from './modules/contact-tooltip.js';
 
 // AR-152: Helper wrappers for notification variants
 const showError = (msg) => showNotification(msg, 'error');
@@ -240,6 +242,13 @@ const captainLeadershipCheck = () => _captainLeadershipCheck(state);
 const captainTacticsCheck = () => _captainTacticsCheck(state);
 const acknowledgeOrder = (orderId) => _acknowledgeOrder(state, orderId);
 const captainSoloCommand = (command) => _captainSoloCommand(state, showPlacesOverlay, command);
+// AR-153: Phase 5 wrappers
+const showContactTooltip = (contactId, targetElement) => _showContactTooltip(state, contactId, targetElement);
+const hideContactTooltip = () => _hideContactTooltip(state);
+const scanContact = (contactId, scanType) => _scanContact(state, contactId, scanType);
+const hailContact = (contactId) => _hailContact(state, hideContactTooltip, contactId);
+const hailSelectedContact = () => _hailSelectedContact(state, hailContact);
+const broadcastMessage = () => _broadcastMessage(state);
 
 // ==================== State ====================
 const state = {
@@ -5829,386 +5838,7 @@ function closeModal() {
 
 // AR-103: formatPopulation, interpretUWP moved to modules/helpers.js
 
-// ==================== Contact Tooltip (TIP-1) ====================
-
-// Factory function for star-specific popup content
-function getStarPopupContent(contact) {
-  let content = '';
-
-  // Stellar class (always show for stars)
-  if (contact.stellar_class) {
-    content += `
-      <div class="tooltip-row star-info">
-        <span class="label">Spectral Type:</span>
-        <span class="value">${escapeHtml(contact.stellar_class)}</span>
-      </div>
-    `;
-  }
-
-  // Parse stellar_info if it's JSON, or use individual fields
-  let starInfo = {};
-  if (contact.stellar_info) {
-    try {
-      starInfo = typeof contact.stellar_info === 'string'
-        ? JSON.parse(contact.stellar_info)
-        : contact.stellar_info;
-    } catch (e) {
-      debugWarn('Failed to parse stellar_info:', e);
-    }
-  }
-
-  // Temperature
-  if (starInfo.temperature || contact.temperature) {
-    content += `
-      <div class="tooltip-row star-info">
-        <span class="label">Temperature:</span>
-        <span class="value">${escapeHtml(starInfo.temperature || contact.temperature)}</span>
-      </div>
-    `;
-  }
-
-  // Luminosity
-  if (starInfo.luminosity || contact.luminosity) {
-    content += `
-      <div class="tooltip-row star-info">
-        <span class="label">Luminosity:</span>
-        <span class="value">${escapeHtml(starInfo.luminosity || contact.luminosity)}</span>
-      </div>
-    `;
-  }
-
-  // Mass
-  if (starInfo.mass || contact.mass) {
-    content += `
-      <div class="tooltip-row star-info">
-        <span class="label">Mass:</span>
-        <span class="value">${escapeHtml(starInfo.mass || contact.mass)}</span>
-      </div>
-    `;
-  }
-
-  // Habitable zone
-  if (starInfo.habitableZone || contact.habitable_zone) {
-    content += `
-      <div class="tooltip-row star-info">
-        <span class="label">Habitable Zone:</span>
-        <span class="value">${escapeHtml(starInfo.habitableZone || contact.habitable_zone)}</span>
-      </div>
-    `;
-  }
-
-  // Description
-  if (starInfo.description || contact.star_description) {
-    content += `
-      <div class="tooltip-description star-description">
-        ${escapeHtml(starInfo.description || contact.star_description)}
-      </div>
-    `;
-  }
-
-  return content;
-}
-
-// Factory function for ship-specific popup content
-function getShipPopupContent(contact) {
-  let content = '';
-
-  if (contact.tonnage) {
-    content += `
-      <div class="tooltip-row ship-info">
-        <span class="label">Tonnage:</span>
-        <span class="value">${contact.tonnage} dT</span>
-      </div>
-    `;
-  }
-
-  if (contact.crew_count) {
-    content += `
-      <div class="tooltip-row ship-info">
-        <span class="label">Crew:</span>
-        <span class="value">${contact.crew_count}</span>
-      </div>
-    `;
-  }
-
-  return content;
-}
-
-// Factory function for station-specific popup content
-function getStationPopupContent(contact) {
-  let content = '';
-
-  if (contact.population) {
-    content += `
-      <div class="tooltip-row station-info">
-        <span class="label">Population:</span>
-        <span class="value">${contact.population}</span>
-      </div>
-    `;
-  }
-
-  if (contact.services) {
-    const services = typeof contact.services === 'string'
-      ? JSON.parse(contact.services)
-      : contact.services;
-    if (services && services.length) {
-      content += `
-        <div class="tooltip-row station-info">
-          <span class="label">Services:</span>
-          <span class="value">${escapeHtml(services.join(', '))}</span>
-        </div>
-      `;
-    }
-  }
-
-  return content;
-}
-
-function showContactTooltip(contactId, targetElement) {
-  const contact = state.contacts.find(c => c.id === contactId);
-  if (!contact) return;
-
-  const tooltip = document.getElementById('contact-tooltip');
-  const nameEl = document.getElementById('tooltip-contact-name');
-  const contentEl = document.getElementById('tooltip-content');
-
-  // Set name
-  nameEl.textContent = contact.name || contact.type || 'Unknown Contact';
-
-  // SHIP-6: Get ASCII art for the contact type
-  const asciiArt = getShipAsciiArt(contact.ship_type || contact.type);
-
-  // Build tooltip content - start with ASCII art if available
-  let content = '';
-  if (asciiArt) {
-    content += `<pre class="ship-ascii-art">${escapeHtml(asciiArt)}</pre>`;
-  }
-
-  content += `
-    <div class="tooltip-row">
-      <span class="label">Type:</span>
-      <span class="value">${contact.type || 'Unknown'}</span>
-    </div>
-    <div class="tooltip-row">
-      <span class="label">Bearing:</span>
-      <span class="value">${contact.bearing}°</span>
-    </div>
-    <div class="tooltip-row">
-      <span class="label">Range:</span>
-      <span class="value">${formatRange(contact.range_km)} (${formatRangeBand(contact.range_band)})</span>
-    </div>
-    <div class="tooltip-row">
-      <span class="label">Transponder:</span>
-      <span class="value">${contact.transponder || 'None'}</span>
-    </div>
-    <div class="tooltip-row">
-      <span class="label">Signature:</span>
-      <span class="value">${contact.signature || 'Normal'}</span>
-    </div>
-  `;
-
-  // GM-only info
-  if (state.isGM && contact.gm_notes) {
-    content += `
-      <div class="tooltip-row gm-only">
-        <span class="label">GM Notes:</span>
-        <span class="value">${escapeHtml(contact.gm_notes)}</span>
-      </div>
-    `;
-  }
-
-  // Targetable info
-  if (contact.is_targetable) {
-    content += `
-      <div class="tooltip-row">
-        <span class="label">Health:</span>
-        <span class="value">${contact.health}/${contact.max_health}</span>
-      </div>
-      <div class="tooltip-row">
-        <span class="label">Weapons Free:</span>
-        <span class="value">${contact.weapons_free ? 'Yes' : 'No'}</span>
-      </div>
-    `;
-  }
-
-  // TIP-3: UWP tooltip for planets/celestial objects
-  if (contact.uwp) {
-    content += `
-      <div class="tooltip-row">
-        <span class="label">UWP:</span>
-        <span class="value">${createUWPSpan(contact.uwp)}</span>
-      </div>
-    `;
-  }
-
-  // Stellar info for stars (Factory pattern - star-specific content)
-  if (contact.stellar_class || contact.type === 'star') {
-    content += getStarPopupContent(contact);
-  }
-
-  // Ship-specific info (Factory pattern)
-  if (contact.type === 'ship' || contact.type === 'vessel' || contact.tonnage) {
-    content += getShipPopupContent(contact);
-  }
-
-  // Station-specific info (Factory pattern)
-  if (contact.type === 'station' || contact.type === 'starport' || contact.type === 'orbital') {
-    content += getStationPopupContent(contact);
-  }
-
-  // Trade codes
-  if (contact.trade_codes) {
-    const codes = typeof contact.trade_codes === 'string' ? JSON.parse(contact.trade_codes) : contact.trade_codes;
-    if (codes && codes.length > 0) {
-      content += `
-        <div class="tooltip-row">
-          <span class="label">Trade Codes:</span>
-          <span class="value">${escapeHtml(codes.join(', '))}</span>
-        </div>
-      `;
-    }
-  }
-
-  // Wiki reference link
-  if (contact.wiki_url) {
-    content += `
-      <div class="tooltip-row">
-        <span class="label">Reference:</span>
-        <span class="value"><a href="${escapeHtml(contact.wiki_url)}" target="_blank" rel="noopener" class="wiki-link">Traveller Wiki</a></span>
-      </div>
-    `;
-  }
-
-  // Ship weapons (from ship_data or template)
-  const shipData = contact.ship_data ? (typeof contact.ship_data === 'string' ? JSON.parse(contact.ship_data) : contact.ship_data) : null;
-  if (shipData?.turrets && shipData.turrets.length > 0) {
-    const weaponsHtml = formatShipWeapons(shipData);
-    if (weaponsHtml) {
-      content += `<div class="tooltip-weapons"><strong>Armament:</strong>${weaponsHtml}</div>`;
-    }
-  }
-
-  // Hail button for ships/stations with transponders (Captain or Sensor Operator)
-  const canHail = (state.selectedRole === 'captain' || state.selectedRole === 'sensor_operator' || state.isGM);
-  const isHailable = contact.transponder && contact.transponder !== 'NONE' &&
-    (contact.type === 'Free Trader' || contact.type === 'Far Trader' ||
-     contact.type === 'Station' || contact.type === 'starport' || contact.type === 'Starport' ||
-     contact.type === 'orbital' || contact.type === 'System Defense Boat' ||
-     contact.type?.toLowerCase().includes('ship') || contact.type?.toLowerCase().includes('trader') ||
-     contact.type?.toLowerCase().includes('station') || contact.transponder?.toLowerCase().includes('starport'));
-
-  if (canHail && isHailable) {
-    content += `
-      <div class="tooltip-actions">
-        <button class="btn btn-primary btn-hail" onclick="window.hailContact('${contactId}')">
-          📡 Hail ${contact.transponder}
-        </button>
-      </div>
-    `;
-  }
-
-  contentEl.innerHTML = content;
-
-  // Position tooltip near target element
-  const rect = targetElement.getBoundingClientRect();
-  const tooltipWidth = 280;
-  let left = rect.right + 10;
-  let top = rect.top;
-
-  // Keep tooltip on screen
-  if (left + tooltipWidth > window.innerWidth) {
-    left = rect.left - tooltipWidth - 10;
-  }
-  if (top + 200 > window.innerHeight) {
-    top = window.innerHeight - 220;
-  }
-
-  tooltip.style.left = `${left}px`;
-  tooltip.style.top = `${top}px`;
-  tooltip.classList.remove('hidden');
-
-  // Mark contact as selected
-  document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('selected'));
-  targetElement.classList.add('selected');
-  state.pinnedContactId = contactId;
-}
-
-function hideContactTooltip() {
-  const tooltip = document.getElementById('contact-tooltip');
-  tooltip.classList.add('hidden');
-  document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('selected'));
-  state.pinnedContactId = null;
-}
-
-/**
- * AR-70: Scan a contact (targeted sensor scan)
- * @param {string} contactId - Contact ID to scan
- * @param {string} scanType - 'passive', 'active', or 'deep'
- */
-function scanContact(contactId, scanType = 'active') {
-  const contact = state.contacts.find(c => c.id === contactId);
-  if (!contact) {
-    showNotification('Contact not found', 'error');
-    return;
-  }
-
-  // Emit scan event to server
-  state.socket.emit('ops:scanContact', { contactId, scanType });
-  showNotification(`Initiating ${scanType} scan...`, 'info');
-}
-
-/**
- * Hail a contact (ship/station)
- * Creates comms log entry and may create NPC contact if they respond
- * @param {string} contactId - Contact ID to hail
- */
-function hailContact(contactId) {
-  const contact = state.contacts.find(c => c.id === contactId);
-  if (!contact) {
-    showNotification('Contact not found', 'error');
-    return;
-  }
-
-  if (!contact.transponder || contact.transponder === 'NONE') {
-    showNotification('Cannot hail - no transponder signal', 'error');
-    return;
-  }
-
-  // Emit hail event to server
-  state.socket.emit('ops:hailContact', { contactId });
-
-  // Close tooltip
-  hideContactTooltip();
-}
-
-/**
- * Hail selected contact from Captain panel dropdown
- */
-function hailSelectedContact() {
-  const select = document.getElementById('hail-contact-select');
-  if (!select || !select.value) {
-    showNotification('No contact selected', 'warning');
-    return;
-  }
-  hailContact(select.value);
-}
-
-/**
- * Broadcast message to all contacts
- */
-function broadcastMessage() {
-  const messageInput = document.getElementById('comms-message-input');
-  const message = messageInput?.value?.trim();
-
-  if (!message) {
-    showNotification('Enter a message to broadcast', 'warning');
-    return;
-  }
-
-  state.socket.emit('ops:broadcastMessage', { message });
-  messageInput.value = '';
-  showNotification('Broadcast sent', 'info');
-}
+// AR-153: Contact Tooltip moved to modules/contact-tooltip.js
 
 /**
  * Send message to selected contact
@@ -7703,6 +7333,13 @@ window.captainLeadershipCheck = captainLeadershipCheck;
 window.captainTacticsCheck = captainTacticsCheck;
 window.acknowledgeOrder = acknowledgeOrder;
 window.captainSoloCommand = captainSoloCommand;
+// AR-153: Phase 5 Contact Tooltip exports
+window.showContactTooltip = showContactTooltip;
+window.hideContactTooltip = hideContactTooltip;
+window.scanContact = scanContact;
+window.hailContact = hailContact;
+window.hailSelectedContact = hailSelectedContact;
+window.broadcastMessage = broadcastMessage;
 // AR-151: Core utilities and maps for onclick handlers
 window.showModalContent = showModalContent;
 window.showNotification = showNotification;

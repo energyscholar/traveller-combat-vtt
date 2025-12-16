@@ -96,6 +96,16 @@ const PHASE4_EXPORTS = [
   'captainSoloCommand'
 ];
 
+const PHASE5_EXPORTS = [
+  // Phase 5: Contact Tooltip
+  'showContactTooltip',
+  'hideContactTooltip',
+  'scanContact',
+  'hailContact',
+  'hailSelectedContact',
+  'broadcastMessage'
+];
+
 async function runTest() {
   let browser;
   try {
@@ -110,7 +120,7 @@ async function runTest() {
       timeout: 10000
     });
 
-    const ALL_EXPORTS = [...PHASE1_EXPORTS, ...PHASE2_EXPORTS, ...PHASE3_EXPORTS, ...PHASE4_EXPORTS];
+    const ALL_EXPORTS = [...PHASE1_EXPORTS, ...PHASE2_EXPORTS, ...PHASE3_EXPORTS, ...PHASE4_EXPORTS, ...PHASE5_EXPORTS];
     const results = await page.evaluate((exports) => {
       const missing = [];
       const present = [];
