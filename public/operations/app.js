@@ -103,6 +103,8 @@ import { captainSetAlert as _captainSetAlert, captainQuickOrder as _captainQuick
 import { getStarPopupContent, getShipPopupContent, getStationPopupContent, showContactTooltip as _showContactTooltip, hideContactTooltip as _hideContactTooltip, scanContact as _scanContact, hailContact as _hailContact, hailSelectedContact as _hailSelectedContact, broadcastMessage as _broadcastMessage } from './modules/contact-tooltip.js';
 // AR-153: Phase 6 modules
 import { getEditorState, setEditorData, openShipEditor as _openShipEditor, populateShipEditor as _populateShipEditor, populateEditorFields, loadTemplateForEditor as _loadTemplateForEditor, renderWeaponsList, renderSystemsList, addWeaponToEditor, addSystemToEditor, updateValidationSummary, collectEditorData, saveEditedShip as _saveEditedShip, switchEditorTab } from './modules/ship-template-editor.js';
+// AR-153: Phase 7 modules
+import { getEvasiveState, setEvasiveState, getPendingTravel, clearPendingTravel, toggleEvasive as _toggleEvasive, changeRange as _changeRange, setCourse as _setCourse, clearCourse as _clearCourse, travel as _travel, undock as _undock, setupPilotListeners as _setupPilotListeners } from './modules/pilot-controls.js';
 
 // AR-152: Helper wrappers for notification variants
 const showError = (msg) => showNotification(msg, 'error');
@@ -256,6 +258,14 @@ const openShipEditor = (shipId) => _openShipEditor(state, showModal, shipId);
 const populateShipEditor = () => _populateShipEditor(state);
 const loadTemplateForEditor = (templateId) => _loadTemplateForEditor(state, templateId);
 const saveEditedShip = () => _saveEditedShip(state);
+// AR-153: Phase 7 wrappers
+const toggleEvasive = () => _toggleEvasive(state);
+const changeRange = (action) => _changeRange(state, action);
+const setCourse = (destination, eta, travelData) => _setCourse(state, renderRoleDetailPanel, destination, eta, travelData);
+const clearCourse = () => _clearCourse(state);
+const travel = () => _travel(state);
+const undock = () => _undock(state);
+const setupPilotListeners = () => _setupPilotListeners(state, renderRoleDetailPanel, null, setBridgeClockDate, window.animateCameraToLocation);
 
 // ==================== State ====================
 const state = {
@@ -3582,115 +3592,7 @@ function requestSystemStatus() {
 
 // AR-153: Power Management moved to modules/power-management.js
 
-// ==================== Pilot Controls (AR-30) ====================
-
-// Track evasive state locally for UI updates
-let pilotEvasiveState = false;
-
-function toggleEvasive() {
-  if (!state.socket || !state.campaignId) {
-    showNotification('Not connected to campaign', 'error');
-    return;
-  }
-
-  const newState = !pilotEvasiveState;
-  state.socket.emit('ops:setEvasive', { enabled: newState });
-}
-
-function changeRange(action) {
-  if (!state.socket || !state.campaignId) {
-    showNotification('Not connected to campaign', 'error');
-    return;
-  }
-
-  const contactId = document.getElementById('range-contact-select')?.value;
-  if (!contactId) {
-    showNotification('No contact selected', 'error');
-    return;
-  }
-
-  state.socket.emit('ops:setRange', { contactId, action });
-}
-
-// AR-64: Store pending travel data for TRAVEL button
-let pendingTravelData = null;
-
-function setCourse(destination, eta, travelData = null) {
-  if (!state.socket || !state.campaign?.id) {
-    showNotification('Not connected to campaign', 'error');
-    return;
-  }
-
-  // Store travel data for TRAVEL button
-  pendingTravelData = travelData;
-
-  state.socket.emit('ops:setCourse', {
-    destination,
-    eta,
-    travelTime: travelData?.travelHours || null
-  });
-
-  // Re-render pilot panel to show TRAVEL button
-  if (state.role === 'pilot') {
-    renderRoleDetailPanel('pilot');
-  }
-}
-
-function clearCourse() {
-  if (!state.socket || !state.campaign?.id) return;
-  pendingTravelData = null;
-  state.socket.emit('ops:clearCourse');
-}
-
-/**
- * AR-64: Execute travel to the set destination
- * Advances time and moves ship to destination location
- */
-function travel() {
-  if (!state.socket || !state.campaign?.id) {
-    showNotification('Not connected to campaign', 'error');
-    return;
-  }
-
-  if (!pendingTravelData?.locationId) {
-    showNotification('No destination set - select a destination from the system map', 'warning');
-    return;
-  }
-
-  // Confirm travel
-  const hours = pendingTravelData.travelHours || 4;
-  const confirmMsg = `Travel to destination? (${hours}h transit)`;
-
-  if (!confirm(confirmMsg)) return;
-
-  state.socket.emit('ops:travel', {
-    destinationId: pendingTravelData.locationId
-  });
-
-  // Clear pending travel after sending
-  pendingTravelData = null;
-}
-
-/**
- * Undock from station
- */
-function undock() {
-  if (!state.socket || !state.campaignId) {
-    showNotification('Not connected to campaign', 'error');
-    return;
-  }
-
-  if (!confirm('Release docking clamps and undock?')) return;
-
-  state.socket.emit('ops:undock');
-}
-
-/**
- * Get current pending travel data (for UI)
- */
-function getPendingTravel() {
-  return pendingTravelData;
-}
+// AR-153: Pilot Controls moved to modules/pilot-controls.js
 
 // ==================== AR-57: Transit Calculator (Brachistochrone) ====================
 // Educational physics: t = 2 * sqrt(d / a)
@@ -3806,117 +3708,7 @@ function showRangeChart() {
   showModal('Range Chart', content);
 }
 
-// Listen for pilot events
-function setupPilotListeners() {
-  if (!state.socket) return;
-
-  state.socket.on('ops:evasiveChanged', (data) => {
-    pilotEvasiveState = data.enabled;
-    const btn = document.getElementById('evasive-toggle');
-    if (btn) {
-      btn.className = `btn btn-small ${data.enabled ? 'btn-active' : ''}`;
-      btn.textContent = data.enabled ? '⚡ Evasive ON' : 'Evasive';
-    }
-    showNotification(data.enabled ? 'Evasive maneuvers engaged' : 'Evasive maneuvers ended', 'info');
-  });
-
-  state.socket.on('ops:rangeChanged', (data) => {
-    showNotification(`Range to ${data.contactId}: ${data.previousRange} → ${data.newRange}`, 'info');
-    // Refresh panel to show updated range
-    if (typeof refreshCrewPanel === 'function') {
-      refreshCrewPanel();
-    }
-  });
-
-  state.socket.on('ops:courseChanged', (data) => {
-    showNotification(`Course set for ${data.destination}`, 'info');
-  });
-
-  state.socket.on('ops:courseCleared', () => {
-    showNotification('Course cleared', 'info');
-  });
-
-  // AR-64: Travel complete - ship arrived at destination
-  state.socket.on('ops:travelComplete', (data) => {
-    // Update ship state with new location
-    if (state.shipState) {
-      state.shipState.systemHex = data.systemHex;
-      state.shipState.locationId = data.locationId;
-      state.shipState.locationName = data.locationName;
-    }
-
-    // Update campaign date
-    if (state.campaign && data.newDate) {
-      state.campaign.current_date = data.newDate;
-      setBridgeClockDate(data.newDate);
-    }
-
-    // Clear pending travel
-    pendingTravelData = null;
-
-    // Update system map location display
-    const mapLocationEl = document.getElementById('system-map-location');
-    if (mapLocationEl) mapLocationEl.textContent = data.locationName;
-
-    // Update bridge header location display
-    const bridgeLocationEl = document.getElementById('bridge-location');
-    if (bridgeLocationEl) bridgeLocationEl.textContent = data.locationName;
-
-    // Show notification
-    showNotification(`Arrived at ${data.locationName} (${data.travelHours}h transit)`, 'success');
-
-    // Animate camera to new location with max zoom (if enabled in settings)
-    const animateCamera = localStorage.getItem('ops-setting-animate-camera') !== 'false';
-    if (animateCamera && typeof window.animateCameraToLocation === 'function' && data.locationId) {
-      window.animateCameraToLocation(data.locationId, { duration: 400, maxZoom: true });
-    }
-
-    // Re-render pilot panel to remove TRAVEL button
-    if (state.role === 'pilot') {
-      renderRoleDetailPanel('pilot');
-    }
-  });
-
-  // Undock from station - ship location changed
-  state.socket.on('ops:undocked', (data) => {
-    // Update ship state with new location
-    if (state.shipState) {
-      state.shipState.locationId = data.locationId;
-      state.shipState.locationName = data.toLocation;
-      state.shipState.systemHex = data.systemHex;  // AR-124: Include system hex
-    }
-    // AR-124: Also sync to ship.current_state for consistency
-    if (state.ship?.current_state) {
-      state.ship.current_state.locationId = data.locationId;
-      state.ship.current_state.locationName = data.toLocation;
-      state.ship.current_state.systemHex = data.systemHex;
-    }
-
-    // Update bridge header location display
-    const bridgeLocationEl = document.getElementById('bridge-location');
-    if (bridgeLocationEl) bridgeLocationEl.textContent = data.toLocation;
-
-    // AR-124: Update system-map-location display
-    const mapLocationEl = document.getElementById('system-map-location');
-    if (mapLocationEl) mapLocationEl.textContent = data.toLocation;
-
-    // AR-124: Animate camera to new location
-    if (typeof animateCameraToLocation === 'function') {
-      animateCameraToLocation(data.locationId);
-    }
-
-    // Show notification
-    showNotification(`Undocked from ${data.fromLocation}`, 'success');
-
-    // Re-render pilot panel to update location and hide UNDOCK button
-    if (state.role === 'pilot') {
-      renderRoleDetailPanel('pilot');
-    }
-  });
-
-  // CLEAN-2: ops:timeAdvanced handler moved to main socket setup (line ~646)
-  // Removed duplicate that would add extra listener each time pilot role selected
-}
+// AR-153: setupPilotListeners moved to modules/pilot-controls.js
 
 // AR-31: Listen for engineer power events
 function setupEngineerListeners() {
@@ -6918,6 +6710,14 @@ window.addSystemToEditor = addSystemToEditor;
 window.updateValidationSummary = updateValidationSummary;
 window.saveEditedShip = saveEditedShip;
 window.switchEditorTab = switchEditorTab;
+// AR-153: Phase 7 Pilot Controls exports
+window.toggleEvasive = toggleEvasive;
+window.changeRange = changeRange;
+window.setCourse = setCourse;
+window.clearCourse = clearCourse;
+window.travel = travel;
+window.undock = undock;
+window.getPendingTravel = getPendingTravel;
 // AR-151: Core utilities and maps for onclick handlers
 window.showModalContent = showModalContent;
 window.showNotification = showNotification;
