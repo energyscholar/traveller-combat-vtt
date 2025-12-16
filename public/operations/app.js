@@ -9914,6 +9914,12 @@ window.editReveal = editReveal;
 window.updateReveal = updateReveal;
 window.deleteReveal = deleteReveal;
 window.submitReveal = submitReveal;
+// AR-151-5: GM Prep panel render functions
+window.renderPrepReveals = renderPrepReveals;
+window.showAddRevealModal = showAddRevealModal;
+window.showPlayerRevealModal = showPlayerRevealModal;
+window.renderPrepNpcs = renderPrepNpcs;
+window.renderPrepLocations = renderPrepLocations;
 // Stage 8.2: NPCs, Locations, Events
 window.revealNpc = revealNpc;
 window.hideNpc = hideNpc;
@@ -9951,3 +9957,9 @@ window.undock = undock;
 // AR-31: Engineer Power Management
 window.setPowerPreset = setPowerPreset;
 window.updatePower = updatePower;
+// AR-151: Core utilities and maps for onclick handlers
+window.showModalContent = showModalContent;
+window.showNotification = showNotification;
+window.escapeHtml = escapeHtml;
+window.showSharedMap = showSharedMap;
+window.showSystemMap = showSystemMap;
