@@ -34,21 +34,8 @@ import {
   loadSystemFromJSON  // Load systems from JSON files
 } from './modules/system-map.js';
 import { applyStatusIndicators, toggleStatusIndicators } from './modules/ui-status-registry.js';
-
-// ==================== Debug Configuration ====================
-// SECURITY: Debug logging only enabled on localhost
-const DEBUG = ['localhost', '127.0.0.1'].includes(location.hostname);
-const debugLog = (...args) => DEBUG && console.log(...args);
-
-// ==================== Default Location Constants ====================
-// AR-119: Centralized defaults instead of hardcoded Flammarion values
-// Mora - Imperial capital, Spinward Marches sector
-const DEFAULT_SECTOR = 'Spinward Marches';
-const DEFAULT_SUBSECTOR = 'Mora';
-const DEFAULT_SYSTEM = 'Mora';
-const DEFAULT_HEX = '3124';
-const debugWarn = (...args) => DEBUG && console.warn(...args);
-const debugError = (...args) => DEBUG && console.error(...args);
+import { DEBUG, debugLog, debugWarn, debugError } from './modules/debug-config.js';
+import { DEFAULT_SECTOR, DEFAULT_SUBSECTOR, DEFAULT_SYSTEM, DEFAULT_HEX } from './modules/constants.js';
 
 // ==================== Bridge Clock ====================
 // Ticking clock for bridge display (Imperial calendar style)
