@@ -106,6 +106,21 @@ const PHASE5_EXPORTS = [
   'broadcastMessage'
 ];
 
+const PHASE6_EXPORTS = [
+  // Phase 6: Ship Template Editor
+  'openShipEditor',
+  'populateShipEditor',
+  'populateEditorFields',
+  'loadTemplateForEditor',
+  'renderWeaponsList',
+  'renderSystemsList',
+  'addWeaponToEditor',
+  'addSystemToEditor',
+  'updateValidationSummary',
+  'saveEditedShip',
+  'switchEditorTab'
+];
+
 async function runTest() {
   let browser;
   try {
@@ -120,7 +135,7 @@ async function runTest() {
       timeout: 10000
     });
 
-    const ALL_EXPORTS = [...PHASE1_EXPORTS, ...PHASE2_EXPORTS, ...PHASE3_EXPORTS, ...PHASE4_EXPORTS, ...PHASE5_EXPORTS];
+    const ALL_EXPORTS = [...PHASE1_EXPORTS, ...PHASE2_EXPORTS, ...PHASE3_EXPORTS, ...PHASE4_EXPORTS, ...PHASE5_EXPORTS, ...PHASE6_EXPORTS];
     const results = await page.evaluate((exports) => {
       const missing = [];
       const present = [];
