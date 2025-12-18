@@ -21,14 +21,14 @@ export function openRefuelModal(state, showModalFn) {
  * @param {Object} state - Application state
  */
 export function processFuel(state) {
-  if (!state.socket || !state.campaignId) {
+  if (!state.socket || !state.campaign?.id) {
     showNotification('Not connected to campaign', 'error');
     return;
   }
 
-  // Get unrefined fuel amount from ship state
-  const fuel = state.shipState?.fuel || {};
-  const unrefined = fuel.unrefined || 0;
+  // Get unrefined fuel amount from fuel status breakdown
+  const fuelBreakdown = state.fuelStatus?.breakdown || state.shipState?.fuelBreakdown || {};
+  const unrefined = fuelBreakdown.unrefined || 0;
 
   if (unrefined <= 0) {
     showNotification('No unrefined fuel to process', 'warning');

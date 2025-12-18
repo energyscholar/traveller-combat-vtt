@@ -286,7 +286,73 @@ function initSystemMap(container) {
   // Start render loop
   startRenderLoop();
 
+  // AR-168: Add keyboard hotkeys for system map actions
+  document.addEventListener('keydown', handleSystemMapKeydown);
+
   console.log('[SystemMap] Initialized');
+}
+
+/**
+ * AR-168: Handle keyboard hotkeys for system map
+ * P = Places, S = Set Course, T = Travel, G = Go To, Escape = Close panels
+ */
+function handleSystemMapKeydown(e) {
+  // Don't trigger if typing in input/textarea
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  // Only trigger when system map is visible
+  if (!systemMapState.container?.offsetParent) return;
+
+  const key = e.key.toLowerCase();
+
+  switch (key) {
+    case 'p':
+      // Toggle Places overlay
+      const placesOverlay = document.getElementById('places-overlay');
+      if (placesOverlay) {
+        hidePlacesOverlay();
+      } else {
+        showPlacesOverlay();
+      }
+      e.preventDefault();
+      break;
+
+    case 's':
+      // Click Set Course button if visible
+      const setCourseBtn = document.getElementById('btn-set-course');
+      if (setCourseBtn && !setCourseBtn.disabled) {
+        setCourseBtn.click();
+        e.preventDefault();
+      }
+      break;
+
+    case 't':
+      // Click Travel button if visible and enabled
+      const travelBtn = document.getElementById('btn-travel');
+      if (travelBtn && !travelBtn.disabled) {
+        travelBtn.click();
+        e.preventDefault();
+      }
+      break;
+
+    case 'g':
+      // Click Go To button if visible
+      const detailsPanel = document.querySelector('.place-details-panel');
+      if (detailsPanel) {
+        const goToBtn = detailsPanel.querySelector('button');
+        if (goToBtn && goToBtn.textContent.includes('Go To')) {
+          goToBtn.click();
+          e.preventDefault();
+        }
+      }
+      break;
+
+    case 'escape':
+      // Close any open panels
+      hidePlaceDetails();
+      hidePlacesOverlay();
+      e.preventDefault();
+      break;
+  }
 }
 
 /**

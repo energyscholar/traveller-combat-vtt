@@ -118,6 +118,7 @@ export function formatSystemName(system) {
     'cargo': 'Cargo',
     'crew': 'Crew'
   };
+  if (!system) return 'Unknown';
   return names[system] || system.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 

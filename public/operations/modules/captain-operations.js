@@ -198,9 +198,18 @@ export function acknowledgeOrder(state, orderId) {
 export function captainSoloCommand(state, showPlacesOverlayFn, command) {
   switch (command) {
     case 'plotJump':
-      // Open jump plot modal or show destinations
-      showNotification('Select a jump destination from the Astrogator panel', 'info');
-      // Could open a modal here - for MVP, direct to astrogator panel
+      // AR-173: Switch to astrogator panel and execute plot
+      if (typeof window.switchCaptainPanel === 'function') {
+        window.switchCaptainPanel('astrogator');
+        // Focus destination input after panel switch
+        setTimeout(() => {
+          const destInput = document.getElementById('jump-destination');
+          if (destInput) destInput.focus();
+        }, 500);
+      }
+      if (typeof window.plotJumpCourse === 'function') {
+        window.plotJumpCourse();
+      }
       break;
 
     case 'verifyPosition':
@@ -209,20 +218,51 @@ export function captainSoloCommand(state, showPlacesOverlayFn, command) {
       break;
 
     case 'setCourse':
-      // Show destinations panel
+      // AR-173: Switch to pilot panel and show places
+      if (typeof window.switchCaptainPanel === 'function') {
+        window.switchCaptainPanel('pilot');
+      }
       showPlacesOverlayFn();
-      showNotification('Select destination from Places panel', 'info');
       break;
 
     case 'refuel':
-      // Trigger refuel dialog
-      state.socket.emit('ops:getAvailableFuelSources');
-      showNotification('Checking available fuel sources...', 'info');
+      // AR-173: Switch to engineer panel and open refuel modal
+      if (typeof window.switchCaptainPanel === 'function') {
+        window.switchCaptainPanel('engineer');
+      }
+      if (typeof window.openRefuelModal === 'function') {
+        window.openRefuelModal();
+      } else {
+        state.socket.emit('ops:getAvailableFuelSources');
+        showNotification('Checking available fuel sources...', 'info');
+      }
       break;
 
     case 'refineFuel':
+      // AR-173: Switch to engineer panel for processing
+      if (typeof window.switchCaptainPanel === 'function') {
+        window.switchCaptainPanel('engineer');
+      }
       state.socket.emit('ops:startFuelProcessing', { tons: 'all' });
       showNotification('Starting fuel processing...', 'info');
+      break;
+
+    case 'travel':
+      // AR-173: Execute travel from captain position
+      if (typeof window.travel === 'function') {
+        window.travel();
+      } else {
+        state.socket.emit('ops:travel');
+      }
+      break;
+
+    case 'initiateJump':
+      // AR-173: Execute jump from captain position
+      if (typeof window.initiateJump === 'function') {
+        window.initiateJump();
+      } else {
+        state.socket.emit('ops:initiateJump');
+      }
       break;
 
     default:

@@ -218,6 +218,53 @@
 
 ---
 
+## Weapon Upgrades (High Guard 2022 - Customising Ships)
+
+### Upgrade Slots by Tech Level
+
+Weapons built at higher TL than their base requirement gain upgrade slots:
+
+| TL Above Base | Upgrade Slots |
+|---------------|---------------|
+| +1-2 TL | 1 slot |
+| +3-4 TL | 2 slots |
+| +5+ TL | 3 slots |
+
+**Example:** Ion Cannon (base TL 12) built at TL 15 = 3 upgrade slots
+
+### Available Weapon Upgrades
+
+| Upgrade | Slots | Effect | Notes |
+|---------|-------|--------|-------|
+| **Accurate** | 2 | +1 DM to attack rolls | Best for skilled gunners |
+| **High Yield** | 1 | +1D damage | Cost-effective damage boost |
+| **Very High Yield** | 2 | +2D damage | Not for missiles/torpedoes |
+| **Long Range** | 1 | +1 range band | Extends effective range |
+| **Resilient** | 1 | Harder to disable (crit resistance) | Defensive option |
+| **Variable Range** | 1 | Can attack at any range without penalty | Rare, specialized |
+
+### Barbette-Specific Notes
+
+- Barbettes at TL 12+ commonly upgraded
+- Ion Barbettes benefit most from: Accurate (more hits = more drain) or High Yield (+1D × 30 = +105 avg drain)
+- Particle Barbettes often: High Yield or Very High Yield for maximum destruction
+
+### Fire Control Software
+
+Fire Control software provides attack DM bonus. Can be split among weapons/targets.
+
+| Software | TL | Bandwidth | Effect | Cost (Cr) |
+|----------|---|-----------| -------|-----------|
+| **Fire Control/1** | 9 | 1 | +1 DM or 1 auto-attack | 1,000,000 |
+| **Fire Control/2** | 10 | 2 | +2 DM (split as needed) | 2,000,000 |
+| **Fire Control/3** | 11 | 3 | +3 DM (split as needed) | 4,000,000 |
+| **Fire Control/4** | 12 | 4 | +4 DM (split as needed) | 8,000,000 |
+| **Fire Control/5** | 13 | 5 | +5 DM (split as needed) | 10,000,000 |
+
+**Usage:** A ship with FC/4 firing one barbette can grant full +4 DM to that attack.
+
+---
+
 ## Sensors
 
 ### Sensor Grades

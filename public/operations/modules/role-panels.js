@@ -268,14 +268,17 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
         </div>
         ` : ''}
       </div>
-      ${hasDestination && pendingTravel ? `
       <div class="pilot-nav-controls" style="margin-top: 10px;">
-        <button class="btn btn-primary btn-travel" onclick="travel()" title="Execute transit to destination">
-          TRAVEL (${pendingTravel.travelHours || '?'}h)
+        <button id="btn-set-course" class="btn btn-secondary" onclick="showPlacesOverlay()" title="Open Places panel to select destination">
+          Set Course
+        </button>
+        ${hasDestination && pendingTravel ? `
+        <button id="btn-travel" class="btn btn-primary btn-travel" onclick="travel()" title="Execute transit to destination">
+          Travel (${pendingTravel.travelHours || '?'}h)
         </button>
         <button class="btn btn-small btn-secondary" onclick="clearCourse()" title="Cancel course">Clear</button>
+        ` : ''}
       </div>
-      ` : ''}
     </div>
     <div class="detail-section transit-calculator">
       <h4>Transit Calculator
@@ -412,21 +415,28 @@ function getPilotPanel(shipState, template, campaign, jumpStatus = {}, flightCon
 
 function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue = []) {
   // Power allocation state - AR-54: added power budget tracking
-  const power = shipState.power || { mDrive: 75, weapons: 75, sensors: 75, lifeSupport: 75, computer: 75 };
+  const defaultPower = { mDrive: 75, weapons: 75, sensors: 75, lifeSupport: 75, computer: 75 };
+  const power = { ...defaultPower, ...(shipState.power || {}) };
   const powerEffects = shipState.powerEffects || { weaponsDM: 0, sensorsDM: 0, thrustMultiplier: 1.0 };
   const totalPowerUsed = Object.values(power).reduce((a, b) => a + b, 0);
   const maxPower = Object.keys(power).length * 100; // 500 for 5 systems
   const powerPercent = Math.round((totalPowerUsed / maxPower) * 100);
 
-  const fs = fuelStatus || {
-    total: shipState.fuel ?? template.fuel ?? 40,
-    max: template.fuel || 40,
-    breakdown: { refined: shipState.fuel ?? template.fuel ?? 40, unrefined: 0, processed: 0 },
-    percentFull: 100,
-    processing: null,
-    fuelProcessor: template.fuelProcessor || false
+  const rawFs = fuelStatus || {};
+  const fs = {
+    total: rawFs.total ?? shipState.fuel ?? template.fuel ?? 40,
+    max: rawFs.max ?? template.fuel ?? 40,
+    breakdown: rawFs.breakdown || { refined: shipState.fuel ?? template.fuel ?? 40, unrefined: 0, processed: 0 },
+    percentFull: rawFs.percentFull ?? 100,
+    processing: rawFs.processing ?? null,
+    fuelProcessor: rawFs.fuelProcessor ?? template.fuelProcessor ?? false
   };
-  const fuelBreakdown = fs.breakdown || { refined: fs.total, unrefined: 0, processed: 0 };
+  const rawBreakdown = fs.breakdown || {};
+  const fuelBreakdown = {
+    refined: rawBreakdown.refined ?? fs.total ?? 0,
+    unrefined: rawBreakdown.unrefined ?? 0,
+    processed: rawBreakdown.processed ?? 0
+  };
 
   // Power effect warnings
   const warnings = [];
@@ -435,7 +445,7 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
   if (powerEffects.thrustMultiplier < 1) warnings.push(`Thrust: ${Math.round(powerEffects.thrustMultiplier * 100)}%`);
 
   return `
-    <div class="detail-section power-section">
+    <div class="detail-section power-section power-controls">
       <h4>Power Allocation</h4>
       <div class="power-budget" title="Total power draw across all systems">
         <span class="power-budget-label">Power Budget:</span>
@@ -483,9 +493,9 @@ function getEngineerPanel(shipState, template, systemStatus, damagedSystems, fue
       </div>
       ` : ''}
     </div>
-    <div class="detail-section">
+    <div class="detail-section system-status">
       <h4>System Status</h4>
-      <div class="system-status-grid">
+      <div class="system-status-grid systems-grid">
         ${renderSystemStatusItem('M-Drive', systemStatus.mDrive)}
         ${renderSystemStatusItem('Power Plant', systemStatus.powerPlant)}
         ${renderSystemStatusItem('J-Drive', systemStatus.jDrive)}
@@ -971,13 +981,26 @@ function getCaptainPanel(shipState, template, ship, crewOnline, contacts, rescue
 
   // AR-131+: If showing a different role's panel, delegate to that panel function
   if (activePanel === 'astrogator') {
-    return tabBar + getAstrogatorPanel(shipState, template, ship, crewOnline, contacts);
+    // AR-168: Get jumpStatus from window.state for proper IN JUMP display
+    const jumpStatus = window.state?.jumpStatus || {};
+    const campaign = window.state?.campaign || {};
+    const systemStatus = ship?.current_state?.systemStatus || {};
+    return tabBar + getAstrogatorPanel(shipState, template, jumpStatus, campaign, systemStatus);
   }
   if (activePanel === 'pilot') {
-    return tabBar + getPilotPanel(shipState, template, ship, crewOnline, contacts);
+    // AR-171: Fix signature - getPilotPanel expects (shipState, template, campaign, jumpStatus, flightConditions)
+    const campaign = window.state?.campaign || {};
+    const jumpStatus = window.state?.jumpStatus || {};
+    const flightConditions = window.state?.flightConditions || null;
+    return tabBar + getPilotPanel(shipState, template, campaign, jumpStatus, flightConditions);
   }
   if (activePanel === 'engineer') {
-    return tabBar + getEngineerPanel(shipState, template, ship, crewOnline, contacts);
+    // AR-172: Fix signature - getEngineerPanel expects (shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue)
+    const systemStatus = window.state?.systemStatus || ship?.current_state?.systemStatus || {};
+    const damagedSystems = window.state?.damagedSystems || [];
+    const fuelStatus = window.state?.fuelStatus || { total: 0, max: 0, breakdown: {} };
+    const repairQueue = window.state?.repairQueue || [];
+    return tabBar + getEngineerPanel(shipState, template, systemStatus, damagedSystems, fuelStatus, repairQueue);
   }
 
   // Captain panel content below
