@@ -40,6 +40,12 @@ import { DEBUG, debugLog, debugWarn, debugError } from './modules/debug-config.j
 // AR-201: Socket handler modules
 import './socket-handlers/campaigns.js';
 import './socket-handlers/roles.js';
+import './socket-handlers/bridge.js';
+import './socket-handlers/navigation.js';
+import './socket-handlers/ships.js';
+import './socket-handlers/contacts.js';
+import './socket-handlers/systems.js';
+import './socket-handlers/jump.js';
 import { initAllHandlers, getRegisteredHandlers } from './socket-handlers/index.js';
 import { DEFAULT_SECTOR, DEFAULT_SUBSECTOR, DEFAULT_SYSTEM, DEFAULT_HEX } from './modules/constants.js';
 import { startBridgeClock, stopBridgeClock, setBridgeClockDate, parseCampaignDate, formatClockTime, formatDayYear } from './modules/bridge-clock.js';
@@ -337,6 +343,7 @@ function initSocket() {
     showScreen,
     showNotification,
     closeModal,
+    debugLog,
     // Campaign
     renderCampaignList,
     renderGMSetup,
@@ -353,7 +360,39 @@ function initSocket() {
     updateRoleQuirkDisplay,
     renderRoleSelection,
     renderBridge,
-    debugLog
+    // Bridge
+    requestSystemStatus,
+    requestJumpStatus,
+    loadCurrentSystem,
+    refreshShipStatus,
+    renderShipLog,
+    setBridgeClockDate,
+    updateAlertStatus,
+    applyAlertBorder,
+    renderRoleDetailPanel,
+    showOrderAckPrompt,
+    updatePendingOrdersDisplay,
+    updateWeaponsAuthIndicator,
+    generateRoleStatus,
+    // Navigation
+    initJumpMapIfNeeded,
+    renderQuickLocations,
+    // Ships
+    populateShipTemplateSelect,
+    populateShipEditor,
+    setEditorData,
+    populateEditorFields,
+    // Contacts
+    renderContacts,
+    renderCombatContactsList,
+    checkSensorThreats,
+    // Systems
+    formatSystemName,
+    // Jump
+    handleJumpPlotted,
+    renderShipStatus,
+    showNewsMailModal,
+    updateJumpMap
   };
 
   // AR-201: Initialize extracted handlers (campaigns, etc.)
@@ -445,569 +484,28 @@ function initSocket() {
   // AR-201: Role events moved to socket-handlers/roles.js
   // (14 handlers: ops:playerJoined, ops:guestJoined, ops:roleCleared, etc.)
 
-  // Bridge events
-  state.socket.on('ops:bridgeJoined', (data) => {
-    state.ship = data.ship || {};
-    state.ship.npcCrew = data.npcCrew || [];  // Store NPC crew on ship object
-    state.selectedShipId = data.ship?.id;
-    // Filter out any GM entries from crew - GM is observer, not crew
-    state.crewOnline = (data.crew || []).filter(c => c.role !== 'gm' && !c.isGM);
-    state.contacts = data.contacts || [];  // Use contacts from server
-    state.logEntries = data.logs || [];
-    state.campaign = data.campaign;
-    state.selectedRole = data.role;
+  // AR-201: Bridge events moved to socket-handlers/bridge.js
+  // (15 handlers: ops:bridgeJoined, ops:crewOnBridge, ops:sessionStarted, etc.)
 
-    showScreen('bridge');
-    renderBridge();
-    // Save session for reconnect (Stage 3.5.5)
-    saveSession();
-    // Request system status for engineer panel
-    requestSystemStatus();
-    // Request jump status for astrogator panel
-    requestJumpStatus();
-    // AR-102: Load current system data early for system map and navigation
-    if (data.campaign?.current_system) {
-      loadCurrentSystem(data.campaign.current_system);
-    }
-    // AR-164: Refresh ship status panel with ship data
-    if (state.ship) {
-      refreshShipStatus(state.ship);
-    }
-    // AR-164: Auto-show sensor panel for sensor operators
-    if (data.role === 'sensor_operator') {
-      const statusPanels = document.getElementById('status-panels');
-      const sensorPanel = document.getElementById('sensor-display');
-      if (statusPanels) statusPanels.classList.add('hidden');
-      if (sensorPanel) sensorPanel.classList.remove('sensor-panel-hidden');
-    }
-  });
-
-  state.socket.on('ops:crewOnBridge', (data) => {
-    showNotification(`${data.name || data.role} joined the bridge`, 'info');
-  });
-
-  state.socket.on('ops:sessionStarted', (data) => {
-    showNotification('Session started', 'success');
-
-    // GM auto-joins bridge after starting session using selected ship
-    if (state.isGM && state.gmSelectedShipId) {
-      state.socket.emit('ops:joinBridge', {
-        shipId: state.gmSelectedShipId,
-        role: 'gm',
-        isGM: true
-      });
-    }
-  });
-
-  state.socket.on('ops:logEntry', (data) => {
-    state.logEntries.unshift(data.entry);
-    renderShipLog();
-  });
-
-  // AR-97: Bridge Chat - receive transmissions
+  // AR-97: Bridge Chat - receive transmissions (TODO: move to comms.js)
   state.socket.on('comms:newTransmission', (transmission) => {
     addBridgeChatMessage(transmission);
   });
 
-  state.socket.on('ops:timeAdvanced', (data) => {
-    // CLEAN-2: Consolidated handler (removed duplicate in setupPilotListeners)
-    if (state.campaign) {
-      state.campaign.current_date = data.newDate;
-    }
-    setBridgeClockDate(data.newDate);
-    showNotification(`Time: ${data.newDate}${data.advancedBy ? ` (${data.advancedBy})` : ''}`, 'info');
-  });
+  // AR-201: Navigation events moved to socket-handlers/navigation.js
+  // (6 handlers: ops:currentSystemUpdated, ops:deepSpaceUpdated, ops:locationData, etc.)
 
-  state.socket.on('ops:alertStatusChanged', (data) => {
-    const status = data.alertStatus || data.status;
-    updateAlertStatus(status);
-    // Apply border to all panels based on alert
-    applyAlertBorder(status);
-    if (state.selectedRole === 'captain') {
-      renderRoleDetailPanel('captain');
-    }
-  });
+  // AR-201: Ship management events moved to socket-handlers/ships.js
+  // (5 handlers: ops:shipAdded, ops:shipDeleted, ops:shipUpdated, etc.)
 
-  // AR-29 + AR-35: Captain event handlers with multi-ack tracking
-  state.socket.on('ops:orderReceived', (data) => {
-    // Show order to targeted crew
-    const { target, order, from, id, requiresAck, pendingAcks, acknowledgedBy, orderType, contactId } = data;
+  // AR-201: Contact events moved to socket-handlers/contacts.js
+  // (4 handlers: ops:contacts, ops:contactAdded, ops:contactUpdated, etc.)
 
-    // AR-35: Store order in state for pending display
-    if (!state.pendingOrders) state.pendingOrders = [];
-    state.pendingOrders.push({
-      id, target, order, from, requiresAck,
-      pendingAcks: pendingAcks || [],
-      acknowledgedBy: acknowledgedBy || [],
-      timestamp: Date.now(),
-      orderType, contactId
-    });
-    // Keep only last 20 orders
-    if (state.pendingOrders.length > 20) state.pendingOrders.shift();
+  // AR-201: Ship Systems events moved to socket-handlers/systems.js
+  // (4 handlers: ops:systemStatus, ops:systemDamaged, ops:repairAttempted, etc.)
 
-    if (target === 'all' || target === state.selectedRole) {
-      showNotification(`Order from ${from}: ${order}`, 'warning');
-      // Show acknowledge button for targeted roles
-      if (requiresAck && state.selectedRole !== 'captain') {
-        showOrderAckPrompt(id, order);
-      }
-    }
-    // Captain sees all orders in panel
-    if (state.selectedRole === 'captain') {
-      updatePendingOrdersDisplay();
-    }
-  });
-
-  state.socket.on('ops:orderAcknowledged', (data) => {
-    const { orderId, acknowledgedBy, allAcknowledgedBy, pendingAcks, fullyAcknowledged } = data;
-
-    // AR-35: Update order in state
-    if (state.pendingOrders) {
-      const order = state.pendingOrders.find(o => o.id === orderId);
-      if (order) {
-        order.acknowledgedBy = allAcknowledgedBy || [];
-        order.pendingAcks = pendingAcks || [];
-        if (fullyAcknowledged) {
-          order.status = 'acknowledged';
-        }
-      }
-    }
-
-    if (state.selectedRole === 'captain') {
-      const remaining = pendingAcks?.length || 0;
-      const msg = fullyAcknowledged
-        ? `${acknowledgedBy} acknowledged - Order complete`
-        : `${acknowledgedBy} acknowledged (${remaining} pending)`;
-      showNotification(msg, fullyAcknowledged ? 'success' : 'info');
-      updatePendingOrdersDisplay();
-    }
-  });
-
-  state.socket.on('ops:weaponsAuthChanged', (data) => {
-    const { mode, authorizedTargets } = data;
-    state.weaponsAuth = { mode, targets: authorizedTargets };
-    // Update bridge header indicator
-    updateWeaponsAuthIndicator(mode);
-    if (state.selectedRole === 'gunner') {
-      showNotification(`Weapons ${mode === 'free' ? 'FREE - cleared to engage' : 'HOLD - do not fire'}`, mode === 'free' ? 'warning' : 'info');
-      renderRoleDetailPanel('gunner');
-    }
-    if (state.selectedRole === 'captain') {
-      renderRoleDetailPanel('captain');
-    }
-  });
-
-  state.socket.on('ops:contactMarked', (data) => {
-    const { contactId, marking, markedBy } = data;
-    // Update contact in state
-    if (state.contacts) {
-      const contact = state.contacts.find(c => c.id === contactId);
-      if (contact) {
-        contact.marking = marking;
-      }
-    }
-    showNotification(`Contact marked ${marking} by ${markedBy}`, marking === 'hostile' ? 'warning' : 'info');
-    renderRoleDetailPanel(state.selectedRole);
-  });
-
-  state.socket.on('ops:statusRequested', (data) => {
-    // Auto-respond with status if we're a crew role
-    if (state.selectedRole && state.selectedRole !== 'captain' && !state.isGM) {
-      const status = generateRoleStatus(state.selectedRole);
-      state.socket.emit('ops:statusReport', { role: state.selectedRole, status });
-      showNotification('Status report sent to Captain', 'info');
-    }
-  });
-
-  state.socket.on('ops:statusReceived', (data) => {
-    // Captain receives status reports
-    if (state.selectedRole === 'captain') {
-      const { role, status, from } = data;
-      showNotification(`${from} reports: ${status.summary || 'Ready'}`, 'info');
-    }
-  });
-
-  state.socket.on('ops:leadershipResult', (data) => {
-    const { roll, skill, dm, target, expires } = data;
-    const resultEl = document.getElementById('leadership-result');
-    if (resultEl) {
-      resultEl.innerHTML = `
-        <div class="leadership-roll">
-          <strong>Leadership:</strong> ${roll} + ${skill} = ${roll + skill}
-          <span class="dm ${dm >= 0 ? 'positive' : 'negative'}">DM ${dm >= 0 ? '+' : ''}${dm}</span>
-          <small>(applies to next ${target} action)</small>
-        </div>
-      `;
-    }
-    state.leadershipDM = { dm, target, expires };
-    showNotification(`Leadership check: DM ${dm >= 0 ? '+' : ''}${dm} to next action`, dm >= 0 ? 'success' : 'warning');
-  });
-
-  state.socket.on('ops:tacticsResult', (data) => {
-    const { roll, skill, bonus } = data;
-    const resultEl = document.getElementById('leadership-result');
-    if (resultEl) {
-      resultEl.innerHTML = `
-        <div class="tactics-roll">
-          <strong>Tactics:</strong> ${roll} + ${skill} = ${roll + skill}
-          <span class="dm positive">Initiative +${bonus}</span>
-        </div>
-      `;
-    }
-    showNotification(`Tactics check: Initiative +${bonus}`, 'success');
-  });
-
-  state.socket.on('ops:leadershipApplied', (data) => {
-    const { dm, appliedTo, action } = data;
-    showNotification(`Leadership DM ${dm >= 0 ? '+' : ''}${dm} applied to ${appliedTo}'s ${action}`, 'info');
-    state.leadershipDM = null;
-  });
-
-  // Stage 5: Current system updated (TravellerMap)
-  state.socket.on('ops:currentSystemUpdated', (data) => {
-    const locationEl = document.getElementById('bridge-location');
-    if (locationEl) {
-      locationEl.textContent = data.locationDisplay;
-    }
-    // AR-103: Update hex coordinate display in top bar with system name tooltip
-    const hexEl = document.getElementById('bridge-hex');
-    if (hexEl) {
-      hexEl.textContent = data.hex || '----';
-      hexEl.title = data.locationDisplay || 'Current parsec';
-    }
-    // Update campaign state with sector/hex for jump map
-    if (state.campaign) {
-      state.campaign.current_system = data.locationDisplay;
-      state.campaign.current_sector = data.sector || null;
-      state.campaign.current_hex = data.hex || null;
-    }
-    // Refresh jump map if astrogator
-    if (state.selectedRole === 'astrogator') {
-      renderRoleDetailPanel(state.selectedRole);
-      initJumpMapIfNeeded();
-    }
-    showNotification(`Location set to ${data.locationDisplay}`, 'success');
-  });
-
-  // AR-23.6: Deep space mode updated
-  state.socket.on('ops:deepSpaceUpdated', (data) => {
-    if (state.campaign) {
-      state.campaign.in_deep_space = data.inDeepSpace;
-      state.campaign.deep_space_reference = data.referenceSystem;
-      state.campaign.deep_space_bearing = data.bearing;
-      state.campaign.deep_space_distance = data.distance;
-      state.campaign.current_system = data.locationDisplay;
-    }
-    const locationEl = document.getElementById('bridge-location');
-    if (locationEl) {
-      locationEl.textContent = data.locationDisplay || 'Deep Space';
-    }
-    showNotification(data.inDeepSpace ? 'Entered deep space' : 'Exited deep space', 'info');
-  });
-
-  // AR-23.7: Location data (history, favorites, home)
-  state.socket.on('ops:locationData', (data) => {
-    state.locationHistory = data.locationHistory || [];
-    state.favoriteLocations = data.favoriteLocations || [];
-    state.homeSystem = data.homeSystem || null;
-    state.inDeepSpace = data.inDeepSpace || false;
-    state.deepSpaceReference = data.deepSpaceReference;
-    state.deepSpaceBearing = data.deepSpaceBearing;
-    state.deepSpaceDistance = data.deepSpaceDistance;
-    renderQuickLocations();
-  });
-
-  state.socket.on('ops:homeSystemSet', (data) => {
-    state.homeSystem = data.homeSystem;
-    renderQuickLocations();
-    showNotification(`Home system set to ${data.homeSystem}`, 'success');
-  });
-
-  state.socket.on('ops:favoritesUpdated', (data) => {
-    state.favoriteLocations = data.favoriteLocations || [];
-    renderQuickLocations();
-  });
-
-  // Ship management events
-  state.socket.on('ops:shipAdded', (data) => {
-    state.ships.push(data.ship);
-    renderGMSetup();
-    renderPlayerSetup();
-    closeModal();
-    showNotification(`Ship "${data.ship.name}" added`, 'success');
-  });
-
-  state.socket.on('ops:shipDeleted', (data) => {
-    state.ships = state.ships.filter(s => s.id !== data.shipId);
-    renderGMSetup();
-  });
-
-  state.socket.on('ops:shipTemplates', (data) => {
-    state.shipTemplates = data.templates;
-    populateShipTemplateSelect();
-    // Also populate ship editor if open
-    populateShipEditor();
-  });
-
-  // Full template data for ship editor (AR-17)
-  state.socket.on('ops:fullTemplate', (data) => {
-    if (data.template) {
-      // AR-153: Use setEditorData from module
-      setEditorData({
-        editData: data.template,
-        weapons: data.template.weapons || [],
-        systems: data.template.systems || []
-      });
-      populateEditorFields(data.template);
-
-      // Show preview
-      const preview = document.getElementById('edit-template-preview');
-      if (preview) {
-        preview.innerHTML = `
-          <div class="preview-stats">
-            <div class="preview-stat">
-              <span class="label">Tonnage</span>
-              <span class="value">${data.template.tonnage || 100}t</span>
-            </div>
-            <div class="preview-stat">
-              <span class="label">Jump</span>
-              <span class="value">J-${data.template.drives?.jump?.rating || 0}</span>
-            </div>
-            <div class="preview-stat">
-              <span class="label">Thrust</span>
-              <span class="value">${data.template.drives?.manoeuvre?.thrust || 0}G</span>
-            </div>
-            <div class="preview-stat">
-              <span class="label">Hull</span>
-              <span class="value">${data.template.hull?.hullPoints || 40} HP</span>
-            </div>
-          </div>
-        `;
-      }
-    }
-  });
-
-  // Ship updated (AR-17)
-  state.socket.on('ops:shipUpdated', (data) => {
-    const idx = state.ships.findIndex(s => s.id === data.ship.id);
-    if (idx >= 0) {
-      state.ships[idx] = data.ship;
-    }
-    renderGMSetup();
-    closeModal();
-    showNotification(`Ship "${data.ship.name}" updated`, 'success');
-  });
-
-  // Contact events
-  state.socket.on('ops:contacts', (data) => {
-    state.contacts = data.contacts;
-    renderContacts();
-    renderCombatContactsList(); // Autorun 14
-    checkSensorThreats(); // AR-138.3: Auto-expand on threat
-  });
-
-  state.socket.on('ops:contactAdded', (data) => {
-    state.contacts.push(data.contact);
-    renderContacts();
-    renderCombatContactsList(); // Autorun 14
-    showNotification(`Contact added: ${data.contact.name || data.contact.type}`, 'info');
-    checkSensorThreats(); // AR-138.3: Auto-expand on threat
-  });
-
-  state.socket.on('ops:contactUpdated', (data) => {
-    const idx = state.contacts.findIndex(c => c.id === data.contact.id);
-    if (idx >= 0) state.contacts[idx] = data.contact;
-    renderContacts();
-    renderCombatContactsList(); // Autorun 14
-  });
-
-  state.socket.on('ops:contactDeleted', (data) => {
-    state.contacts = state.contacts.filter(c => c.id !== data.contactId);
-    renderContacts();
-    renderCombatContactsList(); // Autorun 14
-  });
-
-  // CLEAN-1: ops:scanResult handler moved to Autorun 5 section (line ~1167)
-  // Removed duplicate handler that was causing double updates
-
-  // Ship Systems events
-  state.socket.on('ops:systemStatus', (data) => {
-    state.systemStatus = data.systemStatus;
-    state.damagedSystems = data.damagedSystems;
-    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
-      renderRoleDetailPanel(state.selectedRole);
-    }
-  });
-
-  state.socket.on('ops:systemDamaged', (data) => {
-    state.systemStatus = data.systemStatus;
-    state.damagedSystems = Object.keys(data.systemStatus).filter(s =>
-      data.systemStatus[s]?.totalSeverity > 0
-    );
-    showNotification(`System damage: ${formatSystemName(data.location)} (Severity ${data.severity})`, 'warning');
-    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
-      renderRoleDetailPanel(state.selectedRole);
-    }
-  });
-
-  state.socket.on('ops:repairAttempted', (data) => {
-    state.systemStatus = data.systemStatus;
-    state.damagedSystems = Object.keys(data.systemStatus).filter(s =>
-      data.systemStatus[s]?.totalSeverity > 0
-    );
-    const notifType = data.success ? 'success' : 'warning';
-    showNotification(data.message, notifType);
-    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
-      renderRoleDetailPanel(state.selectedRole);
-    }
-  });
-
-  state.socket.on('ops:systemDamageCleared', (data) => {
-    state.systemStatus = data.systemStatus;
-    state.damagedSystems = Object.keys(data.systemStatus).filter(s =>
-      data.systemStatus[s]?.totalSeverity > 0
-    );
-    showNotification(`Damage cleared: ${data.location === 'all' ? 'all systems' : formatSystemName(data.location)}`, 'success');
-    if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
-      renderRoleDetailPanel(state.selectedRole);
-    }
-  });
-
-  // Jump events
-  state.socket.on('ops:jumpStatus', (data) => {
-    state.jumpStatus = data;
-    if (state.selectedRole === 'astrogator' || state.selectedRole === 'pilot') {
-      renderRoleDetailPanel(state.selectedRole);
-    }
-  });
-
-  // Autorun 5: Handle jump plot result
-  state.socket.on('ops:jumpPlotted', (data) => {
-    handleJumpPlotted(data);
-  });
-
-  state.socket.on('ops:jumpInitiated', (data) => {
-    state.jumpStatus = {
-      inJump: true,
-      jumpStartDate: data.jumpStartDate,
-      jumpEndDate: data.jumpEndDate,
-      destination: data.destination,
-      jumpDistance: data.distance,
-      hoursRemaining: 168,
-      canExit: false
-    };
-    // Update ship fuel
-    if (state.ship?.current_state) {
-      state.ship.current_state.fuel = data.fuelRemaining;
-    }
-    // Hide plot result since we're now jumping
-    const plotResult = document.getElementById('jump-plot-result');
-    if (plotResult) plotResult.style.display = 'none';
-    showNotification(`Jump initiated to ${data.destination}. ETA: ${data.jumpEndDate}`, 'info');
-    renderRoleDetailPanel(state.selectedRole);
-    renderShipStatus();
-  });
-
-  state.socket.on('ops:jumpCompleted', (data) => {
-    state.jumpStatus = { inJump: false };
-    state.campaign.current_system = data.arrivedAt;
-    // AR-124: Sync position verification state to BOTH state objects
-    // Critical: role-panels reads from state.ship.current_state, not state.shipState
-    const positionVerified = data.positionVerified ?? false;
-    if (state.ship?.current_state) {
-      state.ship.current_state.positionVerified = positionVerified;
-      state.ship.current_state.locationId = 'loc-exit-jump';
-      state.ship.current_state.locationName = 'Exit Jump Space';
-    }
-    if (state.shipState) {
-      state.shipState.positionVerified = positionVerified;
-      state.shipState.locationId = 'loc-exit-jump';
-      state.shipState.locationName = 'Exit Jump Space';
-    }
-    // AR-103: Update hex after jump (parsec location changed) with system tooltip
-    // AR-126: Also update sector for jump map recentering
-    console.log('[AR-168] ops:jumpCompleted received:', { hex: data.hex, sector: data.sector, arrivedAt: data.arrivedAt });
-    if (data.hex) {
-      state.campaign.current_hex = data.hex;
-      console.log('[AR-168] Updated state.campaign.current_hex to:', data.hex);
-      if (state.ship?.current_state) {
-        state.ship.current_state.systemHex = data.hex;
-      }
-      if (state.shipState) {
-        state.shipState.systemHex = data.hex;
-      }
-      const hexEl = document.getElementById('bridge-hex');
-      if (hexEl) {
-        hexEl.textContent = data.hex;
-        hexEl.title = data.arrivedAt || 'Current parsec';
-      }
-    }
-    // AR-126: Update sector for jump map
-    if (data.sector) {
-      state.campaign.current_sector = data.sector;
-    }
-    // Stage 7: Update date after jump
-    if (data.newDate) {
-      state.campaign.current_date = data.newDate;
-    }
-    // Autorun 5: Store news and mail for display
-    state.systemNews = data.news || [];
-    state.systemMail = data.mail || {};
-    state.selectedRoleContent = data.roleContent || {};
-    showNotification(`Arrived at ${data.arrivedAt}`, 'success');
-    renderRoleDetailPanel(state.selectedRole);
-    renderBridge();
-    // AR-126: Refresh jump map with new location
-    initJumpMapIfNeeded();
-    // Show news/mail modal if there's content
-    if (state.systemNews.length > 0 || Object.keys(state.systemMail).length > 0) {
-      showNewsMailModal(data.arrivedAt);
-    }
-  });
-
-  // AR-68: Position verification result
-  // AR-124: Sync to both state objects
-  state.socket.on('ops:positionVerified', (data) => {
-    // Update BOTH state objects for consistency
-    if (state.ship?.current_state) {
-      state.ship.current_state.positionVerified = true;
-    }
-    if (state.shipState) {
-      state.shipState.positionVerified = true;
-    }
-    // AR-110: Update campaign location data from verification response
-    if (data.currentSystem) {
-      state.campaign.current_system = data.currentSystem;
-    }
-    if (data.currentHex) {
-      state.campaign.current_hex = data.currentHex;
-      if (state.ship?.current_state) {
-        state.ship.current_state.systemHex = data.currentHex;
-      }
-      if (state.shipState) {
-        state.shipState.systemHex = data.currentHex;
-      }
-      // AR-168: Update bridge-hex DOM element (was missing!)
-      const hexEl = document.getElementById('bridge-hex');
-      if (hexEl) {
-        hexEl.textContent = data.currentHex;
-        hexEl.title = data.currentSystem || 'Current parsec';
-      }
-    }
-    if (data.currentSector) {
-      state.campaign.current_sector = data.currentSector;
-    }
-    showNotification(data.message, data.success ? 'success' : 'warning');
-    renderRoleDetailPanel(state.selectedRole);
-    renderBridge();
-    // AR-168: Refresh displays after position verification (system changed)
-    if (data.currentSystem) {
-      loadCurrentSystem(data.currentSystem);
-    }
-    if (state.selectedRole === 'astrogator') {
-      updateJumpMap();
-    }
-  });
+  // AR-201: Jump events moved to socket-handlers/jump.js
+  // (5 handlers: ops:jumpStatus, ops:jumpPlotted, ops:jumpInitiated, etc.)
 
   // AR-186: GM Roll Modifier socket handlers
   state.socket.on('ops:gmModifierSet', (data) => {
@@ -1046,44 +544,7 @@ function initSocket() {
     }
   });
 
-  state.socket.on('ops:locationChanged', (data) => {
-    state.campaign.current_system = data.newLocation;
-    if (data.newDate) {
-      state.campaign.current_date = data.newDate;
-    }
-    // AR-110: Update hex when location changes (both campaign and shipState)
-    if (data.hex) {
-      state.campaign.current_hex = data.hex;
-      if (state.shipState) {
-        state.shipState.systemHex = data.hex;
-      }
-      // AR-168: Update bridge-hex DOM element (was missing!)
-      const hexEl = document.getElementById('bridge-hex');
-      if (hexEl) {
-        hexEl.textContent = data.hex;
-        hexEl.title = data.newLocation || 'Current parsec';
-      }
-    }
-    // Update sector if provided
-    if (data.sector) {
-      state.campaign.current_sector = data.sector;
-    }
-    // Autorun 5: Update contacts if provided
-    if (data.contacts) {
-      state.contacts = data.contacts;
-    }
-    renderBridge();
-    // AR-110: Refresh role panel (especially Astrogator which shows current system)
-    renderRoleDetailPanel(state.selectedRole);
-    // AR-168: Load new system data for System View
-    if (data.newLocation) {
-      loadCurrentSystem(data.newLocation);
-    }
-    // Refresh jump map for astrogator after location change
-    if (state.selectedRole === 'astrogator') {
-      initJumpMapIfNeeded();
-    }
-  });
+  // ops:locationChanged moved to socket-handlers/navigation.js
 
   // Autorun 5: Handle contacts replaced on jump arrival
   state.socket.on('ops:contactsReplaced', (data) => {
