@@ -3070,6 +3070,92 @@ input[type="checkbox"] {
   color: var(--accent-green);
 }
 
+/* AR-125.1: Log entry tooltip styles */
+.log-entry.has-tooltip {
+  cursor: pointer;
+}
+
+.log-entry.has-tooltip:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.log-expand-hint {
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+.log-tooltip {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: var(--space-sm) var(--space-md);
+  max-width: 400px;
+  z-index: 1000;
+  font-size: 0.9em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+.log-popup-pinned {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-blue);
+  border-radius: 6px;
+  padding: var(--space-md);
+  max-width: 450px;
+  min-width: 250px;
+  z-index: 1001;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.log-popup-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.log-popup-time {
+  color: var(--text-muted);
+  font-size: 0.85em;
+}
+
+.log-popup-actor {
+  color: var(--accent-blue);
+  font-weight: 500;
+}
+
+.log-popup-type {
+  color: var(--text-muted);
+  font-size: 0.8em;
+  text-transform: uppercase;
+}
+
+.log-popup-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2em;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.log-popup-close:hover {
+  color: var(--accent-red);
+}
+
+.log-popup-message {
+  font-size: 0.95em;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
 /* GM Overlay */
 .gm-overlay {
   position: fixed;

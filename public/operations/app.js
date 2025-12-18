@@ -1705,16 +1705,139 @@ function handleFireResult(data) {
 
 // AR-153: Refueling Operations moved to modules/refueling-operations.js
 
+/**
+ * AR-125.1: Truncate text to max length with ellipsis
+ */
+function truncateText(text, maxLength = 60) {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
+}
+
+/**
+ * AR-125.1: Render ship log with tooltip support
+ */
 function renderShipLog() {
   const container = document.getElementById('ship-log');
 
-  container.innerHTML = state.logEntries.slice(0, 50).map(e => `
-    <div class="log-entry ${e.entry_type}">
+  container.innerHTML = state.logEntries.slice(0, 50).map((e, idx) => {
+    const fullMessage = e.message || '';
+    const isTruncated = fullMessage.length > 60;
+    const displayMessage = truncateText(fullMessage, 60);
+
+    return `
+    <div class="log-entry ${e.entry_type} ${isTruncated ? 'has-tooltip' : ''}"
+         data-log-idx="${idx}"
+         ${isTruncated ? `data-full-message="${escapeHtml(fullMessage).replace(/"/g, '&quot;')}"` : ''}>
       <span class="log-time">${e.game_date}</span>
       ${e.actor ? `<span class="log-actor">${escapeHtml(e.actor)}</span>` : ''}
-      <span class="log-message">${escapeHtml(e.message)}</span>
+      <span class="log-message">${escapeHtml(displayMessage)}</span>
+      ${isTruncated ? '<span class="log-expand-hint">...</span>' : ''}
     </div>
-  `).join('') || '<p class="placeholder">No log entries</p>';
+  `;
+  }).join('') || '<p class="placeholder">No log entries</p>';
+
+  // AR-125.1: Attach tooltip handlers
+  initLogTooltips(container);
+}
+
+/**
+ * AR-125.1: Initialize log entry tooltip handlers
+ */
+function initLogTooltips(container) {
+  const entries = container.querySelectorAll('.log-entry.has-tooltip');
+
+  entries.forEach(entry => {
+    // Hover: show tooltip
+    entry.addEventListener('mouseenter', showLogTooltip);
+    entry.addEventListener('mouseleave', hideLogTooltip);
+    // Click: pin popup
+    entry.addEventListener('click', pinLogPopup);
+  });
+}
+
+/**
+ * AR-125.1: Show tooltip on hover
+ */
+function showLogTooltip(e) {
+  const entry = e.currentTarget;
+  const fullMessage = entry.dataset.fullMessage;
+  if (!fullMessage) return;
+
+  // Don't show tooltip if popup is pinned
+  if (document.querySelector('.log-popup-pinned')) return;
+
+  let tooltip = document.getElementById('log-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'log-tooltip';
+    tooltip.className = 'log-tooltip';
+    document.body.appendChild(tooltip);
+  }
+
+  tooltip.textContent = fullMessage;
+  tooltip.style.display = 'block';
+
+  // Position near cursor
+  const rect = entry.getBoundingClientRect();
+  tooltip.style.left = `${rect.left}px`;
+  tooltip.style.top = `${rect.bottom + 5}px`;
+}
+
+/**
+ * AR-125.1: Hide tooltip
+ */
+function hideLogTooltip() {
+  const tooltip = document.getElementById('log-tooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+/**
+ * AR-125.1: Pin popup on click
+ */
+function pinLogPopup(e) {
+  const entry = e.currentTarget;
+  const fullMessage = entry.dataset.fullMessage;
+  const idx = entry.dataset.logIdx;
+  const logEntry = state.logEntries[idx];
+
+  if (!fullMessage || !logEntry) return;
+
+  // Hide tooltip
+  hideLogTooltip();
+
+  // Remove existing pinned popup
+  const existing = document.querySelector('.log-popup-pinned');
+  if (existing) existing.remove();
+
+  // Create pinned popup
+  const popup = document.createElement('div');
+  popup.className = 'log-popup-pinned';
+  popup.innerHTML = `
+    <div class="log-popup-header">
+      <span class="log-popup-time">${logEntry.game_date}</span>
+      ${logEntry.actor ? `<span class="log-popup-actor">${escapeHtml(logEntry.actor)}</span>` : ''}
+      <span class="log-popup-type">[${logEntry.entry_type}]</span>
+      <button class="log-popup-close" onclick="this.parentElement.parentElement.remove()">×</button>
+    </div>
+    <div class="log-popup-message">${escapeHtml(fullMessage)}</div>
+  `;
+
+  // Position popup
+  const rect = entry.getBoundingClientRect();
+  popup.style.left = `${rect.left}px`;
+  popup.style.top = `${rect.bottom + 5}px`;
+
+  document.body.appendChild(popup);
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function closePopup(ev) {
+      if (!popup.contains(ev.target) && ev.target !== entry) {
+        popup.remove();
+        document.removeEventListener('click', closePopup);
+      }
+    });
+  }, 10);
 }
 
 function updateAlertStatus(status) {
