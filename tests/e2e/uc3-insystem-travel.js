@@ -156,7 +156,7 @@ const CAMPAIGN_CODE = 'DFFFC87E';
     // Step 3.6: Travel
     console.log('3.6 Traveling...');
     await clickOrHotkey(page, {
-      selector: null,
+      selector: '#btn-travel',
       text: 'Travel',
       hotkey: 't',
       name: 'Travel Button'
