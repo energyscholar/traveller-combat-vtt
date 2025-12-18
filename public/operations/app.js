@@ -31,7 +31,9 @@ import {
   hidePlacesOverlay,
   resizeCanvas as resizeSystemMapCanvas,
   updateMapContacts,  // AR-71: Sync contacts to system map
-  loadSystemFromJSON  // Load systems from JSON files
+  loadSystemFromJSON,  // Load systems from JSON files
+  centerOnContact,     // AR-197: Center map on contact
+  flashSystemMap       // AR-197: Flash effect for alerts
 } from './modules/system-map.js';
 import { applyStatusIndicators, toggleStatusIndicators } from './modules/ui-status-registry.js';
 import { DEBUG, debugLog, debugWarn, debugError } from './modules/debug-config.js';
@@ -1720,6 +1722,48 @@ function initSocket() {
     // Refresh role panel if on engineer/damage control
     if (state.selectedRole === 'engineer' || state.selectedRole === 'damage_control') {
       renderRoleDetailPanel(state.selectedRole);
+    }
+  });
+
+  // AR-197: Jump Emergence Alert
+  state.socket.on('ops:jumpEmergence', (data) => {
+    const { contactId, name, transponder, bearing, range_km, type, tonnage } = data;
+    // Format range for display
+    const rangeDisplay = range_km > 1000000
+      ? `${(range_km / 1000000).toFixed(1)}M km`
+      : `${Math.round(range_km).toLocaleString()} km`;
+
+    // Build alert message
+    const shipInfo = transponder || name || 'Unknown vessel';
+    const message = `🚨 JUMP EMERGENCE: ${shipInfo} detected at bearing ${bearing}°, range ${rangeDisplay}`;
+
+    // Show notification with high priority
+    showNotification(message, 'warning');
+
+    // Flash system map red
+    flashSystemMap('rgba(255, 100, 0, 0.4)', 800);
+
+    // Log to ship log
+    console.log(`[JumpEmergence] ${type || 'Ship'} ${name} emerged at bearing ${bearing}, range ${range_km}km`);
+
+    // Refresh sensor panel if active
+    if (state.selectedRole === 'sensor_operator') {
+      renderRoleDetailPanel(state.selectedRole);
+    }
+  });
+
+  // AR-197: Viewscreen Focus - Center system map on contact
+  state.socket.on('ops:viewscreenFocus', (data) => {
+    const { contactId, name, bearing, range_km } = data;
+
+    // Center the system map on the contact
+    const centered = centerOnContact(contactId, 2); // Zoom level 2 for good view
+
+    if (centered) {
+      showNotification(`📍 Viewscreen locked on: ${name || contactId}`, 'info');
+    } else {
+      // Contact may not be in map yet, show notification anyway
+      showNotification(`📍 Tracking: ${name || 'Contact'} at bearing ${bearing}°`, 'info');
     }
   });
 

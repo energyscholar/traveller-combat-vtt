@@ -1256,6 +1256,95 @@ function centerOnBodyWithVariant(body, zoomMultiplier) {
 }
 
 /**
+ * AR-197: Center view on a sensor contact
+ * @param {string} contactId - The contact ID to center on
+ * @param {number} zoomLevel - Optional zoom level (default: current zoom)
+ * @returns {boolean} True if contact found and centered
+ */
+function centerOnContact(contactId, zoomLevel = null) {
+  if (!shipMapState.contacts || !shipMapState.contacts.length) return false;
+
+  const contact = shipMapState.contacts.find(c => c.id === contactId);
+  if (!contact) return false;
+
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  // Get ship position for relative contact positioning
+  const shipPos = shipMapState.partyShip?.position || { x: 0, y: 0, z: 0 };
+
+  // Calculate contact's world position in AU
+  let contactAU_X, contactAU_Y;
+
+  if (contact.position) {
+    // Contact has absolute position
+    contactAU_X = contact.position.x;
+    contactAU_Y = contact.position.y;
+  } else {
+    // Convert bearing/range to position relative to ship
+    const rangeKm = contact.range_km || contact.rangeKm || 0;
+    const rangeAU = rangeKm / 149597870.7;
+    const bearing = (contact.bearing || 0) * Math.PI / 180;
+
+    contactAU_X = shipPos.x + Math.cos(bearing) * rangeAU;
+    contactAU_Y = shipPos.y + Math.sin(bearing) * rangeAU;
+  }
+
+  // Set offset to center on contact
+  const zoom = zoomLevel || systemMapState.zoom;
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  systemMapState.offsetX = -contactAU_X * auToPixels;
+  systemMapState.offsetY = -contactAU_Y * auToPixels * getYScale();
+
+  if (zoomLevel !== null) {
+    systemMapState.zoom = Math.min(Math.max(zoomLevel, systemMapState.MIN_ZOOM), systemMapState.MAX_ZOOM);
+  }
+
+  console.log(`[SystemMap] Centered on contact ${contact.name || contactId} at AU(${contactAU_X.toFixed(4)}, ${contactAU_Y.toFixed(4)})`);
+  return true;
+}
+
+/**
+ * AR-197: Flash the system map with a color overlay (for alerts)
+ * @param {string} color - CSS color for the flash (default: red)
+ * @param {number} duration - Flash duration in ms (default: 500)
+ */
+function flashSystemMap(color = 'rgba(255, 0, 0, 0.3)', duration = 500) {
+  if (!systemMapState.canvas) return;
+
+  // Create flash overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: ${color};
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity ${duration / 2}ms ease-out;
+  `;
+
+  // Find the system map container
+  const container = systemMapState.canvas.parentElement;
+  if (!container) return;
+
+  container.style.position = 'relative';
+  container.appendChild(overlay);
+
+  // Fade out and remove
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), duration / 2);
+    }, duration / 2);
+  });
+}
+
+/**
  * AR-85: Center view on system origin (the star)
  * Used for places without an associated planet (e.g., Jump Point)
  */
@@ -4058,5 +4147,8 @@ export {
   selectEmbeddedDestinationById,
   embeddedMapState,
   // AR-118: Event system
-  systemMapEvents
+  systemMapEvents,
+  // AR-197: Jump emergence
+  centerOnContact,
+  flashSystemMap
 };
