@@ -1,0 +1,2 @@
+-- AR-BD-1 migration - will be replaced with idempotent migration
+-- Placeholder for contact weapons schema changes

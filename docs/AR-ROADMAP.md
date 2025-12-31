@@ -96,6 +96,7 @@ Read(file, offset: 50, limit: 50)  # Next 50, etc.
 | AR-201 | App.js Refactor Ph1 | HARD | 8-12 | TOUGH - Mitigated |
 | AR-202 | App.js Refactor Ph2 | HARD | 8-12 | TOUGH - Phase 2 |
 | AR-203 | App.js Refactor Ph3 | HARD | 6-10 | TOUGH - Final |
+| AR-205 | Traveller Rules Extracts | EASY | 4-6 | Reference material |
 
 ---
 
@@ -342,8 +343,30 @@ core/init.js          - 400 lines (startup sequence)
 ### Future/Optional
 - **AR-196** Boarding Actions (10-14h)
 - **AR-198** Puppeteer Optimization (4-6h)
+- **AR-205** Traveller Rules Extracts (4-6h)
 - NPC Personae system
 - AI Email system
+
+---
+
+## AR-205: Traveller Rules Extracts
+
+**Priority:** LOW (reference material for future ARs)
+**Effort:** 4-6h
+
+Extract rules from 3 missing Traveller PDFs to add to the rules index:
+
+| Book | Path | Topics |
+|------|------|--------|
+| Mercenary | `traveller-VTT-private/reference/archive/CT B04 Book 04 Mercenary.pdf` | Ground combat, military units, equipment |
+| Vehicle Handbook | TBD | Vehicle combat, specs, modifications |
+| Central Supply Catalogue | TBD | Equipment, weapons, gear stats |
+
+**Approach:**
+- Read PDFs page-by-page (limit: 50 lines per read)
+- Extract combat-relevant rules only
+- Add to `MONGOOSE-TRAVELLER-RULES-EXTRACT.md` or new files
+- Focus on rules that integrate with VTT mechanics
 
 ---
 
