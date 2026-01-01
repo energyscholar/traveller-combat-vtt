@@ -7,8 +7,8 @@
  *   Demo 1: Kimbly vs Pirate Scout (smoke test) - AUTO
  *   Demo 2: Astral Dawn vs Patrol Corvette (full featured)
  *   Demo 3: Demo 1 with MANUAL mode (crew prompts)
- *   Demo 4: Q-Ship Fleet vs Destroyer Escort (fleet combat)
- *   Demo 5: Q-Ship Fleet vs Pirate Fleet (placeholder)
+ *   Demo 4: Q-Ship Fleet vs Destroyer - Marina's called shots on Power Plant!
+ *   Demo 5: Q-Ship Fleet vs Pirate Fleet (fleet vs fleet)
  */
 
 const { DEMO_CONFIGS } = require('./combat-demo-ships');
@@ -419,7 +419,7 @@ function showFleetMenu() {
     `${CYAN}║${RESET}      ${DIM}2 ships: ${d2.player.name} vs ${d2.enemy.name}${RESET}         ${CYAN}║${RESET}\n` +
     `${CYAN}║${RESET}                                                        ${CYAN}║${RESET}\n` +
     `${CYAN}║${RESET}  ${YELLOW}[3]${RESET} ${d3.description}              ${CYAN}║${RESET}\n` +
-    `${CYAN}║${RESET}      ${DIM}9 ships: Q-Ship Fleet vs Destroyer${RESET}              ${CYAN}║${RESET}\n` +
+    `${CYAN}║${RESET}      ${DIM}9 ships: Q-Ship + Marina's called shots!${RESET}         ${CYAN}║${RESET}\n` +
     `${CYAN}║${RESET}                                                        ${CYAN}║${RESET}\n` +
     `${CYAN}║${RESET}  ${YELLOW}[4]${RESET} ${d4.description}                  ${CYAN}║${RESET}\n` +
     `${CYAN}║${RESET}      ${DIM}13 ships: Q-Ship Fleet vs Pirate Fleet${RESET}          ${CYAN}║${RESET}\n` +
@@ -697,7 +697,7 @@ async function runDemo(demoNum) {
     1: 'Demo 1 (Scout Duel AUTO)',
     2: 'Demo 2 (Q-Ship vs Corvette)',
     3: 'Demo 1 (Scout Duel MANUAL)',
-    4: 'Demo 4 (Fleet vs Destroyer)',
+    4: 'Demo 4 (Fleet + Marina Called Shots)',
     5: 'Demo 5 (Fleet vs Pirates)'
   };
 
