@@ -264,6 +264,132 @@ function quote(character, text) {
   return `${MAGENTA}${BOLD}${character}:${RESET} ${WHITE}"${text}"${RESET}`;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// CONSOLIDATED LINE FUNCTIONS (AR-233)
+// Single-line attack results for easier reading at speed
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Generate single-line attack result with inline crunch
+ * @param {Object} attacker - Attacking ship
+ * @param {Object} defender - Defending ship
+ * @param {string} weapon - Weapon name
+ * @param {boolean} hit - Whether attack hit
+ * @param {Object} roll - Roll object with total
+ * @param {number} damage - Damage dealt (after armor)
+ * @param {Object} options - { isPlayer, mods, rawDamage, armor }
+ */
+function attackLine(attacker, defender, weapon, hit, roll, damage, options = {}) {
+  const color = options.isPlayer ? GREEN : RED;
+  const action = hit ? `${GREEN}HIT${RESET}` : `${DIM}MISS${RESET}`;
+  const weaponShort = weapon.replace('_', ' ').replace('pulse ', '').replace('beam ', '');
+
+  let impact = '';
+  if (hit && damage > 0) {
+    impact = ` ${defender.name} ${YELLOW}-${damage} hull${RESET}`;
+  } else if (hit && damage === 0) {
+    impact = ` ${DIM}(absorbed)${RESET}`;
+  }
+
+  const total = roll.total + (options.mods || 0);
+  const crunchText = options.showCrunch !== false ?
+    ` ${DIM}[${roll.total}+${options.mods || 0}=${total} vs 8]${RESET}` : '';
+
+  return `${color}${attacker.name}${RESET} ${weaponShort} → ${action}!${impact}${crunchText}`;
+}
+
+/**
+ * Generate single-line ion drain result
+ */
+function ionDrainLine(attacker, defender, hit, roll, drain, remaining, options = {}) {
+  const color = options.isPlayer ? GREEN : RED;
+  const action = hit ? `${GREEN}HIT${RESET}` : `${DIM}MISS${RESET}`;
+
+  let impact = '';
+  if (hit) {
+    if (remaining <= 0) {
+      impact = ` ${RED}${BOLD}POWER DEAD!${RESET}`;
+    } else {
+      impact = ` ${CYAN}-${drain} power${RESET} ${DIM}(${remaining} left)${RESET}`;
+    }
+  }
+
+  const total = roll.total + (options.mods || 0);
+  const crunchText = ` ${DIM}[${roll.total}+${options.mods || 0}=${total} vs 8]${RESET}`;
+
+  return `${color}${attacker.name}${RESET} ion → ${action}!${impact}${crunchText}`;
+}
+
+/**
+ * Generate single-line called shot result
+ */
+function calledShotLine(attacker, defender, system, hit, roll, damage, options = {}) {
+  const color = options.isPlayer ? GREEN : RED;
+  const systemName = system.replace(/([A-Z])/g, ' $1').trim();
+
+  let result;
+  if (hit) {
+    const ppHits = options.systemHits || 1;
+    const hitsText = ppHits >= 3 ? `${RED}${BOLD}DISABLED!${RESET}` : `${YELLOW}${ppHits}/3 hits${RESET}`;
+    result = `${MAGENTA}★${RESET} ${color}${attacker.name}${RESET} → ${systemName} ${GREEN}HIT${RESET}! ${hitsText}`;
+    if (damage > 0) {
+      result += ` ${YELLOW}-${damage} hull${RESET}`;
+    }
+  } else {
+    result = `${color}${attacker.name}${RESET} → ${systemName} ${DIM}MISS${RESET}`;
+  }
+
+  const total = roll.total + (options.mods || 0);
+  return `${result} ${DIM}[${total} vs 8, -4 called]${RESET}`;
+}
+
+/**
+ * Generate alpha strike summary line
+ * @param {Array} results - Array of { fighter, hit, damage }
+ */
+function alphaStrikeSummary(results, totalDamage, target) {
+  const hits = results.filter(r => r.hit).length;
+  const misses = results.length - hits;
+  const rolls = results.map(r => r.roll?.total || '?').join(',');
+
+  return `${GREEN}${results.length} fighters${RESET}: ${hits} HIT, ${misses} MISS → ` +
+    `${YELLOW}${totalDamage} damage${RESET} to ${target.name} ${DIM}[${rolls} vs 8]${RESET}`;
+}
+
+/**
+ * Generate coordinated barrage summary (Marina + Yuki)
+ */
+function barrageSummary(particleResult, ionResult, defender) {
+  const lines = [];
+
+  // Particle result
+  if (particleResult.hit) {
+    const ppStatus = particleResult.ppHits >= 3 ?
+      `${RED}${BOLD}PP DISABLED!${RESET}` :
+      `${YELLOW}PP ${particleResult.ppHits}/3${RESET}`;
+    lines.push(`${GREEN}Marina${RESET} particle → ${GREEN}HIT${RESET}! ${ppStatus} ${YELLOW}-${particleResult.damage} hull${RESET}`);
+  } else {
+    lines.push(`${GREEN}Marina${RESET} particle → ${DIM}MISS${RESET}`);
+  }
+
+  // Ion result
+  if (ionResult.hit) {
+    const powerStatus = ionResult.remaining <= 0 ?
+      `${RED}${BOLD}POWER DEAD!${RESET}` :
+      `${CYAN}-${ionResult.drain} power${RESET}`;
+    lines.push(`${GREEN}Yuki${RESET} ion → ${GREEN}HIT${RESET}! ${powerStatus}`);
+  } else {
+    lines.push(`${GREEN}Yuki${RESET} ion → ${DIM}MISS${RESET}`);
+  }
+
+  // Knockout check
+  if (particleResult.ppHits >= 3 && ionResult.remaining <= 0) {
+    lines.push(`${MAGENTA}${BOLD}★★★ KNOCKOUT! ${defender.name} disabled for capture! ★★★${RESET}`);
+  }
+
+  return lines;
+}
+
 module.exports = {
   // Narrative generators
   attackNarrative,
@@ -272,6 +398,13 @@ module.exports = {
   destroyedNarrative,
   ionDrainNarrative,
   calledShotNarrative,
+
+  // Consolidated line functions (AR-233)
+  attackLine,
+  ionDrainLine,
+  calledShotLine,
+  alphaStrikeSummary,
+  barrageSummary,
 
   // Formatting helpers
   crunch,

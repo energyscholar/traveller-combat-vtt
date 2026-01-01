@@ -389,99 +389,133 @@ async function resolveAttack(attacker, defender, weapon) {
     await delay(400);
   }
 
-  // Narrative: Story first, crunch second
   const isPlayer = state.playerFleet.includes(attacker);
-  if (useCalledShot && !shouldFireMissile) {
-    combatStats.calledShotsAttempted++;
-    addNarrative(narrative.attackNarrative(attacker, defender, weaponName, hit, { isPlayer }));
-    if (hit) {
-      addNarrative(narrative.calledShotNarrative(attacker, defender, calledShotTarget, true));
-    }
-  } else {
-    addNarrative(narrative.attackNarrative(attacker, defender, weaponName, hit, { isPlayer }));
-  }
-  addNarrative(narrative.crunch(`Roll: ${roll.total}+${totalDM}=${total} vs 8`));
+
+  // Calculate damage upfront for consolidated output
+  let damageRoll = 0;
+  let armor = defender.armour || 0;
+  let damage = 0;
+  let pointDefenseSuccess = false;
 
   if (hit) {
-    // Calculate damage
-    let damageRoll;
     if (weaponName === 'missile_rack') {
       damageRoll = rollNd6(4);  // Missiles: 4d6
 
-      // Point Defense: Defender attempts to shoot down missile if player ship
+      // Point Defense: Defender attempts to shoot down missile
       const isPlayerDefending = state.playerFleet.includes(defender);
       if (isPlayerDefending && defender.turrets?.length > 0) {
         const pdTurret = defender.turrets.find(t => t.weapons?.includes('pulse_laser') || t.weapons?.includes('beam_laser'));
         if (pdTurret) {
-          // Track cumulative penalty per ship
           defender.pdAttempts = (defender.pdAttempts || 0) + 1;
           const pdPenalty = -(defender.pdAttempts - 1);
           const pdGunnerSkill = pdTurret.gunnerSkill || 0;
           const pdRoll = roll2d6();
           const pdTotal = pdRoll.total + pdGunnerSkill + pdPenalty;
-          const pdSuccess = pdTotal >= 8;
+          pointDefenseSuccess = pdTotal >= 8;
 
-          if (pdSuccess) {
-            addNarrative(narrative.pointDefenseNarrative(defender, true));
-            addNarrative(narrative.crunch(`PD: ${pdRoll.total}+${pdGunnerSkill}${pdPenalty < 0 ? pdPenalty : ''}=${pdTotal} vs 8`));
+          if (pointDefenseSuccess) {
+            addNarrative(`${CYAN}Point defense intercept!${RESET} ${DIM}[PD: ${pdTotal} vs 8]${RESET}`);
             return { hit: false, pointDefense: true };
           } else {
-            addNarrative(narrative.pointDefenseNarrative(defender, false));
-            addNarrative(narrative.crunch(`PD: ${pdTotal} vs 8`));
+            addNarrative(`${DIM}PD miss [${pdTotal} vs 8]${RESET}`);
           }
         }
       }
     } else if (weaponName === 'beam_laser') {
-      damageRoll = rollNd6(3);  // Beam laser: 3d6
+      damageRoll = rollNd6(3);
     } else {
-      damageRoll = rollNd6(2);  // Default: 2d6
+      damageRoll = rollNd6(2);
     }
-
-    const armor = defender.armour || 0;
-    const damage = Math.max(0, damageRoll - armor);
-
+    damage = Math.max(0, damageRoll - armor);
     defender.hull = Math.max(0, defender.hull - damage);
-
-    addNarrative(narrative.damageNarrative(defender, damage, armor));
-    addNarrative(narrative.crunch(`${damageRoll} - ${armor} armor = ${damage}`));
-
-    if (defender.hull <= 0) {
-      defender.destroyed = true;
-      addNarrative(narrative.destroyedNarrative(defender));
-    }
-
-    return { hit: true, damage, effect };
   }
 
-  return { hit: false };
+  // Consolidated single-line output
+  if (useCalledShot && !shouldFireMissile) {
+    combatStats.calledShotsAttempted++;
+    if (hit) {
+      // Track system hits
+      if (!defender.systems) defender.systems = {};
+      if (!defender.systems[calledShotTarget]) defender.systems[calledShotTarget] = { hits: 0 };
+      defender.systems[calledShotTarget].hits++;
+      combatStats.calledShotsHit++;
+      addNarrative(narrative.calledShotLine(attacker, defender, calledShotTarget, true, roll, damage, {
+        isPlayer, mods: totalDM, systemHits: defender.systems[calledShotTarget].hits
+      }));
+    } else {
+      addNarrative(narrative.calledShotLine(attacker, defender, calledShotTarget, false, roll, 0, {
+        isPlayer, mods: totalDM
+      }));
+    }
+  } else {
+    addNarrative(narrative.attackLine(attacker, defender, weaponName, hit, roll, damage, {
+      isPlayer, mods: totalDM
+    }));
+  }
+
+  if (hit && defender.hull <= 0) {
+    defender.destroyed = true;
+    addNarrative(narrative.destroyedNarrative(defender));
+  }
+
+  return hit ? { hit: true, damage, effect } : { hit: false };
 }
 
 // Fighter alpha strike - all fighters fire missiles at target
 async function fighterAlphaStrike(fighters, target) {
   addNarrative(narrative.phaseHeader('FIGHTER ALPHA STRIKE'));
   render();
-  await delay(800);
+  await delay(600);
 
+  // Collect all attack results for summary
+  const results = [];
   let totalDamage = 0;
 
   for (const fighter of fighters) {
     if (fighter.destroyed || fighter.hull <= 0) continue;
-    if ((fighter.missiles || 0) <= 0) {
-      addNarrative(`${DIM}${fighter.name} - out of missiles${RESET}`);
-      continue;
+    if ((fighter.missiles || 0) <= 0) continue;
+
+    fighter.missiles--;
+    state.actingShip = fighter.id;
+
+    // Calculate attack
+    const fc = fighter.fireControl || 0;
+    const gunner = fighter.turrets?.[0]?.gunnerSkill || 0;
+    const rangeDM = getRangeDM(state.range);
+    const totalDM = fc + gunner + rangeDM;
+    const roll = roll2d6();
+    const total = roll.total + totalDM;
+    const hit = total >= 8;
+
+    let damage = 0;
+    if (hit) {
+      const damageRoll = rollNd6(4);  // Missiles: 4d6
+      const armor = target.armour || 0;
+      damage = Math.max(0, damageRoll - armor);
+      target.hull = Math.max(0, target.hull - damage);
+      totalDamage += damage;
     }
 
-    fighter.missiles = (fighter.missiles || 6) - 1;
-    await resolveAttack(fighter, target, fighter.turrets?.[0]);
-    render();
-    await delay(400);
+    results.push({ fighter, hit, damage, roll });
 
-    if (target.destroyed) break;
+    if (target.hull <= 0) {
+      target.destroyed = true;
+      break;
+    }
   }
 
-  addNarrative(narrative.phaseHeader('ALPHA STRIKE COMPLETE'));
+  // Single summary line instead of per-fighter spam
+  if (results.length > 0) {
+    addNarrative(narrative.alphaStrikeSummary(results, totalDamage, target));
+    if (target.destroyed) {
+      addNarrative(narrative.destroyedNarrative(target));
+    }
+  } else {
+    addNarrative(`${DIM}No missiles available${RESET}`);
+  }
+
   render();
-  await delay(600);
+  await delay(400);
 }
 
 // Ion cannon attack (power drain)
@@ -502,23 +536,19 @@ async function ionAttack(attacker, defender) {
   const hit = total >= 8;
   const effect = hit ? total - 8 : 0;
 
-  addNarrative(narrative.attackNarrative(attacker, defender, 'ion', hit, { isPlayer: true }));
-  addNarrative(narrative.crunch(`Roll: ${roll.total}+${totalDM}=${total} vs 8`));
-
+  let powerDrain = 0;
   if (hit) {
-    // Ion damage: (3d6 + Effect) × 10 power drain
     const ionDice = rollNd6(3);
-    const powerDrain = (ionDice + effect) * 10;
-
+    powerDrain = (ionDice + effect) * 10;
     defender.power = Math.max(0, (defender.power || defender.maxPower || 100) - powerDrain);
-
-    addNarrative(narrative.ionDrainNarrative(defender, powerDrain, defender.power));
-    addNarrative(narrative.crunch(`(${ionDice}+${effect})×10 = ${powerDrain} power`));
-
-    return { hit: true, powerDrain };
   }
 
-  return { hit: false };
+  // Single consolidated line
+  addNarrative(narrative.ionDrainLine(attacker, defender, hit, roll, powerDrain, defender.power || 0, {
+    isPlayer: true, mods: totalDM
+  }));
+
+  return hit ? { hit: true, powerDrain } : { hit: false };
 }
 
 // Marina's particle barbette attack with called shots
@@ -535,66 +565,55 @@ async function particleAttack(attacker, defender) {
 
   // Marina uses called shots 80% of the time targeting Power Plant
   const useCalledShot = barbette.calledShot && Math.random() < 0.8;
-  const calledShotTarget = useCalledShot ? 'powerPlant' : null;
-  const calledShotDM = useCalledShot ? -4 : 0;  // Power Plant penalty
+  const calledShotDM = useCalledShot ? -4 : 0;
 
   if (useCalledShot) combatStats.calledShotsAttempted++;
 
   const totalDM = fc + gunner + rangeDM + calledShotDM;
-
   const roll = roll2d6();
   const total = roll.total + totalDM;
   const hit = total >= 8;
   const effect = hit ? total - 8 : 0;
 
-  if (useCalledShot) {
-    addNarrative(narrative.quote('MARINA', 'Targeting power plant!'));
-    addNarrative(narrative.attackNarrative(attacker, defender, 'particle', hit, { isPlayer: true }));
-    addNarrative(narrative.crunch(`Roll: ${roll.total}+${gunner}${rangeDM < 0 ? rangeDM : '+' + rangeDM}${calledShotDM}=${total} vs 8`));
-  } else {
-    addNarrative(narrative.attackNarrative(attacker, defender, 'particle', hit, { isPlayer: true }));
-    addNarrative(narrative.crunch(`Roll: ${roll.total}+${totalDM}=${total} vs 8`));
-  }
-
+  // Calculate damage upfront
+  let damage = 0;
+  let ppHits = 0;
   if (hit) {
-    // Particle Barbette: 6d6 damage
     const damageRoll = rollNd6(6);
-    const armor = defender.armour || 0;
-    const damage = Math.max(0, damageRoll - armor);
-
+    damage = Math.max(0, damageRoll - (defender.armour || 0));
     defender.hull = Math.max(0, defender.hull - damage);
 
     if (useCalledShot && damage > 0) {
-      // Called shot hit - damage power plant system
       if (!defender.systems) defender.systems = {};
       if (!defender.systems.powerPlant) defender.systems.powerPlant = { hits: 0 };
-      defender.systems.powerPlant.hits = (defender.systems.powerPlant.hits || 0) + 1;
-
+      defender.systems.powerPlant.hits++;
+      ppHits = defender.systems.powerPlant.hits;
       combatStats.calledShotsHit++;
-      const status = defender.systems.powerPlant.hits >= 3 ? 'DISABLED!' : `${defender.systems.powerPlant.hits}/3 hits`;
-      addNarrative(narrative.calledShotNarrative(attacker, defender, 'Power Plant', true));
-      addNarrative(narrative.damageNarrative(defender, damage, armor));
-      addNarrative(narrative.crunch(`${damageRoll} - ${armor} armor = ${damage} | PP: ${status}`));
-
-      if (defender.systems.powerPlant.hits >= 3) {
-        defender.systems.powerPlant.disabled = true;
-        combatStats.powerPlantsDisabled++;
-        addNarrative(narrative.victoryBanner(`${defender.name} POWER PLANT DISABLED!`, true));
-      }
-    } else {
-      addNarrative(narrative.damageNarrative(defender, damage, armor));
-      addNarrative(narrative.crunch(`${damageRoll} - ${armor} armor = ${damage}`));
     }
-
-    if (defender.hull <= 0) {
-      defender.destroyed = true;
-      addNarrative(narrative.destroyedNarrative(defender));
-    }
-
-    return { hit: true, damage, effect, calledShot: calledShotTarget };
   }
 
-  return { hit: false };
+  // Consolidated single-line output
+  if (useCalledShot) {
+    addNarrative(narrative.calledShotLine(attacker, defender, 'powerPlant', hit, roll, damage, {
+      isPlayer: true, mods: totalDM, systemHits: ppHits
+    }));
+    if (hit && ppHits >= 3) {
+      defender.systems.powerPlant.disabled = true;
+      combatStats.powerPlantsDisabled++;
+      addNarrative(narrative.victoryBanner(`${defender.name} POWER PLANT DISABLED!`, true));
+    }
+  } else {
+    addNarrative(narrative.attackLine(attacker, defender, 'particle', hit, roll, damage, {
+      isPlayer: true, mods: totalDM
+    }));
+  }
+
+  if (hit && defender.hull <= 0) {
+    defender.destroyed = true;
+    addNarrative(narrative.destroyedNarrative(defender));
+  }
+
+  return hit ? { hit: true, damage, effect, calledShot: useCalledShot ? 'powerPlant' : null } : { hit: false };
 }
 
 /**
@@ -641,12 +660,12 @@ async function coordinatedBarrage(attacker, defender) {
   const particleHit = particleTotal >= 8;
   const particleEffect = particleHit ? particleTotal - 8 : 0;
 
-  addNarrative(narrative.attackNarrative(attacker, defender, 'particle', particleHit, { isPlayer: true }));
-  addNarrative(narrative.crunch(`Particle: ${particleRoll.total}+${particleGunner}${rangeDM < 0 ? rangeDM : '+' + rangeDM}${calledShotDM}=${particleTotal} vs 8`));
-
+  // === PARTICLE ATTACK (Called Shot: Power Plant) ===
   let particleDamage = 0;
+  let ppHits = 0;
+  combatStats.calledShotsAttempted++;
+
   if (particleHit) {
-    combatStats.calledShotsAttempted++;
     const damageRoll = rollNd6(6);
     const armor = defender.armour || 0;
     particleDamage = Math.max(0, damageRoll - armor);
@@ -655,15 +674,10 @@ async function coordinatedBarrage(attacker, defender) {
     // Called shot system damage
     if (!defender.systems) defender.systems = {};
     if (!defender.systems.powerPlant) defender.systems.powerPlant = { hits: 0 };
-    defender.systems.powerPlant.hits = (defender.systems.powerPlant.hits || 0) + 1;
+    defender.systems.powerPlant.hits++;
+    ppHits = defender.systems.powerPlant.hits;
     combatStats.calledShotsHit++;
-
-    const ppStatus = defender.systems.powerPlant.hits >= 3 ? 'DISABLED!' : `${defender.systems.powerPlant.hits}/3`;
-    addNarrative(narrative.calledShotNarrative(attacker, defender, 'Power Plant', true));
-    addNarrative(narrative.crunch(`${damageRoll} - ${armor} armor = ${particleDamage} | PP: ${ppStatus}`));
   }
-  render();
-  await delay(300);
 
   // === ION ATTACK (Power Drain) ===
   const ionGunner = ionBarbette.gunnerSkill || 0;
@@ -673,17 +687,20 @@ async function coordinatedBarrage(attacker, defender) {
   const ionHit = ionTotal >= 8;
   const ionEffect = ionHit ? ionTotal - 8 : 0;
 
-  addNarrative(narrative.attackNarrative(attacker, defender, 'ion', ionHit, { isPlayer: true }));
-  addNarrative(narrative.crunch(`Ion: ${ionRoll.total}+${ionTotalDM}=${ionTotal} vs 8`));
-
   let powerDrain = 0;
   if (ionHit) {
     const ionDice = rollNd6(3);
     powerDrain = (ionDice + ionEffect) * 10;
     defender.power = Math.max(0, (defender.power || defender.maxPower || 100) - powerDrain);
-    addNarrative(narrative.ionDrainNarrative(defender, powerDrain, defender.power));
-    addNarrative(narrative.crunch(`(${ionDice}+${ionEffect})×10 = ${powerDrain} power`));
   }
+
+  // Consolidated barrage output (2 lines instead of 8)
+  const barrageLines = narrative.barrageSummary(
+    { hit: particleHit, ppHits, damage: particleDamage },
+    { hit: ionHit, drain: powerDrain, remaining: defender.power || 0 },
+    defender
+  );
+  barrageLines.forEach(line => addNarrative(line));
   render();
   await delay(400);
 

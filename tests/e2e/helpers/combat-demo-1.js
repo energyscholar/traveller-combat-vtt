@@ -723,10 +723,12 @@ function render() {
   const pName = `${pType} ${pTons} - ${state.player.name}`.toUpperCase();
   out += appendSidebar(`${CYAN}║${RESET} ${RED}${BOLD}${eName}${RESET}${' '.repeat(Math.max(1, col - eName.length))}${CYAN}│${RESET} ${GREEN}${BOLD}${pName}${RESET}${' '.repeat(Math.max(1, col - pName.length))}${CYAN}║${RESET}`) + '\n';
 
-  // Hull bars
+  // Hull bars (colorBar visible width = 15)
   const eHull = `${state.enemy.hull}/${state.enemy.maxHull}`;
   const pHull = `${state.player.hull}/${state.player.maxHull}`;
-  out += appendSidebar(`${CYAN}║${RESET} Hull: ${colorBar(state.enemy.hull, state.enemy.maxHull)} ${eHull.padStart(5)}${' '.repeat(Math.max(1, col - 28))}${CYAN}│${RESET} Hull: ${colorBar(state.player.hull, state.player.maxHull)} ${pHull.padStart(5)}${' '.repeat(Math.max(1, col - 28))}${CYAN}║${RESET}`) + '\n';
+  const hullVisLen = 6 + 15 + 1 + Math.max(5, eHull.length);  // "Hull: " + bar + " " + hull
+  const hullVisLenP = 6 + 15 + 1 + Math.max(5, pHull.length);
+  out += appendSidebar(`${CYAN}║${RESET} Hull: ${colorBar(state.enemy.hull, state.enemy.maxHull)} ${eHull.padStart(5)}${' '.repeat(Math.max(1, col - hullVisLen))}${CYAN}│${RESET} Hull: ${colorBar(state.player.hull, state.player.maxHull)} ${pHull.padStart(5)}${' '.repeat(Math.max(1, col - hullVisLenP))}${CYAN}║${RESET}`) + '\n';
 
   // Stats line
   const eStats = `T:${state.enemy.thrust} FC:+${state.enemy.fireControl} Arm:${state.enemy.armour}`;
@@ -738,7 +740,9 @@ function render() {
   const pTurret = state.player.turrets[0];
   const eDM = getTurretDM(state.enemy, eTurret, state.range, state.player);
   const pDM = getTurretDM(state.player, pTurret, state.range, state.enemy);
-  out += appendSidebar(`${CYAN}║${RESET} ${RED}Turret +${eDM.total} (${eTurret.gunner})${RESET}${' '.repeat(Math.max(1, col - 20))}${CYAN}│${RESET} ${GREEN}Turret +${pDM.total} (${pTurret.gunner})${RESET}${' '.repeat(Math.max(1, col - 18))}${CYAN}║${RESET}`) + '\n';
+  const eContent = `Turret +${eDM.total} (${eTurret.gunner})`;
+  const pContent = `Turret +${pDM.total} (${pTurret.gunner})`;
+  out += appendSidebar(`${CYAN}║${RESET} ${RED}${eContent}${RESET}${' '.repeat(Math.max(1, col - eContent.length))}${CYAN}│${RESET} ${GREEN}${pContent}${RESET}${' '.repeat(Math.max(1, col - pContent.length))}${CYAN}║${RESET}`) + '\n';
 
   // Captain/Crew
   if (state.player.captain) {
