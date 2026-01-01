@@ -21,6 +21,7 @@ const {
   narratePhaseChange,
   narrateAttack
 } = require('./combat-display');
+const { showFleetSummary } = require('./battle-summary');
 
 // ANSI codes
 const ESC = '\x1b';
@@ -490,14 +491,16 @@ async function runDemo() {
   if (enemy.destroyed) {
     addNarrative(`${GREEN}${BOLD}*** ENEMY DESTROYED! VICTORY! ***${RESET}`);
     render();
-    await delay(3000);
+    await delay(2000);
+    await showFleetSummary(state);
     return;
   }
 
   if (isFleetDefeated(state.playerFleet)) {
     addNarrative(`${RED}${BOLD}*** FLEET DESTROYED! DEFEAT! ***${RESET}`);
     render();
-    await delay(3000);
+    await delay(2000);
+    await showFleetSummary(state);
     return;
   }
 
@@ -581,7 +584,8 @@ async function runDemo() {
   }
 
   render();
-  await delay(3000);
+  await delay(2000);
+  await showFleetSummary(state);
 }
 
 // === KEYBOARD HANDLING ===

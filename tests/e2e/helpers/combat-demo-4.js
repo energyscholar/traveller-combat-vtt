@@ -92,6 +92,7 @@
  */
 
 const { DEMO_CONFIGS, createDefaultSystems } = require('./combat-demo-ships');
+const { showFleetSummary } = require('./battle-summary');
 
 // ANSI codes
 const ESC = '\x1b';
@@ -699,7 +700,8 @@ async function runDemo() {
       addNarrative(`${MAGENTA}Captured: ${surrendered.map(s => s.name).join(', ')}${RESET}`);
     }
     render();
-    await delay(3000);
+    await delay(2000);
+    await showFleetSummary(state);
     return;
   }
 
@@ -710,7 +712,8 @@ async function runDemo() {
   if (isFleetDefeated(state.playerFleet)) {
     addNarrative(`${RED}${BOLD}*** FLEET DESTROYED! DEFEAT! ***${RESET}`);
     render();
-    await delay(3000);
+    await delay(2000);
+    await showFleetSummary(state);
     return;
   }
 
@@ -801,7 +804,8 @@ async function runDemo() {
   }
 
   render();
-  await delay(3000);
+  await delay(2000);
+  await showFleetSummary(state);
 }
 
 // === KEYBOARD HANDLING ===
