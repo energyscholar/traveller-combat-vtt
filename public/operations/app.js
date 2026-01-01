@@ -54,6 +54,7 @@ import './socket-handlers/map.js';
 import './socket-handlers/misc.js';
 import './socket-handlers/conditions.js';
 import './socket-handlers/ship-damage.js';  // BD-2: Incoming fire damage
+import './socket-handlers/modules.js';  // AR-214: Adventure module events
 import { initAllHandlers, getRegisteredHandlers } from './socket-handlers/index.js';
 // AR-201: Modal handler modules
 import './modals/character-import.js';
@@ -3291,65 +3292,7 @@ function showModuleDetail(moduleId) {
   state.socket.emit('ops:getModuleSummary', { moduleId });
 }
 
-// Socket listeners for modules
-if (state.socket) {
-  state.socket.on('ops:moduleList', (data) => {
-    state.adventureModules = data.modules || [];
-    renderPrepModules();
-  });
-
-  state.socket.on('ops:moduleImported', (data) => {
-    showNotification(`Module "${data.moduleName}" imported successfully!`, 'success');
-    state.socket.emit('ops:getModules');
-    // Refresh prep data to show imported content
-    state.socket.emit('ops:getPrepData', { campaignId: state.campaign?.id });
-  });
-
-  state.socket.on('ops:moduleUpdated', (data) => {
-    const idx = state.adventureModules.findIndex(m => m.id === data.module.id);
-    if (idx >= 0) state.adventureModules[idx] = data.module;
-    renderPrepModules();
-  });
-
-  state.socket.on('ops:moduleDeleted', (data) => {
-    state.adventureModules = state.adventureModules.filter(m => m.id !== data.moduleId);
-    renderPrepModules();
-    showNotification('Module deleted', 'info');
-    // Refresh prep data
-    state.socket.emit('ops:getPrepData', { campaignId: state.campaign?.id });
-  });
-
-  state.socket.on('ops:moduleSummary', (data) => {
-    const summary = data.summary;
-    if (!summary) {
-      showError('Module not found');
-      return;
-    }
-    const counts = summary.contentCounts || {};
-    const html = `
-      <div class="modal-header">
-        <h2>${escapeHtml(summary.module_name)}</h2>
-        <button class="btn-close" onclick="closeModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <p><strong>Version:</strong> ${escapeHtml(summary.module_version)}</p>
-        <p><strong>Status:</strong> ${summary.is_active ? 'Active' : 'Disabled'}</p>
-        <p><strong>Imported:</strong> ${new Date(summary.imported_at).toLocaleString()}</p>
-        <h4>Content Summary</h4>
-        <table class="info-table">
-          <tr><th>Type</th><th>Total</th><th>Gated</th></tr>
-          ${Object.entries(counts).map(([type, c]) =>
-            `<tr><td>${type}</td><td>${c.total}</td><td>${c.gated}</td></tr>`
-          ).join('')}
-        </table>
-      </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal()">Close</button>
-      </div>
-    `;
-    showModalContent(html);
-  });
-}
+// AR-214: Module socket handlers moved to socket-handlers/modules.js
 
 // AR-153: Panel Management moved to modules/panel-management.js
 
