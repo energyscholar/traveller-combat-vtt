@@ -189,10 +189,14 @@ function generateBattleSummary(state) {
 }
 
 /**
- * Display battle summary and wait for ENTER
+ * Display battle summary and wait for user input
  * @param {Object} state - Combat state
+ * @param {Object} options - Display options
+ * @param {boolean} options.allowContinue - Show "fight another round" option
+ * @returns {Promise<{continue: boolean}>} User choice
  */
-async function showBattleSummary(state) {
+async function showBattleSummary(state, options = {}) {
+  const { allowContinue = false } = options;
   const lines = generateBattleSummary(state);
 
   // Clear screen and display summary
@@ -201,12 +205,22 @@ async function showBattleSummary(state) {
     process.stdout.write(line + '\n');
   }
 
-  // Wait for ENTER
+  // Show continue option if battle isn't over
+  if (allowContinue) {
+    process.stdout.write(`\n${CYAN}[F]${RESET} Fight another round   ${DIM}ENTER to end${RESET}\n`);
+  }
+
+  // Wait for user input
   return new Promise((resolve) => {
     const onData = (key) => {
       if (key === '\r' || key === '\n') {
         process.stdin.removeListener('data', onData);
-        resolve();
+        resolve({ continue: false });
+      }
+      // Fight another round
+      if (allowContinue && (key === 'f' || key === 'F')) {
+        process.stdin.removeListener('data', onData);
+        resolve({ continue: true });
       }
       // Also accept 'q' to quit
       if (key === 'q' || key === 'Q') {
@@ -845,6 +859,23 @@ function waitForCalledShotTarget(targets) {
 async function resolveAttack(attacker, defender, attackerShip, defenderShip, turret, targetSystem = null) {
   const mods = getTurretDM(attackerShip, turret, state.range, defenderShip);
 
+  // Weapon selection: Both sides use missiles at long range or randomly
+  let selectedWeapon = turret.weapons[0];
+  const isLongRange = ['long', 'very long', 'distant'].includes(state.range?.toLowerCase());
+  const hasMissiles = attackerShip.missiles > 0 && turret.weapons.includes('missile_rack');
+
+  // Fire missiles at long range, or 30% chance at medium range
+  const shouldFireMissile = hasMissiles && (isLongRange || (state.range?.toLowerCase() === 'medium' && Math.random() < 0.3));
+
+  if (shouldFireMissile) {
+    selectedWeapon = 'missile_rack';
+    attackerShip.missiles--;
+    const col = attacker === 'player' ? GREEN : RED;
+    addNarrative(`${col}${BOLD}MISSILE LAUNCH!${RESET} ${col}(${attackerShip.missiles} remaining)${RESET}`);
+    render();
+    await delay(600);
+  }
+
   // Apply called shot penalty
   const calledShotPenalty = getCalledShotPenalty(targetSystem);
   const totalMod = mods.total + calledShotPenalty;
@@ -858,7 +889,7 @@ async function resolveAttack(attacker, defender, attackerShip, defenderShip, tur
   flashTurretFire(attacker, turret.id);
 
   // Build detailed attack breakdown
-  const weaponType = turret.weapons[0].replace('_', ' ');
+  const weaponType = selectedWeapon.replace('_', ' ');
   const col = attacker === 'player' ? GREEN : RED;
   let breakdown = `2d6=${roll.total} +FC=${mods.fc} +Gun=${mods.gunner} +Sns=${mods.sensor} +Rng=${mods.rangeDM} +Wpn=${mods.weaponDM}`;
   if (mods.evasiveDM !== 0) breakdown += ` ${YELLOW}Evasive=${mods.evasiveDM}${DIM}`;
@@ -878,14 +909,47 @@ async function resolveAttack(attacker, defender, attackerShip, defenderShip, tur
     // Calculate damage based on weapon type (dice + effect - armour)
     let damageRoll = 0;
     let damage = 0;
-    const weapon = turret.weapons[0];
+    const weapon = selectedWeapon;
 
     if (weapon === 'pulse_laser') {
       damageRoll = roll2d6().total;
       damage = Math.max(0, damageRoll + effect - defenderShip.armour);
     } else if (weapon === 'missile_rack') {
+      // Missiles: 4D6 damage, but defender can attempt point defense
       damageRoll = rollNd6(4);
       damage = Math.max(0, damageRoll + effect - defenderShip.armour);
+
+      // Point Defense: Defender attempts to shoot down missile with lasers
+      // MT2E: 2D + Gunner vs 8, cumulative -1 per attempt
+      if (attacker === 'enemy' && defenderShip.turrets?.length > 0) {
+        const pdTurret = defenderShip.turrets.find(t => t.weapons?.includes('pulse_laser'));
+        if (pdTurret) {
+          // Track point defense attempts (cumulative penalty)
+          state.pdAttempts = (state.pdAttempts || 0) + 1;
+          const pdPenalty = -(state.pdAttempts - 1);
+          const pdGunnerSkill = pdTurret.gunnerSkill || 0;
+          const pdRoll = roll2d6();
+          const pdTotal = pdRoll.total + pdGunnerSkill + pdPenalty;
+          const pdSuccess = pdTotal >= 8;
+
+          // Flash turret as READY (point defense)
+          flashTurretReady('player', 1);
+          render();
+          await delay(400);
+
+          if (pdSuccess) {
+            addNarrative(`${CYAN}${BOLD}★ POINT DEFENSE ★${RESET}`);
+            addNarrative(`${GREEN}${pdTurret.gunner} shoots down missile! (${pdRoll.total}+${pdGunnerSkill}${pdPenalty < 0 ? pdPenalty : ''}=${pdTotal} vs 8)${RESET}`);
+            render();
+            await delay(800);
+            return { hit: false, pointDefense: true }; // Missile destroyed
+          } else {
+            addNarrative(`${CYAN}POINT DEFENSE${RESET} ${RED}MISS${RESET} (${pdRoll.total}+${pdGunnerSkill}${pdPenalty < 0 ? pdPenalty : ''}=${pdTotal} vs 8)`);
+            render();
+            await delay(400);
+          }
+        }
+      }
     } else if (weapon === 'sandcaster') {
       // Sandcasters don't do damage
       addNarrative(`${YELLOW}Sandcaster deployed (defensive)${RESET}`);
@@ -1341,13 +1405,71 @@ async function runDemo() {
     return;
   }
 
-  // End of demo
-  addNarrative(`${CYAN}═══ DEMO COMPLETE ═══${RESET}`);
+  // End of scripted rounds - offer continue option
+  addNarrative(`${CYAN}═══ ROUND ${state.round} COMPLETE ═══${RESET}`);
   addNarrative(`${state.player.name}: ${state.player.hull}/${state.player.maxHull} hull`);
   addNarrative(`${state.enemy.name}: ${state.enemy.hull}/${state.enemy.maxHull} hull`);
   render();
   await delay(2000);
+
+  // Allow continuing if both ships still alive
+  const result = await showBattleSummary(state, { allowContinue: true });
+  if (result.continue) {
+    await runExtraRound();
+  }
+}
+
+/**
+ * Run an extra round of combat (after scripted rounds)
+ */
+async function runExtraRound() {
+  state.round++;
+  state.pdAttempts = 0; // Reset point defense penalty
+
+  addNarrative(`${CYAN}${BOLD}═══ ROUND ${state.round} ═══${RESET}`);
+  render();
+  await delay(600);
+
+  // Player attacks
+  state.currentActor = 'player';
+  const pTurret = state.player.turrets[0];
+  await resolveAttack('player', 'enemy', state.player, state.enemy, pTurret);
+  await delay(800);
+
+  if (state.enemy.hull <= 0) {
+    addNarrative(`${GREEN}${BOLD}*** ${state.enemy.name} DESTROYED! ***${RESET}`);
+    render();
+    await delay(2000);
     await showBattleSummary(state);
+    return;
+  }
+
+  // Enemy attacks
+  state.currentActor = 'enemy';
+  const eTurret = state.enemy.turrets[0];
+  const eTarget = getEnemyCalledShotTarget(state.enemy, state.player, state.playerSystems);
+  await resolveAttack('enemy', 'player', state.enemy, state.player, eTurret, eTarget);
+  await delay(800);
+
+  if (state.player.hull <= 0) {
+    addNarrative(`${RED}${BOLD}*** ${state.player.name} DESTROYED! ***${RESET}`);
+    render();
+    await delay(2000);
+    await showBattleSummary(state);
+    return;
+  }
+
+  // Still alive - offer to continue
+  addNarrative(`${CYAN}═══ ROUND ${state.round} COMPLETE ═══${RESET}`);
+  addNarrative(`${state.player.name}: ${state.player.hull}/${state.player.maxHull} hull`);
+  addNarrative(`${state.enemy.name}: ${state.enemy.hull}/${state.enemy.maxHull} hull`);
+  render();
+  await delay(1500);
+
+  const result = await showBattleSummary(state, { allowContinue: true });
+  if (result.continue) {
+    await runExtraRound();
+  }
 }
 
 // === KEYBOARD HANDLING ===

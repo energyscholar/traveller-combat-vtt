@@ -126,15 +126,21 @@ function createAstralDawn() {
     smartMissiles: 6,               // Smart missiles for tough targets
     tonnage: 600,
     hardpoints: 6,
+    // Marina's weapons - she does called shots on Power Plant
     barbettes: [
-      { id: 'ion', name: 'Ion Barbette', damage: '3d6×10 pwr', gunner: 'Marina', gunnerSkill: 6 },
-      { id: 'particle', name: 'Particle Barb', damage: '6d6 hull', gunner: 'Marina', gunnerSkill: 6 }
+      { id: 'ion', name: 'Ion Barbette', damage: '3d6×10 pwr', gunner: 'Recruit Yuki', gunnerSkill: 3 },
+      { id: 'particle', name: 'Particle Barbette', damage: '6d6 hull', gunner: 'Marina', gunnerSkill: 6, calledShot: true }
     ],
+    // Varied turret configurations for tactical flexibility
     turrets: [
-      { id: 1, type: 'triple', weapons: ['sandcaster', 'sandcaster', 'sandcaster'], gunner: 'Defense AI', gunnerSkill: 2 },
+      // Point defense cluster - sandcasters + pulse laser for missiles
+      { id: 1, type: 'triple', weapons: ['sandcaster', 'sandcaster', 'pulse_laser'], gunner: 'Defense AI', gunnerSkill: 2 },
+      // Pure sandcaster defense
       { id: 2, type: 'triple', weapons: ['sandcaster', 'sandcaster', 'sandcaster'], gunner: 'Defense AI', gunnerSkill: 2 },
-      { id: 3, type: 'triple', weapons: ['beam_laser', 'missile_rack', 'missile_rack'], gunner: 'Recruit Yuki', gunnerSkill: 3 },  // Skill-2, DEX+1
-      { id: 4, type: 'triple', weapons: ['beam_laser', 'missile_rack', 'missile_rack'], gunner: 'Marina', gunnerSkill: 6 }  // Expert gunner
+      // Missile battery - long range strike
+      { id: 3, type: 'triple', weapons: ['missile_rack', 'missile_rack', 'missile_rack'], gunner: 'Gunnery Mate Chen', gunnerSkill: 2 },
+      // Mixed offense - beam laser for precision, missiles for punch
+      { id: 4, type: 'triple', weapons: ['beam_laser', 'missile_rack', 'sandcaster'], gunner: 'Gunnery Mate Torres', gunnerSkill: 2 }
     ]
   };
 }
@@ -463,9 +469,10 @@ function createPirateTugTender() {
 
 const DEMO_CONFIGS = {
   // Demo 1: Scout vs Scout - smoke test with PCs
+  // Start at Long range to demonstrate missile fire and point defense
   demo1: {
     description: 'Kimbly vs Pirate Scout (Smoke Test)',
-    startRange: 'Medium',
+    startRange: 'Long',
     player: createKimbly(),
     enemy: createPirateScout()
   },

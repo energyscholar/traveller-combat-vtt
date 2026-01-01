@@ -159,6 +159,26 @@ function generateBattleSummary(state) {
   lines.push('');
   lines.push(`${DIM}─────────────────────────────────────────────────────────${RESET}`);
   lines.push(`${WHITE}Combat lasted ${state.round} round${state.round > 1 ? 's' : ''}.${RESET}`);
+
+  // Additional context line
+  const contextParts = [];
+  if (state.range) {
+    contextParts.push(`Final range: ${state.range}`);
+  }
+  const playerMissilesUsed = (state.player?.missiles !== undefined) ?
+    (12 - (state.player.missiles || 0)) : 0;
+  const enemyMissilesUsed = (state.enemy?.missiles !== undefined) ?
+    (12 - (state.enemy.missiles || 0)) : 0;
+  if (playerMissilesUsed > 0 || enemyMissilesUsed > 0) {
+    contextParts.push(`Missiles: ${playerMissilesUsed} launched / ${enemyMissilesUsed} incoming`);
+  }
+  if (state.pdAttempts > 0) {
+    contextParts.push(`Point defense attempts: ${state.pdAttempts}`);
+  }
+  if (contextParts.length > 0) {
+    lines.push(`${DIM}${contextParts.join(' | ')}${RESET}`);
+  }
+
   lines.push('');
   lines.push(`${DIM}Press ENTER to continue...${RESET}`);
 
@@ -211,6 +231,33 @@ function generateFleetSummary(state) {
   lines.push('');
   lines.push(`${DIM}─────────────────────────────────────────────────────────────────${RESET}`);
   lines.push(`${WHITE}Engagement lasted ${state.round} round${state.round > 1 ? 's' : ''}.${RESET}`);
+
+  // Additional context line
+  const contextParts = [];
+  if (state.range) {
+    contextParts.push(`Final range: ${state.range}`);
+  }
+  // Count total missiles used by player fleet
+  const playerMissilesUsed = playerFleet.reduce((sum, s) => {
+    const initial = s.shipType === 'Fighter' ? 6 : 12;
+    return sum + (initial - (s.missiles || 0));
+  }, 0);
+  if (playerMissilesUsed > 0) {
+    contextParts.push(`Missiles fired: ${playerMissilesUsed}`);
+  }
+  // Count surrendered/fled
+  const surrendered = enemyFleet.filter(s => s.surrendered).length;
+  const fled = enemyFleet.filter(s => s.fled).length;
+  if (surrendered > 0) {
+    contextParts.push(`Captured: ${surrendered}`);
+  }
+  if (fled > 0) {
+    contextParts.push(`Escaped: ${fled}`);
+  }
+  if (contextParts.length > 0) {
+    lines.push(`${DIM}${contextParts.join(' | ')}${RESET}`);
+  }
+
   lines.push('');
   lines.push(`${DIM}Press ENTER to continue...${RESET}`);
 
@@ -218,20 +265,34 @@ function generateFleetSummary(state) {
 }
 
 /**
- * Display summary and wait for ENTER
+ * Display summary and wait for user input
  * @param {string[]} lines - Summary lines to display
+ * @param {Object} options - Display options
+ * @param {boolean} options.allowContinue - Show "fight another round" option
+ * @returns {Promise<{continue: boolean}>} User choice
  */
-async function showSummary(lines) {
+async function showSummary(lines, options = {}) {
+  const { allowContinue = false } = options;
+
   process.stdout.write(CLEAR + HOME);
   for (const line of lines) {
     process.stdout.write(line + '\n');
+  }
+
+  // Show continue option if battle isn't over
+  if (allowContinue) {
+    process.stdout.write(`\n${CYAN}[F]${RESET} Fight another round   ${DIM}ENTER to end${RESET}\n`);
   }
 
   return new Promise((resolve) => {
     const onData = (key) => {
       if (key === '\r' || key === '\n') {
         process.stdin.removeListener('data', onData);
-        resolve();
+        resolve({ continue: false });
+      }
+      if (allowContinue && (key === 'f' || key === 'F')) {
+        process.stdin.removeListener('data', onData);
+        resolve({ continue: true });
       }
       if (key === 'q' || key === 'Q' || key === '\u0003') {
         process.stdout.write(CLEAR + HOME);
@@ -245,19 +306,25 @@ async function showSummary(lines) {
 /**
  * Show 1v1 battle summary
  * @param {Object} state - Combat state
+ * @param {Object} options - Display options
+ * @param {boolean} options.allowContinue - Show "fight another round" option
+ * @returns {Promise<{continue: boolean}>} User choice
  */
-async function showBattleSummary(state) {
+async function showBattleSummary(state, options = {}) {
   const lines = generateBattleSummary(state);
-  await showSummary(lines);
+  return await showSummary(lines, options);
 }
 
 /**
  * Show fleet battle summary
  * @param {Object} state - Combat state with playerFleet, enemyFleet
+ * @param {Object} options - Display options
+ * @param {boolean} options.allowContinue - Show "fight another round" option
+ * @returns {Promise<{continue: boolean}>} User choice
  */
-async function showFleetSummary(state) {
+async function showFleetSummary(state, options = {}) {
   const lines = generateFleetSummary(state);
-  await showSummary(lines);
+  return await showSummary(lines, options);
 }
 
 module.exports = {

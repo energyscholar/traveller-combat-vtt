@@ -61,6 +61,23 @@ function delay(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+// Random starting ranges for varied combat scenarios
+const COMBAT_RANGES = ['Close', 'Short', 'Medium', 'Long', 'Very Long'];
+
+function getRandomRange() {
+  return COMBAT_RANGES[Math.floor(Math.random() * COMBAT_RANGES.length)];
+}
+
+// Combat outcome tracking for tactical analysis
+let combatStats = {
+  battlesRun: 0,
+  victories: 0,
+  defeats: 0,
+  calledShotsAttempted: 0,
+  calledShotsHit: 0,
+  powerPlantsDisabled: 0
+};
+
 // Reset state for new demo run
 function resetState(options = {}) {
   // Deep copy fleet arrays
@@ -80,10 +97,14 @@ function resetState(options = {}) {
     evasive: false
   }));
 
+  // Use random range if option set, otherwise config or specified
+  const startRange = options.randomRange ? getRandomRange() :
+    (options.startRange || config.startRange);
+
   state = {
     round: 1,
     phase: 'initiative',
-    range: options.startRange || config.startRange,
+    range: startRange,
     playerFleet,
     enemyFleet,
     narrative: [],
@@ -255,6 +276,9 @@ function render() {
   process.stdout.write(out);
 }
 
+// Called shot targets for random selection (10% chance)
+const CALLED_SHOT_TARGETS = ['mDrive', 'sensors', 'fuel', 'turret'];
+
 // Resolve attack between ships
 async function resolveAttack(attacker, defender, weapon) {
   state.actingShip = attacker.id;
@@ -269,7 +293,14 @@ async function resolveAttack(attacker, defender, weapon) {
   const fc = attacker.fireControl || 0;
   const gunner = turret.gunnerSkill || 0;
   const rangeDM = getRangeDM(state.range);
-  const totalDM = fc + gunner + rangeDM;
+
+  // 10% chance of called shot for regular gunners (not missiles)
+  const canCalledShot = !['missile_rack'].includes(turret.weapons?.[0]);
+  const useCalledShot = canCalledShot && Math.random() < 0.1;
+  const calledShotTarget = useCalledShot ? CALLED_SHOT_TARGETS[Math.floor(Math.random() * CALLED_SHOT_TARGETS.length)] : null;
+  const calledShotDM = useCalledShot ? -2 : 0;  // Standard called shot penalty
+
+  const totalDM = fc + gunner + rangeDM + calledShotDM;
 
   const roll = roll2d6();
   const total = roll.total + totalDM;
@@ -277,9 +308,27 @@ async function resolveAttack(attacker, defender, weapon) {
   const effect = hit ? total - 8 : 0;
 
   const attackerColor = state.playerFleet.includes(attacker) ? GREEN : RED;
-  const weaponName = turret.weapons?.[0] || 'weapon';
 
-  addNarrative(`${attackerColor}${attacker.name}${RESET} fires ${weaponName} at ${defender.name}`);
+  // Weapon selection: use missiles at long range or 30% at medium
+  let weaponName = turret.weapons?.[0] || 'weapon';
+  const isLongRange = ['long', 'very long', 'distant'].includes(state.range?.toLowerCase());
+  const hasMissiles = (attacker.missiles || 0) > 0 && turret.weapons?.includes('missile_rack');
+  const shouldFireMissile = hasMissiles && (isLongRange || (state.range?.toLowerCase() === 'medium' && Math.random() < 0.3));
+
+  if (shouldFireMissile) {
+    weaponName = 'missile_rack';
+    attacker.missiles--;
+    addNarrative(`${attackerColor}${BOLD}MISSILE LAUNCH!${RESET} ${attackerColor}(${attacker.missiles} remaining)${RESET}`);
+    render();
+    await delay(400);
+  }
+
+  if (useCalledShot && !shouldFireMissile) {
+    combatStats.calledShotsAttempted++;
+    addNarrative(`${attackerColor}${attacker.name}${RESET} fires ${weaponName} [CALLED: ${calledShotTarget}]`);
+  } else {
+    addNarrative(`${attackerColor}${attacker.name}${RESET} fires ${weaponName} at ${defender.name}`);
+  }
   addNarrative(`  Roll: ${roll.total}+${totalDM}=${total} vs 8 → ${hit ? `${GREEN}HIT${RESET}` : `${DIM}MISS${RESET}`}`);
 
   if (hit) {
@@ -287,6 +336,29 @@ async function resolveAttack(attacker, defender, weapon) {
     let damageRoll;
     if (weaponName === 'missile_rack') {
       damageRoll = rollNd6(4);  // Missiles: 4d6
+
+      // Point Defense: Defender attempts to shoot down missile if player ship
+      const isPlayerDefending = state.playerFleet.includes(defender);
+      if (isPlayerDefending && defender.turrets?.length > 0) {
+        const pdTurret = defender.turrets.find(t => t.weapons?.includes('pulse_laser') || t.weapons?.includes('beam_laser'));
+        if (pdTurret) {
+          // Track cumulative penalty per ship
+          defender.pdAttempts = (defender.pdAttempts || 0) + 1;
+          const pdPenalty = -(defender.pdAttempts - 1);
+          const pdGunnerSkill = pdTurret.gunnerSkill || 0;
+          const pdRoll = roll2d6();
+          const pdTotal = pdRoll.total + pdGunnerSkill + pdPenalty;
+          const pdSuccess = pdTotal >= 8;
+
+          if (pdSuccess) {
+            addNarrative(`  ${CYAN}★ POINT DEFENSE ★${RESET} ${GREEN}${defender.name} shoots down missile!${RESET}`);
+            addNarrative(`    (${pdRoll.total}+${pdGunnerSkill}${pdPenalty < 0 ? pdPenalty : ''}=${pdTotal} vs 8)`);
+            return { hit: false, pointDefense: true };
+          } else {
+            addNarrative(`  ${CYAN}POINT DEFENSE${RESET} ${RED}MISS${RESET} (${pdTotal} vs 8)`);
+          }
+        }
+      }
     } else if (weaponName === 'beam_laser') {
       damageRoll = rollNd6(3);  // Beam laser: 3d6
     } else {
@@ -380,6 +452,80 @@ async function ionAttack(attacker, defender) {
   return { hit: false };
 }
 
+// Marina's particle barbette attack with called shots
+async function particleAttack(attacker, defender) {
+  state.actingShip = attacker.id;
+  render();
+
+  const barbette = attacker.barbettes?.find(b => b.id === 'particle');
+  if (!barbette) return { hit: false };
+
+  const fc = attacker.fireControl || 0;
+  const gunner = barbette.gunnerSkill || 0;
+  const rangeDM = getRangeDM(state.range);
+
+  // Marina uses called shots 80% of the time targeting Power Plant
+  const useCalledShot = barbette.calledShot && Math.random() < 0.8;
+  const calledShotTarget = useCalledShot ? 'powerPlant' : null;
+  const calledShotDM = useCalledShot ? -4 : 0;  // Power Plant penalty
+
+  if (useCalledShot) combatStats.calledShotsAttempted++;
+
+  const totalDM = fc + gunner + rangeDM + calledShotDM;
+
+  const roll = roll2d6();
+  const total = roll.total + totalDM;
+  const hit = total >= 8;
+  const effect = hit ? total - 8 : 0;
+
+  if (useCalledShot) {
+    addNarrative(`${MAGENTA}${BOLD}MARINA: "Targeting power plant!"${RESET}`);
+    addNarrative(`${GREEN}${attacker.name}${RESET} fires ${MAGENTA}PARTICLE BARBETTE${RESET} [CALLED SHOT: Power Plant]`);
+    addNarrative(`  Roll: ${roll.total}+${gunner}${rangeDM < 0 ? rangeDM : '+' + rangeDM}${calledShotDM}=${total} vs 8 → ${hit ? `${GREEN}HIT${RESET}` : `${DIM}MISS${RESET}`}`);
+  } else {
+    addNarrative(`${GREEN}${attacker.name}${RESET} fires ${MAGENTA}PARTICLE BARBETTE${RESET}`);
+    addNarrative(`  Roll: ${roll.total}+${totalDM}=${total} vs 8 → ${hit ? `${GREEN}HIT${RESET}` : `${DIM}MISS${RESET}`}`);
+  }
+
+  if (hit) {
+    // Particle Barbette: 6d6 damage
+    const damageRoll = rollNd6(6);
+    const armor = defender.armour || 0;
+    const damage = Math.max(0, damageRoll - armor);
+
+    defender.hull = Math.max(0, defender.hull - damage);
+
+    if (useCalledShot && damage > 0) {
+      // Called shot hit - damage power plant system
+      if (!defender.systems) defender.systems = {};
+      if (!defender.systems.powerPlant) defender.systems.powerPlant = { hits: 0 };
+      defender.systems.powerPlant.hits = (defender.systems.powerPlant.hits || 0) + 1;
+
+      combatStats.calledShotsHit++;
+      const status = defender.systems.powerPlant.hits >= 3 ? 'DISABLED!' : `${defender.systems.powerPlant.hits}/3 hits`;
+      addNarrative(`  ${MAGENTA}${BOLD}★ POWER PLANT HIT! ★${RESET} ${status}`);
+      addNarrative(`  ${YELLOW}Damage: ${damageRoll} - ${armor} armor = ${damage}${RESET}`);
+
+      if (defender.systems.powerPlant.hits >= 3) {
+        defender.systems.powerPlant.disabled = true;
+        combatStats.powerPlantsDisabled++;
+        addNarrative(`  ${RED}${BOLD}>>> ${defender.name} POWER PLANT DISABLED! <<<${RESET}`);
+      }
+    } else {
+      addNarrative(`  ${YELLOW}Damage: ${damageRoll} - ${armor} armor = ${damage}${RESET}`);
+    }
+
+    if (defender.hull <= 0) {
+      defender.destroyed = true;
+      addNarrative(`  ${RED}${BOLD}>>> ${defender.name} DESTROYED! <<<${RESET}`);
+    }
+
+    return { hit: true, damage, effect, calledShot: calledShotTarget };
+  }
+
+  return { hit: false };
+}
+
 // Enemy capital ship attacks player fleet (targets weakest)
 async function capitalShipAttack(capitalShip, playerFleet) {
   state.actingShip = capitalShip.id;
@@ -456,14 +602,20 @@ async function runDemo() {
     // Fighters alpha strike
     await fighterAlphaStrike(fighters, enemy);
 
-    // Q-Ship ion attack
+    // Q-Ship barbette attacks (Ion + Marina's Particle)
     if (!enemy.destroyed) {
       addNarrative(`${GREEN}${BOLD}─── Q-SHIP ATTACK ───${RESET}`);
       render();
       await delay(600);
       await ionAttack(qship, enemy);
       render();
-      await delay(800);
+      await delay(400);
+      // Marina fires particle barbette with called shots
+      if (!enemy.destroyed) {
+        await particleAttack(qship, enemy);
+        render();
+        await delay(600);
+      }
     }
 
     // Enemy counterattack
@@ -479,11 +631,16 @@ async function runDemo() {
       await fighterAlphaStrike(getAliveShips(fighters), enemy);
     }
 
-    // Q-Ship ion attack
+    // Q-Ship barbette attacks
     if (!enemy.destroyed && !qship.destroyed) {
       await ionAttack(qship, enemy);
       render();
-      await delay(800);
+      await delay(400);
+      if (!enemy.destroyed) {
+        await particleAttack(qship, enemy);
+        render();
+        await delay(600);
+      }
     }
   }
 
@@ -553,11 +710,16 @@ async function runDemo() {
     await fighterAlphaStrike(aliveFighters, enemy);
   }
 
-  // Q-Ship continues ion bombardment
+  // Q-Ship continues barbette bombardment
   if (!enemy.destroyed && !qship.destroyed) {
     await ionAttack(qship, enemy);
     render();
-    await delay(600);
+    await delay(400);
+    if (!enemy.destroyed) {
+      await particleAttack(qship, enemy);
+      render();
+      await delay(600);
+    }
   }
 
   // Pinnace attacks
@@ -575,17 +737,97 @@ async function runDemo() {
   // Final check
   if (enemy.destroyed || enemy.hull <= 0) {
     addNarrative(`${GREEN}${BOLD}*** ENEMY DESTROYED! VICTORY! ***${RESET}`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
   } else if (isFleetDefeated(state.playerFleet)) {
     addNarrative(`${RED}${BOLD}*** FLEET DESTROYED! DEFEAT! ***${RESET}`);
-  } else {
-    addNarrative(`${CYAN}═══ DEMO COMPLETE ═══${RESET}`);
-    addNarrative(`${enemy.name}: ${enemy.hull}/${enemy.maxHull} hull, ${enemy.power || 0}/${enemy.maxPower || 100} power`);
-    addNarrative(`Player fleet: ${getAliveShips(state.playerFleet).length}/${state.playerFleet.length} ships`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
   }
 
+  // Both sides still fighting - offer continue
+  addNarrative(`${CYAN}═══ ROUND ${state.round} COMPLETE ═══${RESET}`);
+  addNarrative(`${enemy.name}: ${enemy.hull}/${enemy.maxHull} hull`);
+  addNarrative(`Player fleet: ${getAliveShips(state.playerFleet).length}/${state.playerFleet.length} ships`);
   render();
   await delay(2000);
-  await showFleetSummary(state);
+
+  const result = await showFleetSummary(state, { allowContinue: true });
+  if (result.continue) {
+    await runExtraRound();
+  }
+}
+
+/**
+ * Run an extra round of fleet combat
+ */
+async function runExtraRound() {
+  state.round++;
+  const enemy = state.enemyFleet[0];
+
+  addNarrative(`${CYAN}${BOLD}═══ ROUND ${state.round} ═══${RESET}`);
+  render();
+  await delay(600);
+
+  // Fighters attack
+  const aliveFighters = getAliveShips(state.playerFleet).filter(s => s.shipType === 'Fighter');
+  if (aliveFighters.length > 0) {
+    await fighterAlphaStrike(aliveFighters, enemy);
+    if (enemy.destroyed || enemy.hull <= 0) {
+      addNarrative(`${GREEN}${BOLD}*** ENEMY DESTROYED! VICTORY! ***${RESET}`);
+      render();
+      await delay(2000);
+      await showFleetSummary(state);
+      return;
+    }
+  }
+
+  // Capital ships attack
+  const aliveCapitals = getAliveShips(state.playerFleet).filter(s => s.shipType !== 'Fighter');
+  for (const ship of aliveCapitals) {
+    if (ship.turrets?.length > 0) {
+      for (const turret of ship.turrets) {
+        await resolveAttack(ship, enemy, turret);
+        if (enemy.destroyed || enemy.hull <= 0) break;
+      }
+    }
+    if (enemy.destroyed || enemy.hull <= 0) break;
+  }
+
+  if (enemy.destroyed || enemy.hull <= 0) {
+    addNarrative(`${GREEN}${BOLD}*** ENEMY DESTROYED! VICTORY! ***${RESET}`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
+  }
+
+  // Enemy attacks
+  await capitalShipAttack(enemy, state.playerFleet);
+
+  if (isFleetDefeated(state.playerFleet)) {
+    addNarrative(`${RED}${BOLD}*** FLEET DESTROYED! DEFEAT! ***${RESET}`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
+  }
+
+  // Still fighting - offer continue
+  addNarrative(`${CYAN}═══ ROUND ${state.round} COMPLETE ═══${RESET}`);
+  addNarrative(`${enemy.name}: ${enemy.hull}/${enemy.maxHull} hull`);
+  addNarrative(`Player fleet: ${getAliveShips(state.playerFleet).length}/${state.playerFleet.length} ships`);
+  render();
+  await delay(1500);
+
+  const result = await showFleetSummary(state, { allowContinue: true });
+  if (result.continue) {
+    await runExtraRound();
+  }
 }
 
 // === KEYBOARD HANDLING ===
@@ -689,7 +931,7 @@ module.exports = { runDemo3 };
 
 // Run directly if executed as main
 if (require.main === module) {
-  resetState();
+  resetState({ randomRange: true });  // Random starting range for variety
   setupKeyboardInput();
   runDemo().catch(console.error);
 }

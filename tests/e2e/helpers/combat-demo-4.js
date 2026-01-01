@@ -431,14 +431,52 @@ async function resolveAttack(attacker, defender, weapon) {
   const effect = hit ? total - 8 : 0;
 
   const attackerColor = state.playerFleet.includes(attacker) ? GREEN : RED;
-  const weaponName = turret.weapons?.[0] || 'weapon';
+
+  // Weapon selection: use missiles at long range or 30% at medium
+  let weaponName = turret.weapons?.[0] || 'weapon';
+  const isLongRange = ['long', 'very long', 'distant'].includes(state.range?.toLowerCase());
+  const hasMissiles = (attacker.missiles || 0) > 0 && turret.weapons?.includes('missile_rack');
+  const shouldFireMissile = hasMissiles && (isLongRange || (state.range?.toLowerCase() === 'medium' && Math.random() < 0.3));
+
+  if (shouldFireMissile) {
+    weaponName = 'missile_rack';
+    attacker.missiles--;
+    addNarrative(`${attackerColor}${BOLD}MISSILE LAUNCH!${RESET} ${attackerColor}(${attacker.missiles} remaining)${RESET}`);
+    render();
+    await delay(400);
+  }
 
   const surpriseNote = surpriseBonus > 0 ? ` ${YELLOW}+${surpriseBonus} surprise${RESET}` : '';
-  addNarrative(`${attackerColor}${attacker.name}${RESET} fires at ${defender.name}${surpriseNote}`);
+  addNarrative(`${attackerColor}${attacker.name}${RESET} fires ${weaponName} at ${defender.name}${surpriseNote}`);
   addNarrative(`  ${roll.total}+${totalDM}=${total} → ${hit ? `${GREEN}HIT${RESET}` : `${DIM}MISS${RESET}`}`);
 
   if (hit) {
     let damageRoll = weaponName === 'missile_rack' ? rollNd6(4) : rollNd6(2);
+
+    // Point Defense: Defender attempts to shoot down missile if player ship
+    if (weaponName === 'missile_rack') {
+      const isPlayerDefending = state.playerFleet.includes(defender);
+      if (isPlayerDefending && defender.turrets?.length > 0) {
+        const pdTurret = defender.turrets.find(t =>
+          t.weapons?.includes('pulse_laser') || t.weapons?.includes('beam_laser'));
+        if (pdTurret) {
+          defender.pdAttempts = (defender.pdAttempts || 0) + 1;
+          const pdPenalty = -(defender.pdAttempts - 1);
+          const pdGunnerSkill = pdTurret.gunnerSkill || 0;
+          const pdRoll = roll2d6();
+          const pdTotal = pdRoll.total + pdGunnerSkill + pdPenalty;
+          const pdSuccess = pdTotal >= 8;
+
+          if (pdSuccess) {
+            addNarrative(`  ${CYAN}★ POINT DEFENSE ★${RESET} ${GREEN}Missile destroyed!${RESET} (${pdTotal} vs 8)`);
+            return { hit: false, pointDefense: true };
+          } else {
+            addNarrative(`  ${CYAN}POINT DEFENSE${RESET} ${RED}MISS${RESET} (${pdTotal} vs 8)`);
+          }
+        }
+      }
+    }
+
     const armor = defender.armour || 0;
     const damage = Math.max(0, damageRoll - armor);
 
@@ -795,17 +833,106 @@ async function runDemo() {
     if (fled.length > 0) {
       addNarrative(`${YELLOW}Escaped: ${fled.map(s => s.name).join(', ')}${RESET}`);
     }
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
   } else if (isFleetDefeated(state.playerFleet)) {
     addNarrative(`${RED}${BOLD}*** FLEET DESTROYED! DEFEAT! ***${RESET}`);
-  } else {
-    addNarrative(`${CYAN}═══ DEMO COMPLETE ═══${RESET}`);
-    addNarrative(`Player: ${getAliveShips(state.playerFleet).length}/${state.playerFleet.length} ships`);
-    addNarrative(`Pirates: ${getAliveShips(state.enemyFleet).length}/${state.enemyFleet.length} ships`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
   }
 
+  // Both sides still fighting - offer continue
+  addNarrative(`${CYAN}═══ ROUND ${state.round} COMPLETE ═══${RESET}`);
+  addNarrative(`Player: ${getAliveShips(state.playerFleet).length}/${state.playerFleet.length} ships`);
+  addNarrative(`Pirates: ${getAliveShips(state.enemyFleet).length}/${state.enemyFleet.length} ships`);
   render();
   await delay(2000);
-  await showFleetSummary(state);
+
+  const result = await showFleetSummary(state, { allowContinue: true });
+  if (result.continue) {
+    await runExtraRound();
+  }
+}
+
+/**
+ * Run an extra round of fleet vs fleet combat
+ */
+async function runExtraRound() {
+  state.round++;
+  state.piratesSurprised = false; // No more surprise after first round
+
+  addNarrative(`${CYAN}${BOLD}═══ ROUND ${state.round} ═══${RESET}`);
+  render();
+  await delay(600);
+
+  // Fighters attack priority targets
+  const aliveFighters = getAliveShips(state.playerFleet).filter(s => s.shipType === 'Fighter');
+  const aliveEnemies = getAliveShips(state.enemyFleet);
+
+  for (const fighter of aliveFighters) {
+    if (aliveEnemies.length === 0) break;
+    const target = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+    await resolveAttack(fighter, target, fighter.turrets?.[0]);
+    if (target.hull <= 0) {
+      target.destroyed = true;
+      addNarrative(`${GREEN}${BOLD}>>> ${target.name} DESTROYED! <<<${RESET}`);
+    }
+  }
+
+  // Q-Ship attacks
+  const qship = state.playerFleet.find(s => s.name === 'Astral Dawn' && !s.destroyed);
+  if (qship && qship.turrets) {
+    for (const turret of qship.turrets) {
+      const target = getAliveShips(state.enemyFleet)[0];
+      if (!target) break;
+      await resolveAttack(qship, target, turret);
+      if (target.hull <= 0) {
+        target.destroyed = true;
+        addNarrative(`${GREEN}${BOLD}>>> ${target.name} DESTROYED! <<<${RESET}`);
+      }
+    }
+  }
+
+  // Check for victory
+  if (isFleetDefeated(state.enemyFleet)) {
+    addNarrative(`${GREEN}${BOLD}*** PIRATE FLEET DEFEATED! VICTORY! ***${RESET}`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
+  }
+
+  // Check pirate morale
+  for (const pirate of state.enemyFleet) {
+    checkPirateMorale(pirate);
+  }
+
+  // Pirates counterattack
+  await pirateFleetAttack(state.enemyFleet, state.playerFleet);
+
+  if (isFleetDefeated(state.playerFleet)) {
+    addNarrative(`${RED}${BOLD}*** FLEET DESTROYED! DEFEAT! ***${RESET}`);
+    render();
+    await delay(2000);
+    await showFleetSummary(state);
+    return;
+  }
+
+  // Still fighting - offer continue
+  addNarrative(`${CYAN}═══ ROUND ${state.round} COMPLETE ═══${RESET}`);
+  addNarrative(`Player: ${getAliveShips(state.playerFleet).length}/${state.playerFleet.length} ships`);
+  addNarrative(`Pirates: ${getAliveShips(state.enemyFleet).length}/${state.enemyFleet.length} ships`);
+  render();
+  await delay(1500);
+
+  const result = await showFleetSummary(state, { allowContinue: true });
+  if (result.continue) {
+    await runExtraRound();
+  }
 }
 
 // === KEYBOARD HANDLING ===
