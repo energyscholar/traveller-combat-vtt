@@ -615,13 +615,7 @@ function initSocket() {
 
   // AR-214: ops:shipSystems moved to socket-handlers/systems.js
 
-  // Autorun 5: Handle jump status update (for skip-to-exit feature)
-  state.socket.on('ops:jumpStatusUpdated', (data) => {
-    const { jumpStatus, message } = data;
-    state.jumpStatus = jumpStatus;
-    showNotification(message || 'Jump status updated', 'success');
-    renderRoleDetailPanel(state.selectedRole);
-  });
+  // AR-214: ops:jumpStatusUpdated moved to socket-handlers/jump.js
 
   // AR-201: Misc events moved to socket-handlers/misc.js
   // (16 handlers: ops:timeUpdated, ops:mailList, ops:prepData, etc.)

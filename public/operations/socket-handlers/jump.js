@@ -146,6 +146,14 @@ function handlePositionVerified(data, state, helpers) {
   }
 }
 
+// AR-214: Jump status updated (for skip-to-exit feature)
+function handleJumpStatusUpdated(data, state, helpers) {
+  const { jumpStatus, message } = data;
+  state.jumpStatus = jumpStatus;
+  helpers.showNotification(message || 'Jump status updated', 'success');
+  helpers.renderRoleDetailPanel(state.selectedRole);
+}
+
 // ==================== Register All Handlers ====================
 
 registerHandler('ops:jumpStatus', handleJumpStatus);
@@ -153,6 +161,7 @@ registerHandler('ops:jumpPlotted', handleJumpPlotted);
 registerHandler('ops:jumpInitiated', handleJumpInitiated);
 registerHandler('ops:jumpCompleted', handleJumpCompleted);
 registerHandler('ops:positionVerified', handlePositionVerified);
+registerHandler('ops:jumpStatusUpdated', handleJumpStatusUpdated);
 
 // Export for testing
 export {
@@ -160,5 +169,6 @@ export {
   handleJumpPlotted,
   handleJumpInitiated,
   handleJumpCompleted,
-  handlePositionVerified
+  handlePositionVerified,
+  handleJumpStatusUpdated
 };
