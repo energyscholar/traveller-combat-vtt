@@ -24,6 +24,13 @@ const {
 const { showFleetSummary } = require('./battle-summary');
 const narrative = require('./combat-narrative');
 
+// AR-236: Shared Combat Engine
+const { CombatEngine } = require('../../../lib/engine/combat-engine');
+const { EventTypes } = require('../../../lib/engine/event-bus');
+
+// Combat engine instance (initialized in resetState)
+let engine = null;
+
 // ANSI codes
 const ESC = '\x1b';
 const CLEAR = `${ESC}[2J`;
@@ -178,6 +185,10 @@ function resetState(options = {}) {
     initiativeOrder: [],  // Sorted by initiative roll
     actingShip: null      // Currently acting ship ID
   };
+
+  // AR-236: Initialize combat engine
+  engine = new CombatEngine();
+  engine.initCombat(playerFleet, enemyFleet, { range: startRange });
 }
 
 // Roll initiative for a ship
@@ -210,17 +221,10 @@ function rollShipInitiative(ship) {
  * Fighters at Long/Very Long range should be evasive (M-6 = -6 to hit them)
  */
 function applyTacticalStance(fleet, range) {
-  const isLongRange = ['long', 'very long', 'distant'].includes(range?.toLowerCase());
-
-  for (const ship of fleet) {
-    if (ship.destroyed) continue;
-
-    // Fighters with high thrust should be evasive at long range
-    if (ship.thrust >= 6 && isLongRange) {
-      ship.evasive = true;
-    } else {
-      ship.evasive = false;
-    }
+  // AR-236: Delegate to combat engine
+  if (engine) {
+    engine.range = range || engine.range;
+    engine.applyTacticalStance(fleet);
   }
 }
 
@@ -379,9 +383,9 @@ function render() {
 }
 
 // Called shot targets for random selection (10% chance)
-const CALLED_SHOT_TARGETS = ['mDrive', 'sensors', 'fuel', 'turret'];
+const CALLED_SHOT_TARGETS = ['mDrive', 'sensors', 'fuel', 'weapon'];
 
-// Resolve attack between ships
+// AR-236: Resolve attack using shared CombatEngine
 async function resolveAttack(attacker, defender, weapon) {
   state.actingShip = attacker.id;
   render();
@@ -392,111 +396,70 @@ async function resolveAttack(attacker, defender, weapon) {
     return { hit: false };
   }
 
-  const fc = attacker.fireControl || 0;
-  const gunner = turret.gunnerSkill || 0;
-  const rangeDM = getRangeDM(state.range);
-  // Evasive targets are harder to hit (uses thrust as dodge bonus in Mongoose Traveller)
-  const evasiveDM = defender?.evasive ? -(defender.thrust || 0) : 0;
+  // Skip sandcasters - defensive only
+  const weapons = turret.weapons || [];
+  if (weapons.every(w => w === 'sandcaster')) {
+    return { hit: false };
+  }
+
+  const isPlayer = state.playerFleet.includes(attacker);
+  const attackerColor = isPlayer ? GREEN : RED;
 
   // 10% chance of called shot for regular gunners (not missiles)
   const canCalledShot = !['missile_rack'].includes(turret.weapons?.[0]);
   const useCalledShot = canCalledShot && Math.random() < 0.1;
   const calledShotTarget = useCalledShot ? CALLED_SHOT_TARGETS[Math.floor(Math.random() * CALLED_SHOT_TARGETS.length)] : null;
-  const calledShotDM = useCalledShot ? -2 : 0;  // Standard called shot penalty
 
-  const totalDM = fc + gunner + rangeDM + calledShotDM + evasiveDM;
-
-  const roll = roll2d6();
-  const total = roll.total + totalDM;
-  const hit = total >= 8;
-  const effect = hit ? total - 8 : 0;
-
-  const attackerColor = state.playerFleet.includes(attacker) ? GREEN : RED;
-
-  // Weapon selection: use missiles at long range or 30% at medium
-  let weaponName = turret.weapons?.[0] || 'weapon';
-  const isLongRange = ['long', 'very long', 'distant'].includes(state.range?.toLowerCase());
+  // Check if should auto-fire missiles at long range
+  const isLongRange = engine.isLongRange();
   const hasMissiles = (attacker.missiles || 0) > 0 && turret.weapons?.includes('missile_rack');
   const shouldFireMissile = hasMissiles && (isLongRange || (state.range?.toLowerCase() === 'medium' && Math.random() < 0.3));
 
   if (shouldFireMissile) {
-    weaponName = 'missile_rack';
-    attacker.missiles--;
-    addNarrative(`${attackerColor}${BOLD}MISSILE LAUNCH!${RESET} ${attackerColor}(${attacker.missiles} remaining)${RESET}`);
+    addNarrative(`${attackerColor}${BOLD}MISSILE LAUNCH!${RESET} ${attackerColor}(${attacker.missiles - 1} remaining)${RESET}`);
     render();
     await delay(400);
   }
 
-  const isPlayer = state.playerFleet.includes(attacker);
+  // Use combat engine for attack resolution
+  const result = engine.resolveAttack(attacker, defender, {
+    weapon: turret,
+    calledShot: calledShotTarget,
+    autoMissile: shouldFireMissile
+  });
 
-  // Calculate damage upfront for consolidated output
-  let damageRoll = 0;
-  let armor = defender.armour || 0;
-  let damage = 0;
-  let pointDefenseSuccess = false;
-
-  if (hit) {
-    if (weaponName === 'missile_rack') {
-      damageRoll = rollNd6(4);  // Missiles: 4d6
-
-      // Point Defense: Defender attempts to shoot down missile
-      const isPlayerDefending = state.playerFleet.includes(defender);
-      if (isPlayerDefending && defender.turrets?.length > 0) {
-        const pdTurret = defender.turrets.find(t => t.weapons?.includes('pulse_laser') || t.weapons?.includes('beam_laser'));
-        if (pdTurret) {
-          defender.pdAttempts = (defender.pdAttempts || 0) + 1;
-          const pdPenalty = -(defender.pdAttempts - 1);
-          const pdGunnerSkill = pdTurret.gunnerSkill || 0;
-          const pdRoll = roll2d6();
-          const pdTotal = pdRoll.total + pdGunnerSkill + pdPenalty;
-          pointDefenseSuccess = pdTotal >= 8;
-
-          if (pointDefenseSuccess) {
-            addNarrative(`${CYAN}Point defense intercept!${RESET} ${DIM}[PD: ${pdTotal} vs 8]${RESET}`);
-            return { hit: false, pointDefense: true };
-          } else {
-            addNarrative(`${DIM}PD miss [${pdTotal} vs 8]${RESET}`);
-          }
-        }
-      }
-    } else if (weaponName === 'beam_laser') {
-      damageRoll = rollNd6(3);
-    } else {
-      damageRoll = rollNd6(2);
-    }
-    damage = Math.max(0, damageRoll - armor);
-    defender.hull = Math.max(0, defender.hull - damage);
+  // Handle point defense intercept
+  if (result.pointDefense?.success) {
+    addNarrative(`${CYAN}Point defense intercept!${RESET} ${DIM}[PD: ${result.pointDefense.total} vs 8]${RESET}`);
+    return { hit: false, pointDefense: true };
+  } else if (result.pointDefense && !result.pointDefense.success) {
+    addNarrative(`${DIM}PD miss [${result.pointDefense.total} vs 8]${RESET}`);
   }
 
-  // Consolidated single-line output
-  if (useCalledShot && !shouldFireMissile) {
+  // Generate narrative output
+  if (calledShotTarget && !shouldFireMissile) {
     combatStats.calledShotsAttempted++;
-    if (hit) {
-      // Track system hits
-      if (!defender.systems) defender.systems = {};
-      if (!defender.systems[calledShotTarget]) defender.systems[calledShotTarget] = { hits: 0 };
-      defender.systems[calledShotTarget].hits++;
+    if (result.hit) {
       combatStats.calledShotsHit++;
-      addNarrative(narrative.calledShotLine(attacker, defender, calledShotTarget, true, roll, damage, {
-        isPlayer, mods: totalDM, systemHits: defender.systems[calledShotTarget].hits
+      addNarrative(narrative.calledShotLine(attacker, defender, calledShotTarget, true, result.roll, result.damage, {
+        isPlayer, mods: result.totalDM, systemHits: defender.systems?.[calledShotTarget]?.hits || 1
       }));
     } else {
-      addNarrative(narrative.calledShotLine(attacker, defender, calledShotTarget, false, roll, 0, {
-        isPlayer, mods: totalDM
+      addNarrative(narrative.calledShotLine(attacker, defender, calledShotTarget, false, result.roll, 0, {
+        isPlayer, mods: result.totalDM
       }));
     }
   } else {
-    addNarrative(narrative.attackLine(attacker, defender, weaponName, hit, roll, damage, {
-      isPlayer, mods: totalDM
+    addNarrative(narrative.attackLine(attacker, defender, result.weapon, result.hit, result.roll, result.damage, {
+      isPlayer, mods: result.totalDM
     }));
   }
 
-  if (hit && defender.hull <= 0) {
-    defender.destroyed = true;
+  if (result.destroyed) {
     addNarrative(narrative.destroyedNarrative(defender));
   }
 
-  return hit ? { hit: true, damage, effect } : { hit: false };
+  return result.hit ? { hit: true, damage: result.damage, effect: result.effect } : { hit: false };
 }
 
 // Fighter alpha strike - all fighters fire missiles at target

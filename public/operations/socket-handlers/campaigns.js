@@ -103,6 +103,28 @@ function handlePlayerSlotDeleted(data, state, helpers) {
   helpers.renderPlayerSlots();
 }
 
+// ==================== Solo Explorer (AR-241) ====================
+
+function handleSoloCampaignCreated(data, state, helpers) {
+  state.campaign = data.campaign;
+  state.ships = [data.ship];
+  state.isGM = true;
+  state.isSolo = true;
+
+  // Auto-select the Scout ship
+  state.selectedShipId = data.ship?.id;
+  state.selectedRole = 'captain';  // Solo player starts as captain
+
+  // Go directly to bridge (skip GM setup)
+  helpers.showScreen('bridge');
+  helpers.showNotification('Welcome, Solo Explorer! Your Type S Scout awaits.', 'success');
+
+  // Save session for reconnect
+  helpers.saveSession();
+  // Request shared map state
+  state.socket.emit('ops:getMapState');
+}
+
 // ==================== Campaign Join ====================
 
 function handleCampaignJoined(data, state, helpers) {
@@ -154,6 +176,7 @@ registerHandler('ops:playerSlotCreated', handlePlayerSlotCreated);
 registerHandler('ops:playerSlotDeleted', handlePlayerSlotDeleted);
 registerHandler('ops:campaignJoined', handleCampaignJoined);
 registerHandler('ops:playerSlotSelected', handlePlayerSlotSelected);
+registerHandler('ops:soloCampaignCreated', handleSoloCampaignCreated);
 
 // Export for testing
 export {
@@ -169,5 +192,6 @@ export {
   handlePlayerSlotCreated,
   handlePlayerSlotDeleted,
   handleCampaignJoined,
-  handlePlayerSlotSelected
+  handlePlayerSlotSelected,
+  handleSoloCampaignCreated
 };

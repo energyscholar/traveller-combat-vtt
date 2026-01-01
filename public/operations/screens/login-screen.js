@@ -34,6 +34,20 @@ function initLoginScreen(state, helpers) {
     document.getElementById('player-select').classList.remove('hidden');
   });
 
+  // AR-241: Solo Explorer
+  const btnSoloExplorer = document.getElementById('btn-solo-explorer');
+  if (btnSoloExplorer) {
+    btnSoloExplorer.addEventListener('click', () => {
+      // Create solo campaign with Type S Scout
+      state.socket.emit('ops:createSoloCampaign', {
+        campaignType: 'solo_explorer',
+        shipType: 'scout',  // Type S Scout
+        startSystem: 'Regina',
+        explorerName: 'Solo Explorer'
+      });
+    });
+  }
+
   // Back buttons
   document.getElementById('btn-back-login').addEventListener('click', () => {
     document.getElementById('campaign-select').classList.add('hidden');

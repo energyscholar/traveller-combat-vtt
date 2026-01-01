@@ -96,7 +96,8 @@ const unitTests = [
   'tests/system-cache.test.js',  // AR-28: System cache tests (9 tests)
   'tests/captain.test.js',  // AR-29: Captain role tests (10 tests)
   'tests/gunner-training.test.js',  // AR-29: Gunner training target tests (8 tests)
-  'tests/unit/travellermap-proxy.test.js'  // AR-121: TravellerMap proxy tests (17 tests)
+  'tests/unit/travellermap-proxy.test.js',  // AR-121: TravellerMap proxy tests (17 tests)
+  'tests/engine/starsystem-generator.test.js'  // AR-240: Star system generator (39 tests)
 ];
 
 // Integration tests

@@ -3166,10 +3166,11 @@ function drawMapContacts(ctx, centerX, centerY, zoom) {
 
     // Contact label (transponder or designation)
     // AR-199: Only draw labels if enabled
+    // AR-239: Use white labels (not contact color) to avoid green overlap
     if (systemMapState.showLabels) {
       const label = contact.transponder || contact.designation || contact.name;
       if (label && zoom > 0.5) {
-        ctx.fillStyle = color;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.font = '9px monospace';
         ctx.textAlign = 'center';
         ctx.fillText(label, screenX, screenY + size + 10);

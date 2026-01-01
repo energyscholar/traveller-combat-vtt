@@ -122,6 +122,18 @@ html, body {
   border-color: var(--border-color);
 }
 
+/* AR-241: Solo Explorer accent button */
+.btn-accent {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border-color: #8b5cf6;
+  color: white;
+}
+
+.btn-accent:hover {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border-color: #7c3aed;
+}
+
 .btn-success {
   background: var(--accent-green);
   border-color: var(--accent-green);
