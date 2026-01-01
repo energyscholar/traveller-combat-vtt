@@ -276,6 +276,9 @@ let state = {};
 // Callback for returning to menu
 let returnToMenuCallback = null;
 
+// Pause state for ESC key
+let isPaused = false;
+
 // Reset state for new demo run
 function resetState(options = {}) {
   state = {
@@ -761,13 +764,76 @@ function render() {
     out += appendSidebar(`${CYAN}║${RESET}${' '.repeat(w - 2)}${CYAN}║${RESET}`) + '\n';
   }
 
+  // Footer with hotkey hints
+  const pauseText = isPaused ? `${YELLOW}[PAUSED]${RESET} ` : '';
+  const footerHints = `${pauseText}${DIM}[ESC]pause [1-2]ship [?]help [m]ode [b]ack [q]uit${RESET}`;
+  out += appendSidebar(`${CYAN}╠${'═'.repeat(w-2)}╣${RESET}`) + '\n';
+  out += appendSidebar(`${CYAN}║${RESET} ${footerHints}${' '.repeat(Math.max(1, w - visLen(footerHints) - 4))}${CYAN}║${RESET}`) + '\n';
   out += appendSidebar(`${CYAN}${BOLD}╚${'═'.repeat(w-2)}╝${RESET}`) + '\n';
 
   process.stdout.write(out);
 }
 
+/**
+ * Delay with pause support
+ */
 function delay(ms) {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise(resolve => {
+    const startTime = Date.now();
+    const checkPause = () => {
+      if (isPaused) {
+        process.stdout.write(`\r${ANSI.YELLOW}${ANSI.BOLD}[PAUSED - ESC to resume]${ANSI.RESET}  `);
+        setTimeout(checkPause, 100);
+      } else {
+        const elapsed = Date.now() - startTime;
+        const remaining = ms - elapsed;
+        if (remaining > 0) {
+          setTimeout(resolve, remaining);
+        } else {
+          resolve();
+        }
+      }
+    };
+    setTimeout(checkPause, ms);
+  });
+}
+
+/**
+ * Toggle pause state
+ */
+function togglePause() {
+  isPaused = !isPaused;
+  if (isPaused) {
+    console.log(`\n${ANSI.YELLOW}${ANSI.BOLD}══════ PAUSED ══════${ANSI.RESET}`);
+    console.log(`${ANSI.DIM}Press ESC to resume, or number keys for ship details${ANSI.RESET}`);
+  } else {
+    console.log(`${ANSI.GREEN}${ANSI.BOLD}══════ RESUMED ══════${ANSI.RESET}\n`);
+  }
+}
+
+/**
+ * Show ship details by index
+ */
+function showShipDetails(index) {
+  const ships = [state.player, state.enemy];
+  if (index < ships.length) {
+    const ship = ships[index];
+    const isEnemy = index >= 1;
+    const color = isEnemy ? ANSI.RED : ANSI.GREEN;
+    const systems = isEnemy ? state.enemySystems : state.playerSystems;
+    console.log(`\n${color}${ANSI.BOLD}═══ ${ship.name} ═══${ANSI.RESET}`);
+    console.log(`  Type: ${ship.shipType}`);
+    console.log(`  Hull: ${ship.hull}/${ship.maxHull} HP`);
+    console.log(`  Armor: ${ship.armour || 0}`);
+    console.log(`  Power: ${ship.power}/${ship.maxPower}`);
+    if (systems) {
+      const ppHits = systems.powerPlant?.hits || 0;
+      if (ppHits > 0) {
+        console.log(`  ${ANSI.YELLOW}Power Plant Hits: ${ppHits}/3${ANSI.RESET}`);
+      }
+    }
+    console.log();
+  }
 }
 
 // === TURN NOTIFICATION SEQUENCE ===
@@ -1554,6 +1620,18 @@ function setupKeyboardInput() {
       process.exit(0);
     }
 
+    // ESC key toggles pause (works anytime)
+    if (key === '\x1b' || key === '\u001b') {
+      togglePause();
+      return;
+    }
+
+    // Number keys 1-2 for ship details (work even while paused)
+    if (key >= '1' && key <= '2') {
+      showShipDetails(parseInt(key) - 1);
+      return;
+    }
+
     if (showingHelp) {
       // Any key dismisses help
       showingHelp = false;
@@ -1561,8 +1639,13 @@ function setupKeyboardInput() {
       return;
     }
 
+    // Don't process other keys while paused
+    if (isPaused) {
+      return;
+    }
+
     // h - show help
-    if (key === 'h' || key === 'H') {
+    if (key === 'h' || key === 'H' || key === '?') {
       showingHelp = true;
       renderHelp();
       return;

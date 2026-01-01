@@ -46,6 +46,10 @@ const config = DEMO_CONFIGS.demo3;
 let state = {};
 let returnToMenuCallback = null;
 
+// Pause state for ESC key
+let isPaused = false;
+let pauseResolver = null;
+
 // Dice helpers
 function roll1d6() { return Math.floor(Math.random() * 6) + 1; }
 function roll2d6() {
@@ -58,8 +62,68 @@ function rollNd6(n) {
   return sum;
 }
 
+/**
+ * Delay with pause support
+ * If paused, waits for unpause before continuing
+ */
 function delay(ms) {
-  return new Promise(r => setTimeout(r, ms));
+  return new Promise(resolve => {
+    const startTime = Date.now();
+    const checkPause = () => {
+      if (isPaused) {
+        // Show pause indicator
+        process.stdout.write(`\r${YELLOW}${BOLD}[PAUSED - ESC to resume]${RESET}  `);
+        // Check again in 100ms
+        setTimeout(checkPause, 100);
+      } else {
+        const elapsed = Date.now() - startTime;
+        const remaining = ms - elapsed;
+        if (remaining > 0) {
+          setTimeout(resolve, remaining);
+        } else {
+          resolve();
+        }
+      }
+    };
+    setTimeout(checkPause, ms);
+  });
+}
+
+/**
+ * Toggle pause state
+ */
+function togglePause() {
+  isPaused = !isPaused;
+  if (isPaused) {
+    console.log(`\n${YELLOW}${BOLD}══════ PAUSED ══════${RESET}`);
+    console.log(`${DIM}Press ESC to resume, or number keys for ship details${RESET}`);
+  } else {
+    console.log(`${GREEN}${BOLD}══════ RESUMED ══════${RESET}\n`);
+  }
+}
+
+/**
+ * Show ship details by index
+ */
+function showShipDetails(index) {
+  const allShips = [...(state.playerFleet || []), ...(state.enemyFleet || [])];
+  if (index < allShips.length) {
+    const ship = allShips[index];
+    const isEnemy = index >= (state.playerFleet?.length || 0);
+    const color = isEnemy ? RED : GREEN;
+    console.log(`\n${color}${BOLD}═══ ${ship.name} ═══${RESET}`);
+    console.log(`  Type: ${ship.shipType}`);
+    console.log(`  Hull: ${ship.hull}/${ship.maxHull} HP`);
+    console.log(`  Armor: ${ship.armour || 0}`);
+    console.log(`  Power: ${ship.power}/${ship.maxPower}`);
+    if (ship.systems) {
+      const ppHits = ship.systems.powerPlant?.hits || 0;
+      if (ppHits > 0) {
+        console.log(`  ${YELLOW}Power Plant Hits: ${ppHits}/3${RESET}`);
+      }
+    }
+    console.log();
+  }
 }
 
 // Random starting ranges for varied combat scenarios
@@ -269,9 +333,10 @@ function render() {
 
   out += `${CYAN}╠${'═'.repeat(w-2)}╣${RESET}\n`;
 
-  // Footer
+  // Footer with hotkey hints
   const modeText = state.manualMode ? `${YELLOW}MANUAL${RESET}` : `${GREEN}AUTO${RESET}`;
-  out += `${CYAN}║${RESET} Mode: ${modeText}  ${DIM}[h]elp [m]ode [b]ack [r]estart [q]uit${RESET}${' '.repeat(Math.max(1, w - 52))}${CYAN}║${RESET}\n`;
+  const pauseText = isPaused ? `${YELLOW}[PAUSED]${RESET} ` : '';
+  out += `${CYAN}║${RESET} ${pauseText}Mode: ${modeText}  ${DIM}[ESC]pause [1-9]ship [?]help [r]estart [q]uit${RESET}${' '.repeat(Math.max(1, w - 60))}${CYAN}║${RESET}\n`;
   out += `${CYAN}${BOLD}╚${'═'.repeat(w-2)}╝${RESET}\n`;
 
   process.stdout.write(out);
@@ -986,13 +1051,30 @@ function setupKeyboardInput() {
       process.exit(0);
     }
 
+    // ESC key toggles pause (works anytime)
+    if (key === '\x1b' || key === '\u001b') {
+      togglePause();
+      return;
+    }
+
+    // Number keys 1-9 for ship details (work even while paused)
+    if (key >= '1' && key <= '9') {
+      showShipDetails(parseInt(key) - 1);
+      return;
+    }
+
     if (showingHelp) {
       showingHelp = false;
       render();
       return;
     }
 
-    if (key === 'h' || key === 'H') {
+    // Don't process other keys while paused (except above)
+    if (isPaused) {
+      return;
+    }
+
+    if (key === 'h' || key === 'H' || key === '?') {
       showingHelp = true;
       renderHelp();
       return;
