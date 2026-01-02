@@ -165,7 +165,8 @@ import { getEditorState, setEditorData, openShipEditor as _openShipEditor, popul
 import { getEvasiveState, setEvasiveState, getPendingTravel, clearPendingTravel, toggleEvasive as _toggleEvasive, changeRange as _changeRange, setCourse as _setCourse, clearCourse as _clearCourse, travel as _travel, undock as _undock, setupPilotListeners as _setupPilotListeners } from './modules/pilot-controls.js';
 // AR-164: Ship Status Panels
 import { initShipStatusPanel, refreshShipStatus, destroyShipStatusPanel } from './modules/ship-status-panel.js';
-import { initCompactViewscreen, destroyCompactViewscreen, setViewscreenVisible } from './modules/compact-viewscreen.js';
+// NUCLEAR FIX: compact-viewscreen.js replaced with system-map-light.js
+import { initSystemMapLight, destroySystemMapLight } from './modules/system-map-light.js';
 
 // AR-152: Helper wrappers for notification variants
 const showError = (msg) => showNotification(msg, 'error');
@@ -465,6 +466,7 @@ function initSocket() {
     // Combat
     showCombatScreen,
     hideCombatScreen,
+    updateCombatPhaseBar,
     handleWeaponsAuthorized,
     handleFireResult,
     // Sensors
@@ -673,6 +675,51 @@ function initSocket() {
     }
   });
 
+  // Ship Relocated - GM moved ship to new star system
+  state.socket.on('ops:shipRelocated', (data) => {
+    const { systemId, systemName, systemHex, locationId, locationName, jumpEmergence } = data;
+
+    console.log(`[ShipRelocated] Arrived at ${systemName} (${systemHex})`);
+
+    // Update local state
+    if (state.shipState) {
+      state.shipState.systemHex = systemHex;
+      state.shipState.locationId = locationId;
+      state.shipState.locationName = locationName;
+    }
+    if (state.campaign) {
+      state.campaign.current_system = systemName;
+    }
+
+    // Update bridge header if visible
+    const bridgeHex = document.getElementById('bridge-hex');
+    if (bridgeHex) {
+      bridgeHex.textContent = systemHex;
+      bridgeHex.title = systemName;
+    }
+    const bridgeLoc = document.getElementById('bridge-location');
+    if (bridgeLoc) bridgeLoc.textContent = locationName;
+
+    // Show jump emergence interstitial for dramatic effect
+    if (jumpEmergence) {
+      showJumpEmergenceInterstitial(systemName, systemHex, () => {
+        // After interstitial, reload system map if open
+        const systemMapOverlay = document.getElementById('system-map-overlay');
+        if (systemMapOverlay) {
+          // Trigger reload of new system
+          const select = document.getElementById('test-system-select');
+          if (select) {
+            select.value = systemId;
+            document.getElementById('btn-load-system')?.click();
+          }
+        }
+        showNotification(`Arrived at ${systemName} - ${locationName}`, 'success');
+      });
+    } else {
+      showNotification(`Arrived at ${systemName} - ${locationName}`, 'success');
+    }
+  });
+
   // ==================== AR-40: Library Computer Events ====================
   state.socket.on('ops:libraryResults', handleLibraryResults);
   state.socket.on('ops:uwpDecoded', handleUWPDecoded);
@@ -792,22 +839,75 @@ function showCombatScreen(combatState) {
 
   const combatants = combatState.combatants || [];
 
+  // AR-268: Build phase indicator bar
+  const phases = ['initiative', 'manoeuvre', 'attack', 'reaction', 'actions', 'damage'];
+  const currentPhase = combatState.phase || 'manoeuvre';
+  const currentRound = combatState.round || 1;
+  const phaseIndicators = phases.map(p =>
+    `<span class="phase-step ${p === currentPhase ? 'active' : ''}" title="${p}">${p.charAt(0).toUpperCase()}</span>`
+  ).join('');
+
   combatMain.innerHTML = `
     <div class="combat-indicator">
       <span class="combat-status-icon">⚔️</span>
       <span class="combat-status-text">TACTICAL COMBAT MODE</span>
     </div>
+    <div class="combat-phase-bar" id="combat-phase-bar">
+      <span class="phase-round">Round ${currentRound}</span>
+      <div class="phase-steps">${phaseIndicators}</div>
+      <span class="phase-current">${currentPhase.toUpperCase()}</span>
+    </div>
     <div class="combat-combatants">
-      <h3>Engaged Contacts (${combatants.length})</h3>
-      <div class="combatant-list">
-        ${combatants.map(c => `
-          <div class="combatant-item">
-            <span class="combatant-name">${c.name || '???'}</span>
-            <span class="combatant-type">${c.type || 'Unknown'}</span>
-            <span class="combatant-range">${c.range_band || '---'}</span>
-            ${c.tonnage ? `<span class="combatant-tonnage">${c.tonnage} dT</span>` : ''}
-          </div>
-        `).join('')}
+      <h3>Engaged Ships (${combatants.length})</h3>
+      <div class="combatant-grid">
+        ${combatants.map(c => {
+          // AR-271: Enhanced combatant display
+          const hullPct = c.hull ? Math.round((c.hull.current / c.hull.max) * 100) : 100;
+          const hullColor = hullPct > 66 ? 'green' : hullPct > 33 ? 'yellow' : 'red';
+          const rangeColor = {
+            'Adjacent': '#dc3545',
+            'Close': '#fd7e14',
+            'Short': '#ffc107',
+            'Medium': '#28a745',
+            'Long': '#17a2b8',
+            'Very Long': '#6f42c1',
+            'Distant': '#6c757d'
+          }[c.range_band] || '#6c757d';
+
+          return `
+            <div class="combatant-card ${c.marking || 'unknown'}">
+              <div class="combatant-header">
+                <span class="combatant-marking ${c.marking || 'unknown'}">${c.marking === 'hostile' ? '⚠️' : c.marking === 'friendly' ? '✓' : '?'}</span>
+                <span class="combatant-name">${c.name || c.transponder || '???'}</span>
+              </div>
+              <div class="combatant-details">
+                <div class="combatant-row">
+                  <span class="label">Type:</span>
+                  <span class="value">${c.type || 'Unknown'}</span>
+                </div>
+                <div class="combatant-row">
+                  <span class="label">Range:</span>
+                  <span class="value" style="color: ${rangeColor}; font-weight: bold;">${c.range_band || '---'}</span>
+                </div>
+                ${c.tonnage ? `
+                <div class="combatant-row">
+                  <span class="label">Tonnage:</span>
+                  <span class="value">${c.tonnage} dT</span>
+                </div>
+                ` : ''}
+                ${c.hull ? `
+                <div class="combatant-row">
+                  <span class="label">Hull:</span>
+                  <div class="hull-bar">
+                    <div class="hull-fill" style="width: ${hullPct}%; background: var(--accent-${hullColor});"></div>
+                    <span class="hull-text">${hullPct}%</span>
+                  </div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
     </div>
     <div class="combat-placeholder">
@@ -825,6 +925,25 @@ function showCombatScreen(combatState) {
 function hideCombatScreen() {
   // Return to bridge screen
   showScreen('bridge');
+}
+
+/**
+ * AR-268: Update combat phase bar without full re-render
+ */
+function updateCombatPhaseBar(phase, round) {
+  const phaseBar = document.getElementById('combat-phase-bar');
+  if (!phaseBar) return;
+
+  const phases = ['initiative', 'manoeuvre', 'attack', 'reaction', 'actions', 'damage'];
+  const phaseIndicators = phases.map(p =>
+    `<span class="phase-step ${p === phase ? 'active' : ''}" title="${p}">${p.charAt(0).toUpperCase()}</span>`
+  ).join('');
+
+  phaseBar.innerHTML = `
+    <span class="phase-round">Round ${round}</span>
+    <div class="phase-steps">${phaseIndicators}</div>
+    <span class="phase-current">${phase.toUpperCase()}</span>
+  `;
 }
 
 
@@ -2048,7 +2167,7 @@ const screenHelpers = {
   renderContacts,
   formatRoleName,
   initShipStatusPanel,
-  initCompactViewscreen,
+  initSystemMapLight,
   expandRolePanel,
   collapseRolePanel,
   toggleBrowserFullscreen,
@@ -2096,6 +2215,132 @@ function showModal(templateId) {
 
   // Show modal overlay for any modal (registered or not)
   document.getElementById('modal-overlay').classList.remove('hidden');
+}
+
+// Jump Emergence Interstitial - full-screen dramatic effect for arriving in new system
+function showJumpEmergenceInterstitial(systemName, systemHex, onComplete) {
+  // Create full-screen overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'jump-emergence-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.5s ease-in;
+  `;
+
+  // Jump tunnel effect (CSS animation)
+  overlay.innerHTML = `
+    <style>
+      @keyframes jumpTunnel {
+        0% { transform: scale(0.1); opacity: 0; }
+        50% { transform: scale(1.5); opacity: 1; }
+        100% { transform: scale(3); opacity: 0; }
+      }
+      @keyframes starStreak {
+        0% { transform: translateZ(0) scale(1); opacity: 1; }
+        100% { transform: translateZ(500px) scale(0.1); opacity: 0; }
+      }
+      @keyframes textFadeIn {
+        0% { opacity: 0; transform: translateY(20px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      .jump-ring {
+        position: absolute;
+        border: 2px solid rgba(100, 150, 255, 0.8);
+        border-radius: 50%;
+        animation: jumpTunnel 1.5s ease-out forwards;
+      }
+      .star-field {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: white;
+        border-radius: 50%;
+        box-shadow: 0 0 10px 2px rgba(255, 255, 255, 0.8);
+      }
+      .emergence-text {
+        color: #4a9eff;
+        font-family: 'Orbitron', 'Courier New', monospace;
+        text-align: center;
+        z-index: 10001;
+        animation: textFadeIn 0.8s ease-out 1.2s forwards;
+        opacity: 0;
+      }
+      .emergence-text h1 {
+        font-size: 3rem;
+        margin: 0;
+        text-shadow: 0 0 20px rgba(74, 158, 255, 0.8);
+      }
+      .emergence-text .hex {
+        font-size: 1.5rem;
+        color: #88c0ff;
+        margin-top: 0.5rem;
+      }
+      .emergence-text .status {
+        font-size: 1rem;
+        color: #66ff66;
+        margin-top: 1rem;
+      }
+    </style>
+    <div class="emergence-text">
+      <h1>JUMP EMERGENCE</h1>
+      <div class="hex">${systemName} · ${systemHex}</div>
+      <div class="status">All systems nominal</div>
+    </div>
+  `;
+
+  // Add jump rings
+  for (let i = 0; i < 5; i++) {
+    const ring = document.createElement('div');
+    ring.className = 'jump-ring';
+    const size = 100 + i * 80;
+    ring.style.cssText = `
+      width: ${size}px;
+      height: ${size}px;
+      animation-delay: ${i * 0.15}s;
+    `;
+    overlay.appendChild(ring);
+  }
+
+  // Add star field particles
+  for (let i = 0; i < 30; i++) {
+    const star = document.createElement('div');
+    star.className = 'star-field';
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 50 + Math.random() * 200;
+    star.style.cssText = `
+      left: calc(50% + ${Math.cos(angle) * distance}px);
+      top: calc(50% + ${Math.sin(angle) * distance}px);
+      animation: starStreak ${0.5 + Math.random() * 0.5}s ease-out ${Math.random() * 0.3}s forwards;
+    `;
+    overlay.appendChild(star);
+  }
+
+  document.body.appendChild(overlay);
+
+  // Fade in
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+  });
+
+  // Auto-close after animation
+  setTimeout(() => {
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      overlay.remove();
+      if (onComplete) onComplete();
+    }, 500);
+  }, 3000);
 }
 
 // AR-201: ~320 lines of inline modal handlers removed here
@@ -2422,6 +2667,7 @@ function showSystemMap() {
   const currentLocation = shipCurrentState.locationName || state.shipState?.locationName || 'Unknown Location';
   const campaignDate = state.campaign?.current_date || '1105-001';
   const screenLabel = state.isGM ? 'System Map · GM' : 'System Map · Player';
+  console.log('[SystemMap] Rendering overlay, state.isGM:', state.isGM);
 
   overlay.innerHTML = `
     <div class="esc-hint">ESC to close</div>
@@ -2436,10 +2682,17 @@ function showSystemMap() {
         <span id="system-map-date" class="date-display">${escapeHtml(campaignDate)}</span>
       </div>
       <div class="system-map-controls">
+        <select id="sector-select" class="form-control" style="width: auto; display: inline-block; min-width: 140px;" title="Select sector">
+          <option value="spinward-marches" selected>Spinward Marches</option>
+        </select>
+        <select id="subsector-select" class="form-control" style="width: auto; display: inline-block; min-width: 120px;" title="Select subsector to filter systems">
+          <option value="">All Subsectors</option>
+        </select>
         <select id="test-system-select" class="form-control" style="width: auto; display: inline-block; min-width: 150px;" title="Select a star system to view">
           <option value="">Loading systems...</option>
         </select>
-        <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;" title="Load the selected star system">SWITCH STARSYSTEM</button>
+        <button id="btn-load-system" class="btn btn-warning" style="font-weight: bold;" title="View a different star system (doesn't move ship)">VIEW STARSYSTEM</button>
+        ${state.isGM ? `<button id="btn-gm-move-ship" class="btn btn-danger" title="Move player ship to this star system - Players will see jump emergence">🚀 Move Ship Here</button>` : ''}
         <button id="btn-places" class="btn btn-info" title="Show clickable destinations in this system">📍 Places</button>
         <button id="btn-range-bands" class="btn btn-outline" title="Toggle tactical range bands">📡 Range</button>
         <button id="btn-goldilocks" class="btn btn-outline btn-toggle-fixed" title="Toggle habitable zone display - Shows where liquid water can exist">🌡️ HZ</button>
@@ -2464,7 +2717,8 @@ function showSystemMap() {
       <button id="btn-time-forward-100" class="btn btn-sm" title="Advance 100 days - Move planets forward in their orbits">+100d ▶▶</button>
       <span class="time-speed-label">Speed:</span>
       <select id="time-speed-select" class="form-control" style="width: auto; display: inline-block;" title="Orbital animation speed multiplier">
-        <option value="0" selected>0x</option>
+        <option value="0">0x</option>
+        <option value="0.25" selected>0.25x</option>
         <option value="1">1x</option>
         <option value="5">5x</option>
         <option value="10">10x</option>
@@ -2492,55 +2746,140 @@ function showSystemMap() {
       if (container) {
         initSystemMap(container);
 
-        // Populate system selector from index (20 systems from _index.json, sorted alphabetically)
-        const select = document.getElementById('test-system-select');
-        try {
-          const indexRes = await fetch('/data/star-systems/_index.json');
-          if (!indexRes.ok) throw new Error(`HTTP ${indexRes.status}`);
-          const index = await indexRes.json();
-          const systems = index.systems
-            .filter(s => !s.special)  // Exclude jumpspace
-            .sort((a, b) => a.name.localeCompare(b.name));
+        // Populate sector/subsector/system selectors
+        const sectorSelect = document.getElementById('sector-select');
+        const subsectorSelect = document.getElementById('subsector-select');
+        const systemSelect = document.getElementById('test-system-select');
 
-          console.log(`[SystemMap] Loaded ${systems.length} systems from _index.json`);
+        // Cache for all systems by subsector
+        let allSystems = [];
+        let subsectorMap = {}; // letter -> { name, systems }
 
-          select.innerHTML = systems
-            .map(s => `<option value="${s.id}">${s.name}</option>`)
+        // Populate system dropdown based on selected subsector
+        function updateSystemDropdown(subsectorLetter = '') {
+          let filtered = allSystems;
+          if (subsectorLetter) {
+            filtered = subsectorMap[subsectorLetter]?.systems || [];
+          }
+          filtered = filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
+
+          systemSelect.innerHTML = filtered
+            .map(s => `<option value="${s.id}" data-hex="${s.hex}" data-subsector="${s.subsector}">${s.name} (${s.hex})</option>`)
             .join('');
+
+          console.log(`[SystemMap] Showing ${filtered.length} systems${subsectorLetter ? ` in subsector ${subsectorLetter}` : ''}`);
+        }
+
+        try {
+          const sectorId = sectorSelect.value || 'spinward-marches';
+
+          // Load sector metadata
+          const metaRes = await fetch(`/data/star-systems/${sectorId}/_sector-meta.json`);
+          if (!metaRes.ok) throw new Error(`HTTP ${metaRes.status}`);
+          const sectorMeta = await metaRes.json();
+
+          // Populate subsector dropdown from metadata
+          subsectorSelect.innerHTML = '<option value="">All Subsectors</option>' +
+            sectorMeta.subsectorFiles.map(file => {
+              // Extract letter and name from filename like "subsector-a-cronor.json"
+              const match = file.match(/subsector-([a-p])-(.+)\.json/i);
+              if (match) {
+                const letter = match[1].toUpperCase();
+                const name = match[2].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                return `<option value="${letter}">${letter}: ${name}</option>`;
+              }
+              return '';
+            }).join('');
+
+          // Load all subsector files in parallel
+          const subsectorPromises = sectorMeta.subsectorFiles.map(async (file) => {
+            const res = await fetch(`/data/star-systems/${sectorId}/${file}`);
+            if (!res.ok) return null;
+            return res.json();
+          });
+
+          const subsectorData = await Promise.all(subsectorPromises);
+
+          // Build system list, subsector map, and populate cache for instant lookups
+          subsectorData.forEach(data => {
+            if (!data || !data.systems) return;
+            const letter = data.subsector;
+            const systems = data.systems.map(s => {
+              const enriched = {
+                ...s,
+                subsector: letter,
+                sectorId,
+                subsectorName: data.name
+              };
+              // Pre-populate cache for O(1) lookup by systemId
+              cachedSystemsById[s.id] = {
+                id: s.id,
+                name: s.name,
+                hex: s.hex,
+                sector: sectorId,
+                subsector: letter,
+                uwp: s.uwp,
+                stellar: s.stellar,
+                celestialObjects: s.celestialObjects || [],
+                locations: s.locations || []
+              };
+              return enriched;
+            });
+            subsectorMap[letter] = { name: data.name, systems };
+            allSystems.push(...systems);
+          });
+
+          console.log(`[SystemMap] Loaded ${allSystems.length} systems, ${Object.keys(cachedSystemsById).length} cached for instant lookup`);
+
+          // Populate initial dropdown (all systems)
+          updateSystemDropdown();
+
+          // Handle subsector change
+          subsectorSelect.addEventListener('change', () => {
+            updateSystemDropdown(subsectorSelect.value);
+          });
 
           // Select current system (must match by name, case-insensitive)
           // Strip parenthetical sector info like "(Spinward Marches 0931)"
           const rawSystemName = state.campaign?.current_system || DEFAULT_SYSTEM;
           const currentSystemName = rawSystemName.replace(/\s*\([^)]*\)\s*/g, '').trim();
-          const matchingSystem = systems.find(s =>
+          const matchingSystem = allSystems.find(s =>
             s.name.toLowerCase() === currentSystemName.toLowerCase() ||
             s.id.toLowerCase() === currentSystemName.toLowerCase()
           );
           if (matchingSystem) {
-            select.value = matchingSystem.id;
-            console.log(`[SystemMap] Selected current system: ${matchingSystem.name}`);
-            // Load the selected system
-            await loadSelectedSystemFromJSON(select.value);
+            // Auto-select the subsector containing current system
+            subsectorSelect.value = matchingSystem.subsector || '';
+            updateSystemDropdown(matchingSystem.subsector);
+            systemSelect.value = matchingSystem.id;
+            console.log(`[SystemMap] Selected current system: ${matchingSystem.name} (Subsector ${matchingSystem.subsector})`);
+            // Load the selected system from its subsector file
+            await loadSelectedSystemFromSubsector(matchingSystem, sectorId);
           } else {
-            // AR-110: Don't auto-load random system when current isn't found
             // AR-119: Default to Mora (Imperial capital) as fallback
-            const fallbackSystem = systems.find(s => s.id === 'mora') || systems[0];
-            select.value = fallbackSystem?.id || systems[0]?.id;
+            const fallbackSystem = allSystems.find(s => s.id === 'mora') || allSystems[0];
+            if (fallbackSystem) {
+              subsectorSelect.value = fallbackSystem.subsector || '';
+              updateSystemDropdown(fallbackSystem.subsector);
+              systemSelect.value = fallbackSystem.id;
+            }
             console.log(`[SystemMap] No map data for "${currentSystemName}", showing ${fallbackSystem?.name || DEFAULT_SYSTEM}`);
             if (typeof window.showNotification === 'function') {
               window.showNotification(`No system map data for ${currentSystemName}. Showing ${fallbackSystem?.name || DEFAULT_SYSTEM}.`, 'warning');
             }
-            await loadSelectedSystemFromJSON(select.value);
+            if (fallbackSystem) {
+              await loadSelectedSystemFromSubsector(fallbackSystem, sectorId);
+            }
           }
           const nameEl = document.getElementById('system-map-name');
           if (nameEl) {
-            nameEl.textContent = systems.find(s => s.id === select.value)?.name || currentSystemName;
+            nameEl.textContent = allSystems.find(s => s.id === systemSelect.value)?.name || currentSystemName;
           }
 
         } catch (err) {
-          console.error('[SystemMap] Failed to load system index, falling back to TEST_SYSTEMS:', err);
+          console.error('[SystemMap] Failed to load sector data, falling back to TEST_SYSTEMS:', err);
           // Fallback to TEST_SYSTEMS (3 systems) - this should rarely happen
-          select.innerHTML = Object.entries(TEST_SYSTEMS)
+          systemSelect.innerHTML = Object.entries(TEST_SYSTEMS)
             .map(([key, sys]) => `<option value="${key}">${sys.name}</option>`)
             .join('');
           loadTestSystem('flammarion');
@@ -2553,6 +2892,41 @@ function showSystemMap() {
       }
     });
   });
+
+  // Cache for subsector data - populated once, used for instant lookups
+  let cachedSubsectorData = null;
+  let cachedSystemsById = {}; // systemId -> full system object with celestialObjects
+
+  // Helper to load system from cached subsector data (instant, no fetch)
+  function loadSelectedSystemFromSubsector(system, sectorId) {
+    if (!system || !system.celestialObjects) {
+      console.warn('[SystemMap] System missing celestialObjects:', system?.id);
+      return;
+    }
+
+    // Build system data object matching expected format
+    const systemData = {
+      id: system.id,
+      name: system.name,
+      hex: system.hex,
+      sector: sectorId,
+      subsector: system.subsector,
+      uwp: system.uwp,
+      stellar: system.stellar,
+      celestialObjects: system.celestialObjects,
+      locations: system.locations || []
+    };
+
+    // Cache for btn-load-system handler
+    cachedSystemsById[system.id] = systemData;
+
+    loadSystemFromJSON(systemData);
+    resetMapTime();
+    updateSimulatedDate();
+    setTimeout(() => updateObjectSelector(), 100);
+    setTimeout(() => updateShipOnSystemMap(systemData), 150);
+    console.log(`[SystemMap] Loaded ${system.name} (${system.hex}) from cache`);
+  }
 
   // Helper to load system from JSON
   // If forceReload=false, skip if system already loaded (preserves orbital positions)
@@ -2610,68 +2984,96 @@ function showSystemMap() {
     }
   });
 
-  // Load button switches to selected system AND updates ship location
+  // Load button switches to selected system (VIEW only - doesn't move ship)
   document.getElementById('btn-load-system').addEventListener('click', async () => {
     const select = document.getElementById('test-system-select');
     if (select.value) {
       const systemId = select.value;
       const systemName = select.options[select.selectedIndex]?.text || systemId;
 
-      // Fetch system data to get hex and exit-jump location
-      try {
-        const res = await fetch(`/data/star-systems/${systemId}.json`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const systemData = await res.json();
-
-        // Find exit-jump location (default arrival point)
-        const exitJump = systemData.locations?.find(loc => loc.id === 'loc-exit-jump');
-        const exitJumpName = exitJump?.name || 'Exit Jump Space';
-        const newHex = systemData.hex || '----';
-
-        // Update ship state locally
-        if (state.shipState) {
-          state.shipState.systemHex = newHex;
-          state.shipState.locationId = 'loc-exit-jump';
-          state.shipState.locationName = exitJumpName;
-        }
-
-        // Update campaign current system
-        if (state.campaign) {
-          state.campaign.current_system = systemName;
-        }
-
-        // Update header elements
-        const hexEl = document.getElementById('system-map-hex');
-        if (hexEl) {
-          hexEl.textContent = newHex;
-          hexEl.title = systemName;
-        }
-        const locEl = document.getElementById('system-map-location');
-        if (locEl) locEl.textContent = exitJumpName;
-
-        // Also update bridge header if visible
-        const bridgeHex = document.getElementById('bridge-hex');
-        if (bridgeHex) {
-          bridgeHex.textContent = newHex;
-          bridgeHex.title = systemName;
-        }
-        const bridgeLoc = document.getElementById('bridge-location');
-        if (bridgeLoc) bridgeLoc.textContent = exitJumpName;
-
-        // Load the system into map
-        await loadSelectedSystemFromJSON(systemId, true); // forceReload=true for explicit switch
-
-        // AR-86: Refresh places overlay if visible
-        if (placesVisible) {
-          showPlacesOverlay();
-        }
-        showNotification(`Arrived at ${systemName} - ${exitJumpName}`, 'success');
-      } catch (err) {
-        console.error(`[SystemMap] Failed to switch to ${systemId}:`, err);
-        showNotification(`Failed to switch to ${systemName}`, 'error');
+      // Use cached data for instant response (O(1) lookup)
+      const systemData = cachedSystemsById[systemId];
+      if (!systemData) {
+        console.error(`[SystemMap] System ${systemId} not in cache`);
+        showNotification(`System ${systemName} not found`, 'error');
+        return;
       }
+
+      // Find exit-jump location (default arrival point)
+      const exitJump = systemData.locations?.find(loc => loc.id === 'loc-exit-jump');
+      const exitJumpName = exitJump?.name || 'Exit Jump Space';
+      const newHex = systemData.hex || '----';
+
+      // Update header elements (VIEW only, not ship state)
+      const hexEl = document.getElementById('system-map-hex');
+      if (hexEl) {
+        hexEl.textContent = newHex;
+        hexEl.title = systemData.name;
+      }
+      const locEl = document.getElementById('system-map-location');
+      if (locEl) locEl.textContent = exitJumpName;
+
+      // Load the system into map from cache (instant)
+      loadSystemFromJSON(systemData);
+      resetMapTime();
+      updateSimulatedDate();
+      setTimeout(() => updateObjectSelector(), 100);
+      setTimeout(() => updateShipOnSystemMap(systemData), 150);
+
+      // AR-86: Refresh places overlay if visible
+      if (placesVisible) {
+        showPlacesOverlay();
+      }
+      console.log(`[SystemMap] Viewing ${systemData.name} (${newHex}) from cache`);
     }
   });
+
+  // GM: Move player ship to currently viewed system
+  const btnGmMove = document.getElementById('btn-gm-move-ship');
+  if (btnGmMove) {
+    console.log('[SystemMap] GM Move Ship button found, attaching listener');
+    btnGmMove.addEventListener('click', () => {
+      console.log('[SystemMap] GM Move Ship clicked');
+      const select = document.getElementById('test-system-select');
+      if (!select.value) {
+        showNotification('Select a star system first', 'warning');
+        return;
+      }
+
+      const systemId = select.value;
+
+      // Use cached data for instant response (O(1) lookup)
+      const systemData = cachedSystemsById[systemId];
+      if (!systemData) {
+        showNotification(`System ${systemId} not found in cache`, 'error');
+        return;
+      }
+
+      // Confirm the action
+      if (!confirm(`Move the player ship to ${systemData.name}?\n\nThis will relocate all players to this star system.`)) {
+        return;
+      }
+
+      // Find exit-jump location (default arrival point)
+      const exitJump = systemData.locations?.find(loc => loc.id === 'loc-exit-jump');
+      const locationId = exitJump?.id || 'loc-exit-jump';
+      const locationName = exitJump?.name || 'Exit Jump Space';
+      const newHex = systemData.hex || '----';
+
+      // Emit to server - this will broadcast to all players
+      state.socket.emit('ops:gmRelocateShip', {
+        systemId,
+        systemName: systemData.name,
+        systemHex: newHex,
+        locationId,
+        locationName
+      });
+
+      showNotification(`Relocating ship to ${systemData.name}...`, 'info');
+    });
+  } else if (state.isGM) {
+    console.error('[SystemMap] GM Move button NOT FOUND but state.isGM is true!');
+  }
 
   // AR-29.9: Range bands toggle
   let rangeBandsOn = false;

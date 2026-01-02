@@ -18,6 +18,9 @@ import {
   drawDateDisplay
 } from './system-map-rendering.js';
 
+// AR-264: Import cinematic camera
+import { CinematicCamera } from './cinematic-camera.js';
+
 console.log('[SystemMap] Module loading... v2024-12-13-UNIFIED-ZOOM-V3');
 
 // System Map State
@@ -44,6 +47,12 @@ const systemMapState = {
   selectedBody: null,          // Currently selected planet/moon
   hoveredBody: null,           // Body under mouse cursor
   showLabels: true,            // Toggle for body labels
+
+  // AR-242: Ruler tool state
+  rulerMode: false,            // Is ruler mode active
+  rulerStart: null,            // {x, y} canvas coords
+  rulerEnd: null,              // {x, y} canvas coords
+  rulerThrust: 1,              // Selected thrust in G
 
   // Animation
   animationFrame: null,
@@ -376,10 +385,20 @@ function handleSystemMapKeydown(e) {
       e.preventDefault();
       break;
 
+    case 'r':
+      // AR-242: Toggle ruler mode
+      toggleRulerMode();
+      e.preventDefault();
+      break;
+
     case 'escape':
       // Close any open panels
       hidePlaceDetails();
       hidePlacesOverlay();
+      // AR-242: Exit ruler mode
+      if (systemMapState.rulerMode) {
+        toggleRulerMode();
+      }
       e.preventDefault();
       break;
   }
@@ -441,6 +460,18 @@ function handleWheel(e) {
  * Handle mouse down for panning
  */
 function handleMouseDown(e) {
+  // AR-242: Ruler mode takes priority
+  if (systemMapState.rulerMode) {
+    const rect = systemMapState.canvas.getBoundingClientRect();
+    systemMapState.rulerStart = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    systemMapState.rulerEnd = { ...systemMapState.rulerStart };
+    systemMapState.canvas.style.cursor = 'crosshair';
+    return;
+  }
+
   systemMapState.isDragging = true;
   systemMapState.lastMouseX = e.clientX;
   systemMapState.lastMouseY = e.clientY;
@@ -451,6 +482,16 @@ function handleMouseDown(e) {
  * Handle mouse move for panning
  */
 function handleMouseMove(e) {
+  // AR-242: Update ruler end point
+  if (systemMapState.rulerMode && systemMapState.rulerStart) {
+    const rect = systemMapState.canvas.getBoundingClientRect();
+    systemMapState.rulerEnd = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+    return;
+  }
+
   if (!systemMapState.isDragging) return;
 
   const deltaX = e.clientX - systemMapState.lastMouseX;
@@ -467,6 +508,16 @@ function handleMouseMove(e) {
  * Handle mouse up to stop panning
  */
 function handleMouseUp() {
+  // AR-242: Finalize ruler measurement
+  if (systemMapState.rulerMode && systemMapState.rulerStart) {
+    showRulerResult();
+    // Keep ruler visible after mouseup
+    if (systemMapState.canvas) {
+      systemMapState.canvas.style.cursor = 'crosshair';
+    }
+    return;
+  }
+
   systemMapState.isDragging = false;
   if (systemMapState.canvas) {
     systemMapState.canvas.style.cursor = 'grab';
@@ -538,6 +589,19 @@ function findBodyAtPosition(x, y) {
   const centerY = rect.height / 2 + offsetY;
   const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
 
+  // AR-246: Check stars first (they're at center/near center)
+  if (systemMapState.system?.stars?.length > 0) {
+    for (const star of systemMapState.system.stars) {
+      const starX = centerX + (star.position?.x || 0) * auToPixels;
+      const starY = centerY + (star.position?.y || 0) * auToPixels;
+      const starSize = Math.max(15, star.radius * 10 * Math.sqrt(zoom));
+      const dist = Math.sqrt((x - starX) ** 2 + (y - starY) ** 2);
+      if (dist < starSize + 10) {  // Star hit radius with padding
+        return { ...star, isStar: true };
+      }
+    }
+  }
+
   // AR-71: Check contacts first (they're drawn on top)
   if (systemMapState.contacts?.length > 0) {
     for (const contact of systemMapState.contacts) {
@@ -582,6 +646,38 @@ function showBodyInfoPanel(body) {
   const panel = document.createElement('div');
   panel.id = 'system-map-info-panel';
   panel.className = 'system-map-info-panel';
+
+  // AR-246: Handle stars with astrophysics data
+  if (body.isStar) {
+    const stellarClass = `${body.type}${body.subtype || ''} ${body.luminosity || 'V'}`;
+    const starName = body.name || `Primary Star (${stellarClass})`;
+
+    // Stellar data lookup
+    const starData = getStarAstrophysicsData(body.type, body.luminosity);
+    const habitableZone = getHabitableZone(stellarClass);
+
+    panel.innerHTML = `
+      <div class="info-panel-header">
+        <h3>${starName}</h3>
+        <button class="info-panel-close" onclick="window.hideSystemMapInfoPanel()">×</button>
+      </div>
+      <div class="info-panel-content">
+        <div class="info-row"><span class="info-label">Class:</span> <span class="info-value stellar-class">${stellarClass}</span></div>
+        <div class="info-row"><span class="info-label">Temperature:</span> <span class="info-value">${starData.temperature.toLocaleString()} K</span></div>
+        <div class="info-row"><span class="info-label">Mass:</span> <span class="info-value">${starData.mass.toFixed(2)} M☉</span></div>
+        <div class="info-row"><span class="info-label">Radius:</span> <span class="info-value">${starData.radius.toFixed(2)} R☉</span></div>
+        <div class="info-row"><span class="info-label">Luminosity:</span> <span class="info-value">${starData.luminosity.toFixed(2)} L☉</span></div>
+        <div class="info-section">
+          <div class="info-section-title">Habitable Zone</div>
+          <div class="info-row"><span class="info-label">Inner:</span> <span class="info-value">${habitableZone.inner.toFixed(2)} AU</span></div>
+          <div class="info-row"><span class="info-label">Outer:</span> <span class="info-value">${habitableZone.outer.toFixed(2)} AU</span></div>
+        </div>
+        <div class="info-row"><span class="info-label">Color:</span> <span class="info-value" style="color: ${starData.color}">${starData.colorName}</span></div>
+      </div>
+    `;
+    document.body.appendChild(panel);
+    return;
+  }
 
   // AR-71: Handle contacts differently from celestial bodies
   if (body.isContact) {
@@ -879,6 +975,9 @@ function showPlaceDetails(placeId) {
   // Calculate distance and travel time from current location
   const shipState = window.state?.shipState || {};
   const currentLocationId = shipState.locationId;
+  const currentLocationName = shipState.locationName ||
+    systemMapState.system?.places?.find(p => p.id === currentLocationId)?.name ||
+    'Unknown';
   const thrust = 1; // Default to 1G for initial display, user can change via selector
 
   let distanceInfo = '';
@@ -976,6 +1075,29 @@ function showPlaceDetails(placeId) {
       </div>`
     : '';
 
+  // AR-266: Build FROM/TO route display
+  const isSameLocation = currentLocationId === placeId;
+  const routeHtml = isSameLocation
+    ? `<div class="detail-route current-location">
+        <span class="route-icon">📍</span>
+        <span class="route-label">Current Location</span>
+      </div>`
+    : currentLocationId
+    ? `<div class="detail-route">
+        <div class="route-from">
+          <span class="route-icon">🚀</span>
+          <span class="route-label">FROM:</span>
+          <span class="route-value">${currentLocationName}</span>
+        </div>
+        <div class="route-arrow">→</div>
+        <div class="route-to">
+          <span class="route-icon">${place.icon || '📍'}</span>
+          <span class="route-label">TO:</span>
+          <span class="route-value">${place.name}</span>
+        </div>
+      </div>`
+    : '';
+
   // Build linked object info
   const linkedHtml = linkedObject
     ? `<div class="detail-linked">
@@ -985,7 +1107,6 @@ function showPlaceDetails(placeId) {
 
   // Check if course is already set to this destination
   const hasCourse = pendingCourseData?.locationId === placeId;
-  const isSameLocation = currentLocationId === placeId;
 
   const panel = document.createElement('div');
   panel.id = 'place-details-panel';
@@ -999,6 +1120,7 @@ function showPlaceDetails(placeId) {
     <div class="details-body">
       <p class="detail-desc">${place.description || 'No description available'}</p>
       ${linkedHtml}
+      ${routeHtml}
       ${actionsHtml}
       ${physicsHtml}
     </div>
@@ -1024,10 +1146,24 @@ function showPlaceDetails(placeId) {
 
 /**
  * Set course from details panel
+ * AR-267: Uses current G selector value for accurate travel time
  */
-function setCourseFromDetails(placeId, travelHours) {
+function setCourseFromDetails(placeId, defaultTravelHours) {
   const place = systemMapState.system?.places?.find(p => p.id === placeId);
   if (!place) return;
+
+  // AR-267: Get current thrust from G selector and recalculate travel time
+  const gSelect = document.getElementById('physics-g-select');
+  const physicsGrid = document.getElementById('physics-grid-values');
+  let travelHours = defaultTravelHours;
+
+  if (gSelect && physicsGrid) {
+    const thrust = parseInt(gSelect.value, 10) || 1;
+    const distanceKm = parseFloat(physicsGrid.dataset.distanceKm) || 0;
+    if (distanceKm > 0) {
+      travelHours = calculateTravelTime(distanceKm, thrust);
+    }
+  }
 
   pendingCourseData = {
     locationId: placeId,
@@ -1086,9 +1222,10 @@ function travelFromDetails() {
     return;
   }
 
-  // Emit travel event to server
+  // Emit travel event to server - include calculated travel hours
   window.state.socket.emit('ops:travel', {
-    destinationId: pendingCourseData.locationId
+    destinationId: pendingCourseData.locationId,
+    travelHours: pendingCourseData.travelHours || 4
   });
 
   // Clear pending course
@@ -1524,6 +1661,80 @@ function setDestination(locationId) {
   }
 }
 
+/**
+ * AR-264: Get cinematic camera view for a target
+ * Uses scoring algorithm to find aesthetically pleasing camera position
+ * @param {string} targetId - Target object ID (planet, station, etc.)
+ * @param {Object} options - { duration, useCinematic }
+ */
+function getCinematicView(targetId, options = {}) {
+  const system = systemMapState.system;
+  if (!system) {
+    console.log('[CinematicCamera] No system loaded');
+    return null;
+  }
+
+  const rect = systemMapState.canvas?.getBoundingClientRect() || { width: 800, height: 600 };
+  const camera = new CinematicCamera(system, {
+    AU_TO_PIXELS: systemMapState.AU_TO_PIXELS
+  });
+
+  const view = camera.generateView(targetId, { width: rect.width, height: rect.height });
+  if (!view) return null;
+
+  return {
+    offsetX: -view.x * systemMapState.AU_TO_PIXELS * view.zoom,
+    offsetY: -view.y * systemMapState.AU_TO_PIXELS * view.zoom,
+    zoom: Math.min(view.zoom, systemMapState.MAX_ZOOM),
+    type: view.type,
+    score: view.score
+  };
+}
+
+/**
+ * AR-264: Animate to cinematic view for a target
+ * @param {string} targetId - Target object ID
+ * @param {Object} options - { duration }
+ */
+function animateToCinematicView(targetId, options = {}) {
+  const view = getCinematicView(targetId, options);
+  if (!view) {
+    console.log('[CinematicCamera] Could not generate view for:', targetId);
+    return;
+  }
+
+  const duration = options.duration || 400;
+  const startOffsetX = systemMapState.offsetX;
+  const startOffsetY = systemMapState.offsetY;
+  const startZoom = systemMapState.zoom;
+  const startTime = performance.now();
+
+  console.log('[CinematicCamera] Animating to', view.type, 'view for:', targetId);
+
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // Ease-out cubic
+
+    systemMapState.offsetX = startOffsetX + (view.offsetX - startOffsetX) * eased;
+    systemMapState.offsetY = startOffsetY + (view.offsetY - startOffsetY) * eased;
+    systemMapState.zoom = startZoom + (view.zoom - startZoom) * eased;
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      console.log('[CinematicCamera] Animation complete:', view.type, 'score:', view.score?.toFixed(0));
+      systemMapEvents.emit('cameraAnimationComplete', {
+        targetId,
+        view,
+        zoom: systemMapState.zoom
+      });
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
 // Global access for UI
 window.hideSystemMapInfoPanel = hideBodyInfoPanel;
 window.hidePlacesOverlay = hidePlacesOverlay;
@@ -1533,6 +1744,8 @@ window.snapToNow = snapToNow; // AR-88
 window.showPlaceDetails = showPlaceDetails;
 window.hidePlaceDetails = hidePlaceDetails;
 window.animateCameraToLocation = animateCameraToLocation; // Animated travel camera
+window.getCinematicView = getCinematicView; // AR-264
+window.animateToCinematicView = animateToCinematicView; // AR-264
 
 /**
  * Update physics display when G selector changes
@@ -1759,6 +1972,9 @@ function render() {
   drawLocationMarkers(ctx, centerX, centerY, zoom);
   drawPartyShip(ctx, centerX, centerY, zoom);
 
+  // AR-242: Draw ruler overlay
+  drawRuler(ctx);
+
   // Draw zoom indicator
   drawZoomIndicator(ctx, width, height, zoom);
 
@@ -1809,6 +2025,190 @@ function toggleSystemMapLabels() {
     window.showNotification(`Labels ${systemMapState.showLabels ? 'shown' : 'hidden'}`, 'info');
   }
 }
+
+/**
+ * AR-242: Toggle ruler measurement mode
+ */
+function toggleRulerMode() {
+  systemMapState.rulerMode = !systemMapState.rulerMode;
+  if (!systemMapState.rulerMode) {
+    // Clear ruler when exiting
+    systemMapState.rulerStart = null;
+    systemMapState.rulerEnd = null;
+    hideRulerPanel();
+    if (systemMapState.canvas) {
+      systemMapState.canvas.style.cursor = 'grab';
+    }
+  } else {
+    if (systemMapState.canvas) {
+      systemMapState.canvas.style.cursor = 'crosshair';
+    }
+  }
+  console.log('[SystemMap] Ruler mode:', systemMapState.rulerMode ? 'ON' : 'OFF');
+  if (window.showNotification) {
+    window.showNotification(`Ruler ${systemMapState.rulerMode ? 'enabled - click and drag to measure' : 'disabled'}`, 'info');
+  }
+}
+
+/**
+ * AR-242: Calculate distance from canvas points to real units
+ */
+function calculateRulerDistance() {
+  if (!systemMapState.rulerStart || !systemMapState.rulerEnd) return null;
+
+  const { zoom, offsetX, offsetY } = systemMapState;
+  const rect = systemMapState.canvas.getBoundingClientRect();
+  const centerX = rect.width / 2 + offsetX;
+  const centerY = rect.height / 2 + offsetY;
+  const auToPixels = systemMapState.AU_TO_PIXELS * zoom;
+
+  // Convert canvas coords to AU
+  const startAU = {
+    x: (systemMapState.rulerStart.x - centerX) / auToPixels,
+    y: (systemMapState.rulerStart.y - centerY) / auToPixels
+  };
+  const endAU = {
+    x: (systemMapState.rulerEnd.x - centerX) / auToPixels,
+    y: (systemMapState.rulerEnd.y - centerY) / auToPixels
+  };
+
+  const distAU = Math.sqrt((endAU.x - startAU.x) ** 2 + (endAU.y - startAU.y) ** 2);
+  const distKm = distAU * 149597870.7;  // 1 AU in km
+  const lightSeconds = distKm / 299792.458;  // Speed of light km/s
+
+  // Brachistochrone travel time at selected thrust
+  const thrust = systemMapState.rulerThrust || 1;
+  const accelM = thrust * 10;  // m/s^2
+  const distM = distKm * 1000;
+  const travelSeconds = 2 * Math.sqrt(distM / accelM);
+  const travelHours = travelSeconds / 3600;
+
+  return { distAU, distKm, lightSeconds, travelHours, thrust };
+}
+
+/**
+ * AR-242: Show ruler measurement result panel
+ */
+function showRulerResult() {
+  const result = calculateRulerDistance();
+  if (!result) return;
+
+  hideRulerPanel();
+
+  const panel = document.createElement('div');
+  panel.id = 'ruler-result-panel';
+  panel.className = 'system-map-info-panel ruler-panel';
+
+  // Format distance display
+  const distDisplay = result.distAU < 0.01
+    ? `${Math.round(result.distKm).toLocaleString()} km`
+    : `${result.distAU.toFixed(3)} AU`;
+
+  const lightDisplay = result.lightSeconds < 60
+    ? `${result.lightSeconds.toFixed(1)} light-seconds`
+    : result.lightSeconds < 3600
+      ? `${(result.lightSeconds / 60).toFixed(1)} light-minutes`
+      : `${(result.lightSeconds / 3600).toFixed(2)} light-hours`;
+
+  // Format travel time
+  let travelDisplay;
+  if (result.travelHours < 1) {
+    travelDisplay = `${Math.round(result.travelHours * 60)} minutes`;
+  } else if (result.travelHours < 24) {
+    travelDisplay = `${result.travelHours.toFixed(1)} hours`;
+  } else {
+    travelDisplay = `${(result.travelHours / 24).toFixed(1)} days`;
+  }
+
+  panel.innerHTML = `
+    <div class="info-panel-header">
+      <h3>Distance Measurement</h3>
+      <button class="info-panel-close" onclick="window.hideRulerPanel()">×</button>
+    </div>
+    <div class="info-panel-content">
+      <div class="info-row"><span class="info-label">Distance:</span> <span class="info-value">${distDisplay}</span></div>
+      <div class="info-row"><span class="info-label">Light:</span> <span class="info-value">${lightDisplay}</span></div>
+      <div class="info-row"><span class="info-label">km:</span> <span class="info-value">${Math.round(result.distKm).toLocaleString()}</span></div>
+      <div class="info-section">
+        <div class="info-section-title">Travel Time (${result.thrust}G)</div>
+        <div class="info-row"><span class="info-label">Brachistochrone:</span> <span class="info-value">${travelDisplay}</span></div>
+        <div class="thrust-selector">
+          <button onclick="window.setRulerThrust(1)" class="${result.thrust === 1 ? 'active' : ''}">1G</button>
+          <button onclick="window.setRulerThrust(2)" class="${result.thrust === 2 ? 'active' : ''}">2G</button>
+          <button onclick="window.setRulerThrust(4)" class="${result.thrust === 4 ? 'active' : ''}">4G</button>
+          <button onclick="window.setRulerThrust(6)" class="${result.thrust === 6 ? 'active' : ''}">6G</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+}
+
+/**
+ * AR-242: Hide ruler result panel
+ */
+function hideRulerPanel() {
+  const panel = document.getElementById('ruler-result-panel');
+  if (panel) panel.remove();
+}
+
+/**
+ * AR-242: Set ruler thrust and update display
+ */
+function setRulerThrust(thrust) {
+  systemMapState.rulerThrust = thrust;
+  showRulerResult();  // Refresh panel
+}
+
+/**
+ * AR-242: Draw ruler line on canvas
+ */
+function drawRuler(ctx) {
+  if (!systemMapState.rulerMode || !systemMapState.rulerStart || !systemMapState.rulerEnd) return;
+
+  ctx.save();
+
+  // Draw ruler line
+  ctx.beginPath();
+  ctx.moveTo(systemMapState.rulerStart.x, systemMapState.rulerStart.y);
+  ctx.lineTo(systemMapState.rulerEnd.x, systemMapState.rulerEnd.y);
+  ctx.strokeStyle = '#ffcc00';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 4]);
+  ctx.stroke();
+
+  // Draw endpoints
+  ctx.fillStyle = '#ffcc00';
+  ctx.beginPath();
+  ctx.arc(systemMapState.rulerStart.x, systemMapState.rulerStart.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(systemMapState.rulerEnd.x, systemMapState.rulerEnd.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw distance label at midpoint
+  const result = calculateRulerDistance();
+  if (result) {
+    const midX = (systemMapState.rulerStart.x + systemMapState.rulerEnd.x) / 2;
+    const midY = (systemMapState.rulerStart.y + systemMapState.rulerEnd.y) / 2;
+    const label = result.distAU < 0.01
+      ? `${Math.round(result.distKm).toLocaleString()} km`
+      : `${result.distAU.toFixed(2)} AU`;
+
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#ffcc00';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, midX, midY - 10);
+  }
+
+  ctx.restore();
+}
+
+// AR-242: Expose ruler functions globally
+window.hideRulerPanel = hideRulerPanel;
+window.setRulerThrust = setRulerThrust;
+window.toggleRulerMode = toggleRulerMode;
 
 /**
  * Load a star system for display
@@ -2590,7 +2990,7 @@ function estimatePlanetSize(planet) {
 /**
  * Time control state - extends systemMapState
  */
-systemMapState.timeSpeed = 0;        // Multiplier: 0 = frozen, 1 = realtime (1 sec = 1 sec)
+systemMapState.timeSpeed = 0.25;     // Multiplier: 0 = frozen, 0.25 = slow (default), 1 = realtime
 systemMapState.paused = false;       // Pause orbital animation
 systemMapState.simulatedDate = 0;    // Days since epoch (Imperial calendar)
 systemMapState.baseDate = { year: 1105, day: 1 }; // Imperial date epoch
@@ -2686,6 +3086,66 @@ let showGoldilocksZone = false;
 function toggleGoldilocksZone() {
   showGoldilocksZone = !showGoldilocksZone;
   console.log(`[SystemMap] Goldilocks zone: ${showGoldilocksZone ? 'ON' : 'OFF'}`);
+}
+
+/**
+ * AR-246: Get astrophysics data for a star based on type and luminosity class
+ * @param {string} type - Spectral type (O, B, A, F, G, K, M, L, T, D)
+ * @param {string} luminosityClass - Luminosity class (V, IV, III, II, Ib, Ia)
+ * @returns {Object} Astrophysics data
+ */
+function getStarAstrophysicsData(type, luminosityClass = 'V') {
+  // Temperature in Kelvin by spectral type (main sequence average)
+  const temperatures = {
+    'O': 40000, 'B': 20000, 'A': 8500, 'F': 6500,
+    'G': 5700, 'K': 4500, 'M': 3200, 'L': 1800, 'T': 1000, 'D': 10000
+  };
+
+  // Mass in solar masses by spectral type (main sequence)
+  const masses = {
+    'O': 40, 'B': 8, 'A': 2.0, 'F': 1.3,
+    'G': 1.0, 'K': 0.7, 'M': 0.3, 'L': 0.08, 'T': 0.05, 'D': 0.6
+  };
+
+  // Radius in solar radii by spectral type (main sequence)
+  const radii = {
+    'O': 12, 'B': 5, 'A': 1.7, 'F': 1.3,
+    'G': 1.0, 'K': 0.85, 'M': 0.4, 'L': 0.1, 'T': 0.1, 'D': 0.01
+  };
+
+  // Luminosity in solar luminosities
+  const luminosities = {
+    'O': 100000, 'B': 1000, 'A': 20, 'F': 2.5,
+    'G': 1.0, 'K': 0.4, 'M': 0.04, 'L': 0.0001, 'T': 0.00001, 'D': 0.001
+  };
+
+  // Colors for display
+  const colors = {
+    'O': '#9bb0ff', 'B': '#aabfff', 'A': '#cad7ff', 'F': '#f8f7ff',
+    'G': '#fff4ea', 'K': '#ffd2a1', 'M': '#ffcc6f', 'L': '#ff8800', 'T': '#aa3300', 'D': '#ffffff'
+  };
+
+  const colorNames = {
+    'O': 'Blue', 'B': 'Blue-White', 'A': 'White', 'F': 'Yellow-White',
+    'G': 'Yellow', 'K': 'Orange', 'M': 'Red', 'L': 'Brown', 'T': 'Dark Brown', 'D': 'White Dwarf'
+  };
+
+  // Luminosity class multipliers for radius
+  const lumMultipliers = {
+    'Ia': 100, 'Ib': 50, 'II': 25, 'III': 10, 'IV': 3, 'V': 1, 'VI': 0.5, 'D': 0.01
+  };
+
+  const t = type?.toUpperCase() || 'G';
+  const lm = lumMultipliers[luminosityClass] || 1;
+
+  return {
+    temperature: temperatures[t] || 5700,
+    mass: (masses[t] || 1.0) * Math.sqrt(lm),
+    radius: (radii[t] || 1.0) * lm,
+    luminosity: (luminosities[t] || 1.0) * (lm * lm),
+    color: colors[t] || '#fff4ea',
+    colorName: colorNames[t] || 'Unknown'
+  };
 }
 
 /**
@@ -3214,7 +3674,8 @@ function drawRangeBands(ctx, centerX, centerY, zoom) {
 }
 
 /**
- * Draw course line to destination
+ * AR-262: Enhanced course line visualization
+ * Features: Bezier curves, color coding by phase, dynamic thickness
  */
 function drawCourseLine(ctx, centerX, centerY, zoom) {
   if (!shipMapState.partyShip || !shipMapState.destination) return;
@@ -3232,15 +3693,118 @@ function drawCourseLine(ctx, centerX, centerY, zoom) {
   const destX = centerX + orbitRadius * auToPixels;
   const destY = centerY;
 
-  // Draw dashed line
-  ctx.strokeStyle = '#4488ff';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([5, 5]);
+  // AR-262: Dynamic line thickness based on zoom
+  const baseWidth = Math.max(1, Math.min(3, 2 / Math.sqrt(zoom)));
+
+  // AR-262: Calculate Bezier control point for aesthetic curve
+  // Curve bows outward from star for visual appeal
+  const midX = (shipX + destX) / 2;
+  const midY = (shipY + destY) / 2;
+  const distance = Math.sqrt((destX - shipX) ** 2 + (destY - shipY) ** 2);
+  const curveOffset = Math.min(distance * 0.15, 50); // Max 50px bow
+
+  // Perpendicular offset (bow away from center/star)
+  const dx = destX - shipX;
+  const dy = destY - shipY;
+  const perpX = -dy / distance * curveOffset;
+  const perpY = dx / distance * curveOffset;
+  const ctrlX = midX + perpX;
+  const ctrlY = midY + perpY;
+
+  // AR-262: Draw three-phase course line
+  // Phase 1: Thrust (blue) - acceleration phase
+  // Phase 2: Coast (cyan) - cruise phase
+  // Phase 3: Arrival (green) - deceleration phase
+
+  ctx.lineWidth = baseWidth;
+  ctx.lineCap = 'round';
+
+  // Draw full curved path with gradient effect
+  // Phase 1: Thrust phase (0-30%)
+  ctx.strokeStyle = '#4488ff'; // Blue
+  ctx.setLineDash([]);
   ctx.beginPath();
   ctx.moveTo(shipX, shipY);
-  ctx.lineTo(destX, destY);
+  const t1 = 0.3;
+  const p1x = (1-t1)*(1-t1)*shipX + 2*(1-t1)*t1*ctrlX + t1*t1*destX;
+  const p1y = (1-t1)*(1-t1)*shipY + 2*(1-t1)*t1*ctrlY + t1*t1*destY;
+  ctx.quadraticCurveTo(
+    shipX + (ctrlX - shipX) * 0.6,
+    shipY + (ctrlY - shipY) * 0.6,
+    p1x, p1y
+  );
   ctx.stroke();
+
+  // Phase 2: Coast phase (30-70%)
+  ctx.strokeStyle = '#44cccc'; // Cyan
+  ctx.setLineDash([8, 4]);
+  ctx.beginPath();
+  ctx.moveTo(p1x, p1y);
+  const t2 = 0.7;
+  const p2x = (1-t2)*(1-t2)*shipX + 2*(1-t2)*t2*ctrlX + t2*t2*destX;
+  const p2y = (1-t2)*(1-t2)*shipY + 2*(1-t2)*t2*ctrlY + t2*t2*destY;
+  ctx.quadraticCurveTo(ctrlX, ctrlY, p2x, p2y);
+  ctx.stroke();
+
+  // Phase 3: Arrival phase (70-100%)
+  ctx.strokeStyle = '#44cc44'; // Green
   ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(p2x, p2y);
+  ctx.quadraticCurveTo(
+    p2x + (destX - p2x) * 0.4,
+    p2y + (destY - p2y) * 0.4,
+    destX, destY
+  );
+  ctx.stroke();
+
+  // Draw destination marker
+  ctx.fillStyle = '#44cc44';
+  ctx.beginPath();
+  ctx.arc(destX, destY, baseWidth * 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.setLineDash([]);
+}
+
+/**
+ * AR-263: Refresh ship position on map based on location ID
+ * Called after travel completes to update ship icon position
+ * @param {string} locationId - New location ID
+ * @param {string} shipName - Ship name to display
+ */
+function refreshShipMapPosition(locationId, shipName = 'Party Ship') {
+  const system = systemMapState.system;
+  if (!system) return;
+
+  let shipData = {
+    name: shipName,
+    position: { x: 5, y: 0, z: 0 },
+    heading: 0
+  };
+
+  // Find location in system
+  if (locationId && system.locations) {
+    const location = system.locations.find(l => l.id === locationId);
+    if (location?.linkedTo) {
+      // Find linked celestial body
+      const body = system.celestialObjects?.find(o => o.id === location.linkedTo);
+      if (body) {
+        const bodyOrbitAU = body.orbitAU || 0;
+        const locationOrbitKm = location.orbitKm || 0;
+        const locationOrbitAU = locationOrbitKm / 149597870.7;
+
+        shipData.locationInfo = {
+          linkedBodyOrbitAU: bodyOrbitAU,
+          offsetAU: locationOrbitAU,
+          offsetBearing: location.bearing || 0
+        };
+        console.log(`[AR-263] Ship moved to ${locationId}: tracking body at ${bodyOrbitAU.toFixed(2)}AU`);
+      }
+    }
+  }
+
+  updateShipPosition(shipData);
 }
 
 // Expose ship functions globally
@@ -3250,6 +3814,7 @@ window.toggleRangeBands = toggleRangeBands;
 window.setMapDestination = setMapDestination;
 window.shipMapState = shipMapState;
 window.resizeSystemMapCanvas = resizeCanvas;
+window.refreshShipMapPosition = refreshShipMapPosition;
 // AR-36: Goldilocks zone and navigation
 window.toggleGoldilocksZone = toggleGoldilocksZone;
 window.goToObject = goToObject;
