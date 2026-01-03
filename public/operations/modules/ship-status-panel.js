@@ -1,7 +1,10 @@
 /**
  * AR-164: Ship Status Panel
  * Displays ship cutaway diagram with dynamic health indicators
+ * AR-289: Added per-ship-type diagram support (SVG or ASCII art)
  */
+
+import { getShipAsciiArtLarge } from './ascii-art.js';
 
 console.log('[ShipStatusPanel] Module loading...');
 
@@ -11,7 +14,9 @@ const shipStatusState = {
   svgDoc: null,
   visible: true,
   shipData: null,
-  currentState: null
+  currentState: null,
+  shipType: null,
+  usingAscii: false
 };
 
 // System status mapping (system name -> SVG element ID)
@@ -36,66 +41,105 @@ const STATUS_COLORS = {
 /**
  * Initialize the ship status panel
  * @param {HTMLElement} container - Container element for the panel
+ * @param {string} shipType - Ship type (e.g., 'scout', 'q_ship')
  */
-function initShipStatusPanel(container) {
+function initShipStatusPanel(container, shipType = 'q_ship') {
   if (!container) {
     console.warn('[ShipStatusPanel] No container provided');
     return;
   }
 
   shipStatusState.container = container;
+  shipStatusState.shipType = shipType;
 
-  // Load SVG into container
-  loadShipSVG();
+  // Load diagram (SVG or ASCII art fallback)
+  loadShipDiagram(shipType);
 
-  console.log('[ShipStatusPanel] Initialized');
+  console.log('[ShipStatusPanel] Initialized with ship type:', shipType);
 }
 
 /**
- * Load the ship cutaway SVG
+ * SVG paths for ship types
  */
-async function loadShipSVG() {
+const SHIP_SVG_PATHS = {
+  'q_ship': '/img/q-ship-diagram-sideview.svg',
+  // Add more SVG paths as they become available
+};
+
+/**
+ * Load ship diagram (SVG or ASCII art fallback)
+ * @param {string} shipType - Ship type identifier
+ */
+async function loadShipDiagram(shipType) {
   const container = shipStatusState.container;
   if (!container) return;
 
-  try {
-    // Create object element to load SVG (allows styling)
-    const svgPath = '/img/q-ship-diagram-sideview.svg';
+  const normalizedType = shipType?.toLowerCase().replace(/[- /]/g, '_') || 'q_ship';
+  const svgPath = SHIP_SVG_PATHS[normalizedType];
 
-    // Fetch SVG content directly for inline embedding
-    const response = await fetch(svgPath);
-    if (!response.ok) {
-      throw new Error(`Failed to load SVG: ${response.status}`);
+  // Try SVG first if available
+  if (svgPath) {
+    try {
+      const response = await fetch(svgPath);
+      if (response.ok) {
+        const svgText = await response.text();
+        container.innerHTML = svgText;
+        shipStatusState.svgDoc = container.querySelector('svg');
+
+        if (shipStatusState.svgDoc) {
+          shipStatusState.svgDoc.style.width = '100%';
+          shipStatusState.svgDoc.style.height = '100%';
+          shipStatusState.svgDoc.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+          shipStatusState.usingAscii = false;
+
+          const label = document.createElement('div');
+          label.className = 'ship-panel-label';
+          label.innerHTML = '<span class="panel-label-text">SHIP PANEL</span>';
+          container.appendChild(label);
+
+          console.log('[ShipStatusPanel] SVG loaded for', normalizedType);
+          setupDebugMonitor(container);
+          return;
+        }
+      }
+    } catch (err) {
+      console.log('[ShipStatusPanel] SVG not available for', normalizedType, '- trying ASCII');
     }
+  }
 
-    const svgText = await response.text();
-    container.innerHTML = svgText;
-
-    // Get SVG document
-    shipStatusState.svgDoc = container.querySelector('svg');
-
-    if (shipStatusState.svgDoc) {
-      // Make SVG responsive
-      shipStatusState.svgDoc.style.width = '100%';
-      shipStatusState.svgDoc.style.height = '100%';
-      shipStatusState.svgDoc.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-
-      // AR-167: Add panel label
-      const label = document.createElement('div');
-      label.className = 'ship-panel-label';
-      label.innerHTML = '<span class="panel-label-text">SHIP PANEL</span>';
-      container.appendChild(label);
-
-      console.log('[ShipStatusPanel] SVG loaded successfully');
-    }
-  } catch (err) {
-    console.error('[ShipStatusPanel] Failed to load SVG:', err);
+  // Fallback to ASCII art
+  const asciiArt = getShipAsciiArtLarge(normalizedType);
+  if (asciiArt) {
     container.innerHTML = `
-      <div class="ship-status-error">
-        <p>Ship diagram unavailable</p>
+      <div class="ship-ascii-diagram">
+        <pre class="ship-ascii-art">${asciiArt}</pre>
+        <div class="ship-panel-label">
+          <span class="panel-label-text">SHIP PANEL</span>
+        </div>
       </div>
     `;
+    shipStatusState.svgDoc = null;
+    shipStatusState.usingAscii = true;
+    console.log('[ShipStatusPanel] ASCII art loaded for', normalizedType);
+    setupDebugMonitor(container);
+    return;
   }
+
+  // Final fallback - no diagram
+  console.warn('[ShipStatusPanel] No diagram available for', normalizedType);
+  container.innerHTML = `
+    <div class="ship-status-error">
+      <p>Ship diagram unavailable</p>
+    </div>
+  `;
+}
+
+/**
+ * Load the ship cutaway SVG (legacy function, calls loadShipDiagram)
+ * @deprecated Use loadShipDiagram instead
+ */
+async function loadShipSVG() {
+  return loadShipDiagram(shipStatusState.shipType || 'q_ship');
 }
 
 /**
@@ -266,6 +310,17 @@ function refreshShipStatus(ship) {
   shipStatusState.shipData = ship.ship_data;
   shipStatusState.currentState = ship.current_state;
 
+  // AR-FIX: Reload diagram if ship type changed
+  const newType = ship.ship_data?.type || ship.template_id || 'q_ship';
+  const normalizedNew = newType.toLowerCase().replace(/[- /]/g, '_');
+  const normalizedCurrent = (shipStatusState.shipType || 'q_ship').toLowerCase().replace(/[- /]/g, '_');
+
+  if (normalizedNew !== normalizedCurrent) {
+    console.log('[ShipStatusPanel] Ship type changed:', normalizedCurrent, '→', normalizedNew);
+    shipStatusState.shipType = newType;
+    loadShipDiagram(newType);
+  }
+
   const state = ship.current_state || {};
 
   // Update hull
@@ -299,6 +354,70 @@ function destroyShipStatusPanel() {
   shipStatusState.container = null;
   shipStatusState.svgDoc = null;
   console.log('[ShipStatusPanel] Destroyed');
+}
+
+/**
+ * DEBUG: Monitor for layout issues - sends to server via socket
+ */
+function setupDebugMonitor(container) {
+  // Helper to send log to server
+  const sendLog = (level, message, meta) => {
+    console.warn(message, meta);
+    if (window.state?.socket) {
+      window.state.socket.emit('client:log', { level, message, meta });
+    }
+  };
+
+  // Monitor scroll events
+  container.addEventListener('scroll', () => {
+    sendLog('warn', '[ShipStatusPanel] SCROLL EVENT', {
+      scrollTop: container.scrollTop,
+      scrollLeft: container.scrollLeft
+    });
+  });
+
+  // Monitor parent scroll
+  const parent = container.parentElement;
+  if (parent) {
+    parent.addEventListener('scroll', () => {
+      sendLog('warn', '[ShipStatusPanel] PARENT SCROLL', {
+        scrollTop: parent.scrollTop,
+        scrollLeft: parent.scrollLeft
+      });
+    });
+  }
+
+  // ResizeObserver to detect size changes
+  const resizeObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const { width, height } = entry.contentRect;
+      sendLog('info', '[ShipStatusPanel] RESIZE', { width, height });
+    }
+  });
+  resizeObserver.observe(container);
+
+  // MutationObserver to detect DOM changes
+  const mutationObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+        sendLog('warn', '[ShipStatusPanel] STYLE CHANGED', {
+          style: container.getAttribute('style')
+        });
+      }
+      if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        sendLog('info', '[ShipStatusPanel] NODES ADDED', {
+          count: mutation.addedNodes.length
+        });
+      }
+    }
+  });
+  mutationObserver.observe(container, {
+    attributes: true,
+    childList: true,
+    attributeFilter: ['style', 'class']
+  });
+
+  sendLog('info', '[ShipStatusPanel] Debug monitor installed', {});
 }
 
 // Exports

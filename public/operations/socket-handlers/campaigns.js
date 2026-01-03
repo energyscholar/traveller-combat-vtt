@@ -106,13 +106,25 @@ function handlePlayerSlotDeleted(data, state, helpers) {
 // ==================== Solo Explorer (AR-241) ====================
 
 function handleSoloCampaignCreated(data, state, helpers) {
+  // AR-241 BUG 4 fix: Validate data before proceeding
+  if (!data || !data.campaign) {
+    helpers.showNotification('Failed to create solo campaign. Please try again.', 'error');
+    return;
+  }
+
+  if (!data.ship || !data.ship.id) {
+    helpers.showNotification('Failed to create ship. Please try again.', 'error');
+    return;
+  }
+
   state.campaign = data.campaign;
   state.ships = [data.ship];
+  state.ship = data.ship;  // AR-FIX: Set current ship for bridge screen
   state.isGM = true;
   state.isSolo = true;
 
   // Auto-select the Scout ship
-  state.selectedShipId = data.ship?.id;
+  state.selectedShipId = data.ship.id;
   state.selectedRole = 'captain';  // Solo player starts as captain
 
   // Go directly to bridge (skip GM setup)
