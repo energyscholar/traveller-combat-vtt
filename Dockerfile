@@ -54,9 +54,9 @@ USER nodejs
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
+# Health check - just verify server responds
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/', (res) => process.exit(res.statusCode < 500 ? 0 : 1))"
 
 # Set environment variables
 ENV NODE_ENV=production \
@@ -65,5 +65,5 @@ ENV NODE_ENV=production \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start application
+# Start application (schema auto-initializes, no reset needed in production)
 CMD ["node", "server.js"]

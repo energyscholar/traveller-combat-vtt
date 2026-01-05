@@ -116,3 +116,5 @@ marketing-screenshots/
 # TravellerMap cache (fixtures are ok, cache is not)
 data/map-cache/
 
+auth-railway.md
+auth-flyio.md

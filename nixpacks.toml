@@ -1,0 +1,7 @@
+# Railway/Nixpacks configuration for better-sqlite3 native module
+
+[phases.setup]
+nixPkgs = ["python3", "gcc", "gnumake"]
+
+[phases.install]
+cmds = ["npm ci"]
