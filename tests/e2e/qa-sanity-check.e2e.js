@@ -70,6 +70,44 @@ async function runTests() {
       : false;
     console.log(`  Login screen visible: ${loginVisible}`);
 
+    // ==================== TEST 1.5: Campaign List Validation ====================
+    console.log('\nTEST 1.5: Campaign List Validation (No Duplicates)');
+
+    // Click Player Login to see campaign list
+    const playerBtn = await page.$('#btn-player-login');
+    if (playerBtn) {
+      await playerBtn.click();
+      await sleep(1500);
+
+      // Get campaign list content
+      const campaignListEl = await page.$('#campaign-codes-list');
+      const campaignListHtml = campaignListEl
+        ? await page.evaluate(el => el.innerHTML, campaignListEl)
+        : '';
+
+      // Count occurrences of "Solo Demo Campaign"
+      const soloDemoMatches = (campaignListHtml.match(/Solo Demo Campaign/g) || []).length;
+      console.log(`  Solo Demo Campaign occurrences: ${soloDemoMatches}`);
+      assert(soloDemoMatches === 1, `Exactly 1 Solo Demo Campaign (found ${soloDemoMatches})`);
+
+      // Check for Tuesday/Spinward campaign
+      const hasTuesdayCampaign = campaignListHtml.includes('Tuesday') ||
+                                  campaignListHtml.includes('Spinward Marches') ||
+                                  campaignListHtml.includes('Travelling');
+      console.log(`  Tuesday/Spinward campaign found: ${hasTuesdayCampaign}`);
+      // Note: This is a soft check - Tuesday campaign may not exist in all environments
+      if (!hasTuesdayCampaign) {
+        console.log('  ⚠ Warning: No Tuesday/Spinward Marches campaign found (may be expected in fresh environments)');
+      }
+
+      // Go back to main login
+      const backBtn = await page.$('#btn-back-player');
+      if (backBtn) {
+        await backBtn.click();
+        await sleep(500);
+      }
+    }
+
     // ==================== TEST 2: Join Solo Demo ====================
     console.log('\nTEST 2: Join Solo Demo Campaign');
 
