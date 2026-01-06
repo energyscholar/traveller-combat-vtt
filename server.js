@@ -137,8 +137,10 @@ server.listen(config.server.port, () => {
   log.info('========================================');
 
   // AR-289: Initialize solo demo campaign after all modules loaded
-  const { initSoloDemo } = require('./lib/operations/database');
+  // AR-300.2: Initialize Tuesday campaign after all modules loaded
+  const { initSoloDemo, initTuesdayCampaign } = require('./lib/operations/database');
   initSoloDemo();
+  initTuesdayCampaign();
 });
 
 // Graceful shutdown
