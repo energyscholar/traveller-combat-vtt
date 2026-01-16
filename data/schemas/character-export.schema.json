@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://traveller-combat-vtt.example.com/schemas/character-export.schema.json",
+  "$id": "https://traveller-starship-operations-vtt.example.com/schemas/character-export.schema.json",
   "title": "Character Export",
   "description": "Complete Traveller character including characteristics, skills, career history, equipment, and current state",
   "type": "object",

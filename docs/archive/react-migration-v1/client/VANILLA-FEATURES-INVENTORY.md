@@ -1,7 +1,7 @@
 # Vanilla App.js Feature Inventory
 
 **Created:** 2025-11-28
-**Source:** `/home/bruce/software/traveller-combat-vtt/public/app.js` (1,857 LOC)
+**Source:** `/home/bruce/software/traveller-starship-operations-vtt/public/app.js` (1,857 LOC)
 **Purpose:** Complete inventory of vanilla features for React migration planning
 
 ---

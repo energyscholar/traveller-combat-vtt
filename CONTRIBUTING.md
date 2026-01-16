@@ -33,12 +33,12 @@ This project adheres to the [Contributor Covenant Code of Conduct](CODE_OF_CONDU
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/traveller-combat-vtt.git
-   cd traveller-combat-vtt
+   git clone https://github.com/YOUR-USERNAME/traveller-starship-operations-vtt.git
+   cd traveller-starship-operations-vtt
    ```
 3. Add upstream remote:
    ```bash
-   git remote add upstream https://github.com/ORIGINAL-OWNER/traveller-combat-vtt.git
+   git remote add upstream https://github.com/ORIGINAL-OWNER/traveller-starship-operations-vtt.git
    ```
 
 ## Development Setup
@@ -67,7 +67,7 @@ npm run dev
 ## Project Structure
 
 ```
-traveller-combat-vtt/
+traveller-starship-operations-vtt/
 ├── lib/              # Core game logic and mechanics
 │   ├── combat.js     # Combat resolution engine
 │   ├── ship.js       # Ship model and validation
@@ -316,7 +316,7 @@ Brief description of changes
 
 ### Before Reporting
 
-1. Check existing [Issues](https://github.com/OWNER/traveller-combat-vtt/issues)
+1. Check existing [Issues](https://github.com/OWNER/traveller-starship-operations-vtt/issues)
 2. Verify bug exists in latest version
 3. Test in clean environment if possible
 

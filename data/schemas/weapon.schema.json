@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://traveller-combat-vtt/schemas/weapon.schema.json",
+  "$id": "https://traveller-starship-operations-vtt/schemas/weapon.schema.json",
   "title": "Weapon Definition",
   "description": "Traveller ship weapon specification",
   "type": "object",

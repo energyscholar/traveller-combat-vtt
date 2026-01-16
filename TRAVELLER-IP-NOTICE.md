@@ -37,7 +37,7 @@ This tool is meant to **enhance** the Traveller experience and **encourage** new
 - Discuss licensing arrangements if you wish to adopt or modify this tool
 - Collaborate on an official version, if that interests you
 
-**Contact:** Via GitHub issues at: https://github.com/energyscholar/traveller-combat-vtt/issues
+**Contact:** Via GitHub issues at: https://github.com/energyscholar/traveller-starship-operations-vtt/issues
 
 We will respond within 24 hours and comply with any requests.
 
@@ -121,4 +121,4 @@ All trademarks, copyrights, and intellectual property belong to their respective
 
 **Last Updated:** 2025-11-08
 **License:** MIT (see LICENSE file)
-**Contact:** https://github.com/energyscholar/traveller-combat-vtt/issues
+**Contact:** https://github.com/energyscholar/traveller-starship-operations-vtt/issues

@@ -1,6 +1,6 @@
 # Fly.io configuration for Traveller Starship Operations
 
-app = 'traveller-combat-vtt'
+app = 'traveller-starship-operations-vtt'
 primary_region = 'sjc'
 
 [build]

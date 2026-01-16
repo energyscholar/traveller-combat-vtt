@@ -41,7 +41,7 @@ Instead of static documentation or boring step-by-step instructions, the Tutoria
   <a href="/about.html">About</a> •
   <a href="/about-author.html">About the Author</a> •
   <a href="#" id="tutorial-toggle" data-test-id="tutorial-toggle">🎓 Tutorial</a> •
-  <a href="https://github.com/energyscholar/traveller-combat-vtt" target="_blank">GitHub</a>
+  <a href="https://github.com/energyscholar/traveller-starship-operations-vtt" target="_blank">GitHub</a>
 </footer>
 ```
 
@@ -1188,7 +1188,7 @@ class TutorialPlayer {
   <a href="/about.html">About</a> •
   <a href="/about-author.html">About the Author</a> •
   <a href="#" id="tutorial-toggle" onclick="showTutorialMenu()">🎓 Tutorial</a> •
-  <a href="https://github.com/energyscholar/traveller-combat-vtt" target="_blank">GitHub</a>
+  <a href="https://github.com/energyscholar/traveller-starship-operations-vtt" target="_blank">GitHub</a>
 </footer>
 
 <script>

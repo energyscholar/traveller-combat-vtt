@@ -1,6 +1,6 @@
 # Traveller VTT for Starship Operations
 
-[![Test Status](https://img.shields.io/badge/tests-392%20passing-brightgreen)](https://github.com/energyscholar/traveller-combat-vtt)
+[![Test Status](https://img.shields.io/badge/tests-392%20passing-brightgreen)](https://github.com/energyscholar/traveller-starship-operations-vtt)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 
@@ -53,8 +53,8 @@ Traveller VTT is a web-based virtual tabletop for **Mongoose Traveller 2nd Editi
 
 ```bash
 # Clone the repository
-git clone https://github.com/energyscholar/traveller-combat-vtt.git
-cd traveller-combat-vtt
+git clone https://github.com/energyscholar/traveller-starship-operations-vtt.git
+cd traveller-starship-operations-vtt
 
 # Install dependencies
 npm install
@@ -197,7 +197,7 @@ npm run cleanup
 ## Project Structure
 
 ```
-traveller-combat-vtt/
+traveller-starship-operations-vtt/
 ├── lib/                      # Core game logic (98 files)
 │   ├── operations/           # Operations layer (campaigns, accounts, database)
 │   ├── socket-handlers/      # Socket.io event handlers

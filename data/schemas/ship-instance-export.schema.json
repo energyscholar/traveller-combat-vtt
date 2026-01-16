@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://traveller-combat-vtt.example.com/schemas/ship-instance-export.schema.json",
+  "$id": "https://traveller-starship-operations-vtt.example.com/schemas/ship-instance-export.schema.json",
   "title": "Ship Instance Export",
   "description": "Complete ship instance including current battle state, damage, crew, and customizations. Based on ship template with runtime state.",
   "type": "object",

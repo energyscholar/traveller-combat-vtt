@@ -141,7 +141,7 @@ Final range: Medium | Missiles fired: 37
 ## How to Run This Demo
 
 ```bash
-cd traveller-combat-vtt
+cd traveller-starship-operations-vtt
 npm run demo
 # Select option [5] Q-Ship Fleet vs Pirate Fleet
 ```

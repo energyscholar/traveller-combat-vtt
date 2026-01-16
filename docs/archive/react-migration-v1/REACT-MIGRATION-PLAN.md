@@ -53,7 +53,7 @@
 
 ### File Structure
 ```
-traveller-combat-vtt/
+traveller-starship-operations-vtt/
 ├── server.js                 # Backend (NO CHANGES)
 ├── lib/                      # Backend libs (NO CHANGES)
 ├── config.js                 # Backend config (NO CHANGES)

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://traveller-combat-vtt.example.com/schemas/battle-state-export.schema.json",
+  "$id": "https://traveller-starship-operations-vtt.example.com/schemas/battle-state-export.schema.json",
   "title": "Battle State Export",
   "description": "Complete combat scenario state including all ships, environment, turn sequence, and history",
   "type": "object",

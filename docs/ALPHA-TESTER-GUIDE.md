@@ -8,7 +8,7 @@
 
 ## Production URL
 
-### https://traveller-combat-vtt.fly.dev/operations
+### https://traveller-starship-operations-vtt.fly.dev/operations
 
 ---
 
@@ -84,7 +84,7 @@ A virtual tabletop (VTT) for running Traveller RPG starship operations. Players 
 ## How to Test
 
 ### Solo Demo (Recommended First)
-1. Go to https://traveller-combat-vtt.fly.dev/operations
+1. Go to https://traveller-starship-operations-vtt.fly.dev/operations
 2. Click **"Solo Demo"** button
 3. You'll join as Captain of the Scout ship "Far Horizon" at Mora
 4. Explore the bridge interface
