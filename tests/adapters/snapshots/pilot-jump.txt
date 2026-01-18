@@ -1,0 +1,11 @@
+[PLT] PILOT [IN JUMP]
+
+  Location     Jump Space
+  Destination  None
+  Thrust       2G / 2G
+  Heading      Holding
+  Jump Time    5d 0h
+
+Actions:
+  [SET DEST] Cannot navigate
+  [EVASIVE] No contacts to evade

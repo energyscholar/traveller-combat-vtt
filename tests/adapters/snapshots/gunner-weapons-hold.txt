@@ -1,0 +1,13 @@
+[GUN] GUNNER [WEAPONS HOLD]
+
+  Turret       Turret 1
+  Weapons      1 weapon
+  Targets      1 target
+  Target       Contact-1
+  Range        medium
+  Hit Chance   28%
+  Range DM     -1
+
+Actions:
+  [FIRE] Weapons not authorized
+  [SELECT TARGET]

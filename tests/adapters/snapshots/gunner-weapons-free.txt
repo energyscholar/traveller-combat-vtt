@@ -1,0 +1,13 @@
+[GUN] GUNNER [WEAPONS FREE]
+
+  Turret       Turret 1
+  Weapons      1 weapon
+  Targets      1 target
+  Target       Hostile-1
+  Range        short
+  Hit Chance   42%
+  Range DM     +0
+
+Actions:
+  [FIRE]
+  [SELECT TARGET]

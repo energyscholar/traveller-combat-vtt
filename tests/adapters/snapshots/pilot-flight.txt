@@ -1,0 +1,10 @@
+[PLT] PILOT [FLIGHT]
+
+  Location     Mora Highport
+  Destination  Rhylanor
+  Thrust       2G / 2G
+  Heading      Holding
+
+Actions:
+  [SET DEST]
+  [EVASIVE] No contacts to evade

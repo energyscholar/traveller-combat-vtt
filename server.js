@@ -59,8 +59,10 @@ if (config.server.disableCache) {
 }
 
 // Static files
-app.use(express.static('public/operations'));
-app.use('/operations', express.static('public/operations'));
+// URL SWAP: V2 is now default, V1 moved to /operations/legacy
+app.use('/operations/legacy', express.static('public/operations'));
+app.use(express.static('public/operations-v2'));
+app.use('/operations', express.static('public/operations-v2'));
 app.use('/lib', express.static('lib'));
 app.use('/data', express.static('data'));
 app.use(express.json());

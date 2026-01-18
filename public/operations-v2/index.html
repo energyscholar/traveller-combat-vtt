@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operations VTT - V2</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+      <div class="login-container">
+        <h1 class="title">Traveller Starship Operations</h1>
+        <p class="subtitle">V2 Interface - ViewModel Architecture</p>
+
+        <div class="login-options">
+          <button id="btn-gm-login" class="btn btn-primary btn-large" data-action="gmLogin">
+            GM Login
+          </button>
+          <button id="btn-player-login" class="btn btn-secondary btn-large" data-action="playerLogin">
+            Player Login
+          </button>
+          <button id="btn-solo-demo" class="btn btn-accent btn-large" data-action="soloDemo">
+            Solo Demo Campaign
+          </button>
+        </div>
+
+        <!-- Campaign Select (GM) -->
+        <div id="campaign-select" class="hidden">
+          <h2>Select Campaign</h2>
+          <div id="campaign-list" class="campaign-list">
+            <!-- Populated dynamically -->
+          </div>
+          <div class="campaign-buttons">
+            <button id="btn-create-campaign" class="btn btn-success" data-action="createCampaign">
+              + Create New Campaign
+            </button>
+          </div>
+          <button id="btn-back-login" class="btn btn-link" data-action="backToLogin">Back</button>
+        </div>
+
+        <!-- Player Select -->
+        <div id="player-select" class="hidden">
+          <h2>Join Campaign</h2>
+          <div class="form-group">
+            <label for="campaign-code">Campaign Code:</label>
+            <input type="text" id="campaign-code" class="campaign-code-input" placeholder="Enter campaign code">
+            <!-- Alias for parity test compatibility -->
+            <input type="hidden" id="campaign-code-input" data-alias="campaign-code">
+          </div>
+          <button id="btn-join-campaign" class="btn btn-primary" data-action="joinCampaign">
+            Join as Player
+          </button>
+          <button id="btn-back-player" class="btn btn-link" data-action="backToLogin">Back</button>
+        </div>
+
+        <!-- Player Slot Select -->
+        <div id="player-slot-select" class="hidden">
+          <h2>Select Your Slot</h2>
+          <div id="player-slot-list" class="slot-list">
+            <!-- Populated dynamically -->
+          </div>
+          <button id="btn-back-player-slot" class="btn btn-link" data-action="backToPlayerSelect">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GM Setup Screen -->
+    <div id="gm-setup-screen" class="screen">
+      <header class="header">
+        <h1 id="gm-campaign-name">Campaign Setup</h1>
+        <div class="header-actions">
+          <button id="btn-gm-logout" class="btn btn-link" data-action="logout">Logout</button>
+        </div>
+      </header>
+
+      <div class="gm-setup-container">
+        <section class="setup-section">
+          <h2>Campaign Code</h2>
+          <div class="campaign-code-display">
+            <code id="campaign-code-value">--------</code>
+            <button id="btn-copy-code" class="btn btn-small" data-action="copyCode">Copy</button>
+          </div>
+        </section>
+
+        <section class="setup-section">
+          <h2>Ship Selection</h2>
+          <div id="ship-select-list" class="ship-list">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <section class="setup-section">
+          <h2>Player Slots</h2>
+          <div id="gm-slot-list" class="slot-list">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <div class="setup-actions">
+          <button id="btn-start-session" class="btn btn-primary btn-large" data-action="startSession">
+            Start Session
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Setup Screen -->
+    <div id="player-setup-screen" class="screen">
+      <header class="header">
+        <h1 id="player-campaign-name">Joining Campaign</h1>
+        <div class="header-actions">
+          <button id="btn-player-logout" class="btn btn-link" data-action="logout">Leave</button>
+        </div>
+      </header>
+
+      <div class="player-setup-container">
+        <section class="setup-section">
+          <h2>Available Ships</h2>
+          <div id="ship-select-list" class="ship-list">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <section class="setup-section">
+          <h2>Select Role</h2>
+          <div id="role-select-list" class="role-list">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <div class="setup-actions">
+          <button id="btn-join-bridge" class="btn btn-primary btn-large" data-action="joinBridge" disabled>
+            Join Bridge
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bridge Screen -->
+    <div id="bridge-screen" class="screen">
+      <header class="header bridge-header">
+        <div class="bridge-info">
+          <span id="bridge-ship-name" class="ship-name">Ship Name</span>
+          <span id="bridge-location" class="location">Location</span>
+          <span id="bridge-date" class="date">Date</span>
+        </div>
+        <div id="alert-status" class="alert-status alert-green">
+          <span class="alert-text">Normal</span>
+        </div>
+        <div class="header-actions">
+          <span id="bridge-user-role" class="user-role">Role</span>
+          <span id="bridge-user-name" class="user-name">User</span>
+          <button id="btn-bridge-menu" class="btn btn-icon" data-action="openMenu">☰</button>
+        </div>
+      </header>
+
+      <div class="bridge-layout">
+        <!-- Viewscreen -->
+        <div id="viewscreen" class="viewscreen">
+          <div id="viewscreen-content" class="viewscreen-content">
+            <!-- Map or scene rendered here -->
+          </div>
+        </div>
+
+        <!-- Role Panel -->
+        <div id="role-panel" class="role-panel-container">
+          <!-- Role-specific content rendered here -->
+        </div>
+
+        <!-- Ship Status -->
+        <div id="ship-status" class="ship-status">
+          <div id="hull-status" class="status-bar">
+            <span class="status-label">Hull</span>
+            <div class="status-value" id="hull-value">100%</div>
+          </div>
+          <div id="power-status" class="status-bar">
+            <span class="status-label">Power</span>
+            <div class="status-value" id="power-value">100%</div>
+          </div>
+          <div id="fuel-status" class="status-bar">
+            <span class="status-label">Fuel</span>
+            <div class="status-value" id="fuel-value">100%</div>
+          </div>
+        </div>
+
+        <!-- Crew List -->
+        <div id="crew-list" class="crew-list">
+          <!-- Crew members rendered here -->
+        </div>
+
+        <!-- Contacts Panel -->
+        <div id="contacts-panel" class="contacts-panel sensor-panel">
+          <h3>Contacts</h3>
+          <div id="contact-list" class="contact-list">
+            <!-- Contact items rendered here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection Status -->
+    <div id="connection-status" class="connection-status hidden">
+      <span id="connection-text">Connecting...</span>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="toast hidden">
+      <span id="error-message"></span>
+      <button class="toast-close" data-action="closeToast">×</button>
+    </div>
+  </div>
+
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!-- V2 Modules -->
+  <script src="adapters/gui-renderers.js"></script>
+  <script src="adapters/gui-adapter.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
